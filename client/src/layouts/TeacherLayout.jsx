@@ -1,0 +1,111 @@
+import React, { useState } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import {
+  LayoutDashboard, Users, BookOpen, FileText, UserCog,
+  BarChart3, CreditCard, Trophy, LogOut, Menu, MessageCircle
+} from 'lucide-react';
+import WathbaLogo from '../assets/wathba_logo.png';
+
+const navItems = [
+  { to: '/teacher', icon: LayoutDashboard, label: 'لوحة التحكم', end: true },
+  { to: '/teacher/students', icon: Users, label: 'الطلاب' },
+  { to: '/teacher/courses', icon: BookOpen, label: 'الكورسات' },
+  { to: '/teacher/exams', icon: FileText, label: 'الاختبارات' },
+  { to: '/teacher/assistants', icon: UserCog, label: 'المساعدون' },
+  { to: '/teacher/analytics', icon: BarChart3, label: 'التحليلات' },
+  { to: '/teacher/payments', icon: CreditCard, label: 'المدفوعات' },
+  { to: '/teacher/leaderboard', icon: Trophy, label: 'المتصدرون' },
+];
+
+export default function TeacherLayout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const Sidebar = () => (
+    <div className="flex flex-col h-full">
+      <div className="p-6 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl overflow-hidden bg-white flex-shrink-0 p-0.5">
+            <img src={WathbaLogo} alt="وثبة" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h1 className="text-white font-black text-xl">وثبة</h1>
+            <p className="text-navy-100 text-xs font-medium">منصة تعليمية</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold">
+            {user?.name?.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <p className="text-white font-semibold text-sm truncate">{user?.name}</p>
+            <p className="text-orange-300 text-xs font-medium">{user?.classification || 'معلم'}</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        {navItems.map(({ to, icon: Icon, label, end }) => (
+          <NavLink key={to} to={to} end={end}
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}>
+            <Icon className="w-5 h-5 flex-shrink-0" />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="p-3 border-t border-white/10 space-y-1">
+        {user?.whatsapp_phone && (
+          <a href={`https://wa.me/${user.whatsapp_phone}`} target="_blank" rel="noopener noreferrer"
+            className="sidebar-link">
+            <MessageCircle className="w-5 h-5" />
+            <span>مركز المساعدة</span>
+          </a>
+        )}
+        <button onClick={handleLogout} className="sidebar-link w-full text-red-200 hover:bg-red-500/20 hover:text-red-100">
+          <LogOut className="w-5 h-5" />
+          <span>تسجيل الخروج</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-navy-50 overflow-hidden">
+      <aside className="hidden lg:flex w-64 bg-navy-500 flex-col flex-shrink-0">
+        <Sidebar />
+      </aside>
+
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="w-64 bg-navy-500 flex flex-col"><Sidebar /></div>
+          <div className="flex-1 bg-black/50" onClick={() => setSidebarOpen(false)} />
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
+          <button className="lg:hidden p-2 rounded-lg text-navy-600 hover:bg-gray-100" onClick={() => setSidebarOpen(true)}>
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+            <span className="text-sm text-gray-700 font-medium">متصل</span>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

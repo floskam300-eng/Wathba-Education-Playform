@@ -1,0 +1,125 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const pool = require('../db/connection');
+const { authenticate, requireRole } = require('../middleware/auth');
+
+const router = express.Router();
+router.use(authenticate);
+
+router.get('/', requireRole('teacher'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id,username,name,phone,can_add_students,can_edit_students,can_delete_students,can_manage_exams,can_view_analytics,can_send_reports,created_at FROM assistants WHERE teacher_id=$1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/', requireRole('teacher'), async (req, res) => {
+  const { username, password, name, phone, can_add_students, can_edit_students, can_delete_students, can_manage_exams, can_view_analytics, can_send_reports } = req.body;
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      `INSERT INTO assistants (username,password,name,phone,teacher_id,can_add_students,can_edit_students,can_delete_students,can_manage_exams,can_view_analytics,can_send_reports)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id,username,name,phone,can_add_students,can_edit_students,can_delete_students,can_manage_exams,can_view_analytics,can_send_reports`,
+      [username, hashed, name, phone, req.user.id, can_add_students ?? true, can_edit_students ?? true, can_delete_students ?? false, can_manage_exams ?? true, can_view_analytics ?? true, can_send_reports ?? true]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Username already exists' });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.put('/:id/permissions', requireRole('teacher'), async (req, res) => {
+  const { can_add_students, can_edit_students, can_delete_students, can_manage_exams, can_view_analytics, can_send_reports } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE assistants SET can_add_students=$1,can_edit_students=$2,can_delete_students=$3,can_manage_exams=$4,can_view_analytics=$5,can_send_reports=$6 WHERE id=$7 AND teacher_id=$8 RETURNING id,username,name,can_add_students,can_edit_students,can_delete_students,can_manage_exams,can_view_analytics,can_send_reports',
+      [can_add_students, can_edit_students, can_delete_students, can_manage_exams, can_view_analytics, can_send_reports, req.params.id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Assistant not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/:id', requireRole('teacher'), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM assistants WHERE id=$1 AND teacher_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Assistant not found' });
+    res.json({ message: 'Assistant deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/analytics', requireRole('teacher', 'assistant'), async (req, res) => {
+  try {
+    let teacherId;
+    if (req.user.role === 'teacher') {
+      teacherId = req.user.id;
+    } else {
+      const aRes = await pool.query('SELECT teacher_id FROM assistants WHERE id=$1', [req.user.id]);
+      if (!aRes.rows.length) return res.status(404).json({ error: 'Assistant not found' });
+      teacherId = aRes.rows[0].teacher_id;
+    }
+
+    const [examResults, topStudents, recentResults, stageStats] = await Promise.all([
+      pool.query(`
+        SELECT e.title, AVG(er.score) as avg_score, COUNT(er.id) as attempt_count,
+               MAX(er.score) as max_score, MIN(er.score) as min_score, e.total_score
+        FROM exam_results er
+        JOIN exams e ON er.exam_id = e.id
+        WHERE e.teacher_id = $1
+        GROUP BY e.id, e.title, e.total_score
+        ORDER BY attempt_count DESC LIMIT 10
+      `, [teacherId]),
+      pool.query(`
+        SELECT s.id, s.name, s.points, s.academic_stage,
+               COUNT(er.id) as exams_taken, COALESCE(AVG(er.score), 0) as avg_score
+        FROM students s
+        LEFT JOIN exam_results er ON s.id = er.student_id
+        WHERE s.teacher_id = $1
+        GROUP BY s.id, s.name, s.points, s.academic_stage
+        ORDER BY s.points DESC LIMIT 20
+      `, [teacherId]),
+      pool.query(`
+        SELECT er.id, er.score, er.correct_count, er.wrong_count,
+               er.unanswered_count, er.created_at,
+               s.name as student_name, s.academic_stage,
+               e.title as exam_title, e.total_score, e.pass_score
+        FROM exam_results er
+        JOIN students s ON er.student_id = s.id
+        JOIN exams e ON er.exam_id = e.id
+        WHERE e.teacher_id = $1
+        ORDER BY er.created_at DESC LIMIT 30
+        
+      `, [teacherId]),
+      pool.query(`
+        SELECT s.academic_stage, COUNT(s.id) as student_count, COALESCE(AVG(er.score),0) as avg_score
+        FROM students s
+        LEFT JOIN exam_results er ON s.id = er.student_id
+        WHERE s.teacher_id = $1
+        GROUP BY s.academic_stage
+        ORDER BY student_count DESC
+      `, [teacherId]),
+    ]);
+
+    res.json({
+      examResults: examResults.rows,
+      topStudents: topStudents.rows,
+      recentResults: recentResults.rows,
+      stageStats: stageStats.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+module.exports = router;

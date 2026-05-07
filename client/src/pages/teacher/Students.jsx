@@ -1,0 +1,296 @@
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Users, Plus, Pencil, Trash2, Search, Eye, Printer, GraduationCap } from 'lucide-react';
+import Modal from '../../components/ui/Modal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Badge from '../../components/ui/Badge';
+import api from '../../lib/api';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
+import { generatePDFReport } from '../../lib/pdfReport';
+
+const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
+const emptyForm = { username: '', password: '', name: '', phone: '', parent_phone: '', academic_stage: '', gender: '' };
+
+export default function TeacherStudents() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const [search, setSearch] = useState('');
+  const [stageFilter, setStageFilter] = useState('الكل');
+  const [modal, setModal] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [deleteId, setDeleteId] = useState(null);
+  const [viewStudent, setViewStudent] = useState(null);
+
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['students'],
+    queryFn: () => api.get('/students').then(r => r.data),
+  });
+
+  const { data: results = [] } = useQuery({
+    queryKey: ['student-results', viewStudent?.id],
+    queryFn: () => api.get(`/students/${viewStudent?.id}/results`).then(r => r.data),
+    enabled: !!viewStudent,
+  });
+
+  const createMut = useMutation({
+    mutationFn: (data) => api.post('/students', data),
+    onSuccess: () => { qc.invalidateQueries(['students']); toast.success('تم إضافة الطالب'); closeModal(); },
+    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/students/${id}`, data),
+    onSuccess: () => { qc.invalidateQueries(['students']); toast.success('تم تحديث بيانات الطالب'); closeModal(); },
+    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => api.delete(`/students/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['students']); toast.success('تم حذف الطالب'); setDeleteId(null); },
+    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
+  });
+
+  const canAdd = user?.role === 'teacher' || user?.can_add_students;
+  const canEdit = user?.role === 'teacher' || user?.can_edit_students;
+  const canDelete = user?.role === 'teacher' || user?.can_delete_students;
+
+  const openAdd = () => { setEditData(null); setForm(emptyForm); setModal(true); };
+  const openEdit = (s) => { setEditData(s); setForm({ ...s, password: '' }); setModal(true); };
+  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.username || !form.name) return toast.error('اسم المستخدم والاسم مطلوبان');
+    if (!editData && !form.password) return toast.error('كلمة المرور مطلوبة');
+    if (editData) updateMut.mutate({ id: editData.id, data: form });
+    else createMut.mutate(form);
+  };
+
+  // Stage counts for tabs
+  const stageCounts = ['الكل', ...STAGES].reduce((acc, s) => {
+    acc[s] = s === 'الكل' ? students.length : students.filter(st => st.academic_stage === s).length;
+    return acc;
+  }, {});
+
+  const filtered = students.filter(s => {
+    const matchSearch = s.name?.toLowerCase().includes(search.toLowerCase()) ||
+      s.username?.toLowerCase().includes(search.toLowerCase()) ||
+      s.phone?.includes(search);
+    const matchStage = stageFilter === 'الكل' || s.academic_stage === stageFilter;
+    return matchSearch && matchStage;
+  });
+
+  const handlePrint = () => {
+    const headers = ['الاسم', 'اسم المستخدم', 'الهاتف', 'المرحلة', 'النقاط'];
+    const data = filtered.map(s => [
+      s.name, s.username, s.phone || '—', s.academic_stage || '—', s.points.toString()
+    ]);
+    generatePDFReport('تقرير الطلاب', headers, data, 'students_report.pdf');
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
+          <Users className="w-7 h-7 text-orange-500" /> الطلاب
+          <span className="text-sm font-semibold text-gray-600">({students.length})</span>
+        </h1>
+        <div className="flex gap-2">
+          <button onClick={handlePrint} className="btn-secondary flex items-center gap-2">
+            <Printer className="w-4 h-4" /> طباعة
+          </button>
+          {canAdd && (
+            <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+              <Plus className="w-4 h-4" /> إضافة طالب
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="card !p-4">
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="بحث بالاسم أو اسم المستخدم أو الهاتف..."
+            className="input-field pr-10" />
+        </div>
+      </div>
+
+      {/* Stage Filter Tabs */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <GraduationCap className="w-4 h-4 text-gray-500" />
+          <span className="text-xs font-bold text-gray-500">تصفية حسب المرحلة الدراسية</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {['الكل', ...STAGES].map(stage => (
+            <button
+              key={stage}
+              onClick={() => setStageFilter(stage)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+                stageFilter === stage
+                  ? 'bg-navy-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {stage}
+              {stageCounts[stage] > 0 && (
+                <span className={`text-xs rounded-full px-1.5 py-0.5 font-black ${
+                  stageFilter === stage ? 'bg-white/20 text-white' : 'bg-white text-gray-700'
+                }`}>
+                  {stageCounts[stage]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="card !p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead>
+              <tr>
+                <th className="table-header rounded-r-lg">#</th>
+                <th className="table-header">الاسم</th>
+                <th className="table-header">اسم المستخدم</th>
+                <th className="table-header">الهاتف</th>
+                <th className="table-header">المرحلة</th>
+                <th className="table-header">النقاط</th>
+                <th className="table-header">الكورسات</th>
+                <th className="table-header rounded-l-lg">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i}><td colSpan={8} className="table-cell"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={8} className="table-cell text-center py-14">
+                  <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p className="font-medium text-gray-500">
+                    {search || stageFilter !== 'الكل' ? 'لا توجد نتائج مطابقة' : 'لا يوجد طلاب بعد'}
+                  </p>
+                </td></tr>
+              ) : filtered.map((s, i) => (
+                <tr key={s.id} className="table-row">
+                  <td className="table-cell text-gray-600 font-semibold">{i + 1}</td>
+                  <td className="table-cell font-bold text-navy-600">{s.name}</td>
+                  <td className="table-cell font-mono text-sm text-gray-700">{s.username}</td>
+                  <td className="table-cell text-gray-700">{s.phone || '—'}</td>
+                  <td className="table-cell">
+                    <span className="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-1 rounded-full">
+                      {s.academic_stage || '—'}
+                    </span>
+                  </td>
+                  <td className="table-cell"><span className="text-orange-700 font-bold">⭐ {s.points}</span></td>
+                  <td className="table-cell"><Badge variant="info">{s.enrolled_courses || 0} كورس</Badge></td>
+                  <td className="table-cell">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => setViewStudent(s)} className="p-1.5 rounded-lg text-blue-700 hover:bg-blue-50"><Eye className="w-4 h-4" /></button>
+                      {canEdit && (
+                        <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-navy-600 hover:bg-navy-50"><Pencil className="w-4 h-4" /></button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg text-red-700 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add/Edit Modal */}
+      <Modal open={modal} onClose={closeModal} title={editData ? 'تعديل بيانات طالب' : 'إضافة طالب جديد'}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-navy-700 mb-1">الاسم *</label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="الاسم الكامل" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-navy-700 mb-1">اسم المستخدم *</label>
+              <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} className="input-field" placeholder="username" dir="ltr" disabled={!!editData} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-navy-700 mb-1">كلمة المرور {editData ? '(اتركها فارغة للإبقاء)' : '*'}</label>
+            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="input-field" placeholder="••••••••" dir="ltr" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-navy-700 mb-1">هاتف الطالب</label>
+              <input value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} className="input-field" placeholder="01xxxxxxxxx" dir="ltr" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-navy-700 mb-1">هاتف ولي الأمر</label>
+              <input value={form.parent_phone || ''} onChange={e => setForm({ ...form, parent_phone: e.target.value })} className="input-field" placeholder="01xxxxxxxxx" dir="ltr" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-navy-700 mb-1">المرحلة الدراسية</label>
+              <select value={form.academic_stage || ''} onChange={e => setForm({ ...form, academic_stage: e.target.value })} className="input-field">
+                <option value="">اختر المرحلة</option>
+                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-navy-700 mb-1">الجنس</label>
+              <select value={form.gender || ''} onChange={e => setForm({ ...form, gender: e.target.value })} className="input-field">
+                <option value="">اختر</option>
+                <option value="ذكر">ذكر</option>
+                <option value="أنثى">أنثى</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={closeModal} className="flex-1 btn-secondary">إلغاء</button>
+            <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="flex-1 btn-primary">
+              {(createMut.isPending || updateMut.isPending) ? 'جاري الحفظ...' : editData ? 'حفظ التعديلات' : 'إضافة الطالب'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* View Results Modal */}
+      <Modal open={!!viewStudent} onClose={() => setViewStudent(null)} title={`نتائج ${viewStudent?.name}`} size="lg">
+        <div className="space-y-3">
+          {results.length === 0 ? (
+            <p className="text-center text-gray-600 font-medium py-8">لم يؤدِ هذا الطالب أي اختبارات بعد</p>
+          ) : results.map(r => (
+            <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <div>
+                <p className="font-semibold text-navy-600">{r.exam_title}</p>
+                <p className="text-xs text-gray-600 font-medium mt-0.5">{new Date(r.created_at).toLocaleDateString('ar-EG')}</p>
+              </div>
+              <div className="text-left">
+                <p className={`text-lg font-black ${r.score >= r.pass_score ? 'text-green-700' : 'text-red-700'}`}>
+                  {r.score}/{r.total_score}
+                </p>
+                <p className="text-xs text-gray-600 font-medium">✓{r.correct_count} ✗{r.wrong_count}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteMut.mutate(deleteId)}
+        title="حذف الطالب"
+        message="هل أنت متأكد من حذف هذا الطالب نهائياً؟ سيتم حذف جميع بياناته ونتائجه."
+        danger
+      />
+    </div>
+  );
+}

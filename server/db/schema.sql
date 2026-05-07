@@ -1,0 +1,157 @@
+-- WATHBA Educational Platform Schema
+
+CREATE TABLE IF NOT EXISTS teachers (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  bio TEXT,
+  classification VARCHAR(100),
+  logo_url VARCHAR(500),
+  photo_url VARCHAR(500),
+  whatsapp_phone VARCHAR(20),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS assistants (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  phone VARCHAR(20),
+  teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,
+  can_add_students BOOLEAN DEFAULT true,
+  can_edit_students BOOLEAN DEFAULT true,
+  can_delete_students BOOLEAN DEFAULT false,
+  can_manage_exams BOOLEAN DEFAULT true,
+  can_view_analytics BOOLEAN DEFAULT true,
+  can_send_reports BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS students (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  phone VARCHAR(20),
+  parent_phone VARCHAR(20),
+  academic_stage VARCHAR(100),
+  gender VARCHAR(10),
+  teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,
+  points INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS courses (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(300) NOT NULL,
+  description TEXT,
+  price DECIMAL(10,2) DEFAULT 0,
+  teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,
+  thumbnail_url VARCHAR(500),
+  target_stage VARCHAR(100),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS videos (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(300) NOT NULL,
+  file_path_or_url VARCHAR(500),
+  duration_minutes INTEGER DEFAULT 0,
+  course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pdf_files (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(300) NOT NULL,
+  file_url VARCHAR(500),
+  course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS exams (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(300) NOT NULL,
+  duration_minutes INTEGER DEFAULT 60,
+  total_score INTEGER DEFAULT 100,
+  course_id INTEGER REFERENCES courses(id) ON DELETE SET NULL,
+  teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,
+  pass_score INTEGER DEFAULT 50,
+  badge_name VARCHAR(100),
+  badge_color VARCHAR(20) DEFAULT '#FF8C00',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS questions (
+  id SERIAL PRIMARY KEY,
+  question_text TEXT NOT NULL,
+  question_image_url VARCHAR(500),
+  option_a TEXT NOT NULL,
+  option_b TEXT NOT NULL,
+  option_c TEXT,
+  option_d TEXT,
+  correct_answer_letter CHAR(1) NOT NULL,
+  points INTEGER DEFAULT 1,
+  exam_id INTEGER REFERENCES exams(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS exam_results (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  exam_id INTEGER REFERENCES exams(id) ON DELETE CASCADE,
+  score INTEGER DEFAULT 0,
+  correct_count INTEGER DEFAULT 0,
+  wrong_count INTEGER DEFAULT 0,
+  unanswered_count INTEGER DEFAULT 0,
+  start_time TIMESTAMP,
+  end_time TIMESTAMP,
+  answers JSONB,
+  points_earned INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS video_progress (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  video_id INTEGER REFERENCES videos(id) ON DELETE CASCADE,
+  watch_count INTEGER DEFAULT 0,
+  watched_minutes INTEGER DEFAULT 0,
+  progress_percentage DECIMAL(5,2) DEFAULT 0,
+  last_watched_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(student_id, video_id)
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  course_id INTEGER REFERENCES courses(id) ON DELETE SET NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  method VARCHAR(50) NOT NULL,
+  payment_date TIMESTAMP DEFAULT NOW(),
+  status VARCHAR(20) DEFAULT 'pending',
+  reference_number VARCHAR(100),
+  notes TEXT,
+  verified_by INTEGER REFERENCES assistants(id) ON DELETE SET NULL,
+  verified_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS student_course_enrollment (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+  enrollment_date TIMESTAMP DEFAULT NOW(),
+  status VARCHAR(20) DEFAULT 'active',
+  UNIQUE(student_id, course_id)
+);
+
+CREATE TABLE IF NOT EXISTS badges (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  exam_id INTEGER REFERENCES exams(id) ON DELETE CASCADE,
+  badge_name VARCHAR(100),
+  badge_color VARCHAR(20),
+  earned_at TIMESTAMP DEFAULT NOW()
+);

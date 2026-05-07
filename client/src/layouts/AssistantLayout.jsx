@@ -1,0 +1,102 @@
+import React, { useState, useMemo } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { LayoutDashboard, Users, LogOut, Menu, FileText, BarChart3 } from 'lucide-react';
+import WathbaLogo from '../assets/wathba_logo.png';
+
+export default function AssistantLayout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const navItems = useMemo(() => {
+    const items = [
+      { to: '/assistant', icon: LayoutDashboard, label: 'لوحة التحكم', end: true },
+    ];
+
+    if (user?.role === 'assistant') {
+      items.push({ to: '/assistant/students', icon: Users, label: 'الطلاب' });
+
+      if (user?.can_manage_exams) {
+        items.push({ to: '/assistant/exams', icon: FileText, label: 'الاختبارات' });
+      }
+
+      if (user?.can_view_analytics) {
+        items.push({ to: '/assistant/analytics', icon: BarChart3, label: 'التحليلات' });
+      }
+
+    }
+    return items;
+  }, [user]);
+
+  const Sidebar = () => (
+    <div className="flex flex-col h-full">
+      <div className="p-6 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl overflow-hidden bg-white flex-shrink-0 p-0.5">
+            <img src={WathbaLogo} alt="وثبة" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h1 className="text-white font-black text-xl">وثبة</h1>
+            <p className="text-navy-100 text-xs font-medium">لوحة المساعد</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold">
+            {user?.name?.charAt(0)}
+          </div>
+          <div>
+            <p className="text-white font-semibold text-sm">{user?.name}</p>
+            <p className="text-orange-300 text-xs font-medium">مساعد</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-3 space-y-1">
+        {navItems.map(({ to, icon: Icon, label, end }) => (
+          <NavLink key={to} to={to} end={end}
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}>
+            <Icon className="w-5 h-5" />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="p-3 border-t border-white/10">
+        <button onClick={handleLogout} className="sidebar-link w-full text-red-200 hover:bg-red-500/20 hover:text-red-100">
+          <LogOut className="w-5 h-5" />
+          <span>تسجيل الخروج</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-navy-50 overflow-hidden">
+      <aside className="hidden lg:flex w-64 bg-navy-500 flex-col flex-shrink-0">
+        <Sidebar />
+      </aside>
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="w-64 bg-navy-500 flex flex-col"><Sidebar /></div>
+          <div className="flex-1 bg-black/50" onClick={() => setSidebarOpen(false)} />
+        </div>
+      )}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+          <button className="lg:hidden p-2 rounded-lg text-navy-600 hover:bg-gray-100" onClick={() => setSidebarOpen(true)}>
+            <Menu className="w-5 h-5" />
+          </button>
+          <span className="text-sm text-gray-700 font-semibold">لوحة المساعد</span>
+        </header>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6"><Outlet /></main>
+      </div>
+    </div>
+  );
+}
