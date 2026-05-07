@@ -178,15 +178,15 @@
 }
 .player-range-progress {
   background: linear-gradient(
-    to left,
-    rgba(255,255,255,0.2) var(--pct, 0%),
-    #FF8C00 var(--pct, 0%)
+    to right,
+    #FF8C00 var(--pct, 0%),
+    rgba(255,255,255,0.2) var(--pct, 0%)
   );
 }
 .player-range-volume {
   background: linear-gradient(
-    to left,
-    rgba(255,255,255,0.2) var(--vol, 100%),
-    #FF8C00 var(--vol, 100%)
+    to right,
+    #FF8C00 var(--vol, 100%),
+    rgba(255,255,255,0.2) var(--vol, 100%)
   );
 }

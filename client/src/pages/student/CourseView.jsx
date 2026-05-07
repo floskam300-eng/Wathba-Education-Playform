@@ -147,6 +147,7 @@ function VideoPlayer({ video }) {
               max="100"
               step="0.1"
               value={progress}
+              dir="ltr"
               className="player-range player-range-progress"
               style={{ '--pct': pct }}
               onMouseDown={() => { seeking.current = true; }}
@@ -199,6 +200,7 @@ function VideoPlayer({ video }) {
                 max="1"
                 step="0.05"
                 value={muted ? 0 : volume}
+                dir="ltr"
                 className="player-range player-range-volume"
                 style={{ '--vol': vol }}
                 onChange={onVolumeChange}
