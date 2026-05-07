@@ -22,7 +22,7 @@ export default function StudentDashboard() {
             {user?.name?.charAt(0)}
           </div>
           <div>
-            <h1 className="text-xl font-black">مرحباً، {user?.name}!</h1>
+            <h1 className="text-xl font-black text-white">مرحباً، {user?.name}!</h1>
             {/* white/90 on dark navy = ~18:1 ✓ */}
             <p className="text-white/90 text-sm font-medium mt-0.5">{data?.student?.academic_stage || 'طالب'}</p>
             <div className="flex items-center gap-1 mt-2">

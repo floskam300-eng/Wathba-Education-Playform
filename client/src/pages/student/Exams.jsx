@@ -68,12 +68,11 @@ export default function StudentExams() {
     const answered = Object.keys(answers).length;
 
     return (
+      <div className="h-full overflow-y-auto p-4 lg:p-6">
       <div className="space-y-6">
-        {/* Exam header — dark navy bg, all text on dark = high contrast ✓ */}
         <div className="card bg-navy-600 text-white flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-black">{exam.title}</h2>
-            {/* navy-100 on navy-600 = 6.5:1 ✓ */}
+            <h2 className="text-xl font-black text-white">{exam.title}</h2>
             <p className="text-navy-100 text-sm font-medium mt-0.5">{answered}/{questions.length} سؤال أُجيب عليه</p>
           </div>
           {/* red-300 on dark = ~9:1 ✓ | orange-300 on dark = ~5.7:1 ✓ */}
@@ -123,6 +122,7 @@ export default function StudentExams() {
             {submitMut.isPending ? 'جاري الإرسال...' : `تسليم الاختبار (${answered}/${questions.length})`}
           </button>
         </div>
+      </div>
       </div>
     );
   }
