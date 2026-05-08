@@ -74,11 +74,23 @@ export default function ExamReviewPage() {
 
   const { result, questions = [] } = data || {};
 
-  const passed       = result && result.score >= result.pass_score;
-  const pct          = result ? Math.round((result.score / result.total_score) * 100) : 0;
-  const correctCount = questions.filter(q => q.is_correct).length;
-  const wrongCount   = questions.filter(q => !q.is_correct && q.student_answer && q.question_type !== 'essay').length;
-  const skippedCount = questions.filter(q => !q.student_answer && q.question_type !== 'essay').length;
+  const passed = result && result.score >= result.pass_score;
+  const pct    = result ? Math.round((result.score / result.total_score) * 100) : 0;
+
+  // Use detailed answers when available, otherwise fall back to DB-stored counts
+  const hasDetailedAnswers = questions.some(
+    q => q.student_answer !== null && q.student_answer !== '' && q.student_answer !== undefined
+  );
+  const correctCount = hasDetailedAnswers
+    ? questions.filter(q => q.is_correct).length
+    : (result?.correct_count ?? 0);
+  const wrongCount = hasDetailedAnswers
+    ? questions.filter(q => !q.is_correct && q.student_answer && q.question_type !== 'essay').length
+    : (result?.wrong_count ?? 0);
+  const skippedCount = hasDetailedAnswers
+    ? questions.filter(q => !q.student_answer && q.question_type !== 'essay').length
+    : (result?.unanswered_count ?? 0);
+
   const essayQuestions = questions.filter(q => q.question_type === 'essay');
 
   const isTeacher = user?.role === 'teacher' || user?.role === 'assistant';
