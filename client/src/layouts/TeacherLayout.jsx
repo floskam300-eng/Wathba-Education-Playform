@@ -85,37 +85,49 @@ export default function TeacherLayout() {
   );
 
   return (
-    <div className={`flex h-screen overflow-hidden ${dark ? 'bg-slate-900' : 'bg-navy-50'}`}>
-      <aside className="hidden lg:flex w-64 bg-navy-500 flex-col flex-shrink-0">
+    <div className={`flex h-screen overflow-hidden ${dark ? '' : 'bg-navy-50'}`}
+         style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
+      <aside className={`hidden lg:flex w-64 flex-col flex-shrink-0 ${dark ? 'dk-sidebar' : 'bg-navy-500'}`}
+             style={dark ? { background: 'linear-gradient(180deg, #0A1628 0%, #081220 100%)', borderLeft: '1px solid rgba(59,130,246,0.1)' } : {}}>
         <Sidebar />
       </aside>
 
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-navy-500 flex flex-col"><Sidebar /></div>
-          <div className="flex-1 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <div className={`w-64 flex flex-col ${dark ? '' : 'bg-navy-500'}`}
+               style={dark ? { background: 'linear-gradient(180deg, #0A1628 0%, #081220 100%)' } : {}}>
+            <Sidebar />
+          </div>
+          <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
         </div>
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className={`border-b px-4 lg:px-6 py-3 flex items-center justify-between shadow-sm flex-shrink-0 ${dark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <button className={`lg:hidden p-2 rounded-lg ${dark ? 'text-slate-300 hover:bg-slate-700' : 'text-navy-600 hover:bg-gray-100'}`} onClick={() => setSidebarOpen(true)}>
+        <header className={`border-b px-4 lg:px-6 py-3 flex items-center justify-between flex-shrink-0 ${dark ? '' : 'bg-white border-gray-200 shadow-sm'}`}
+                style={dark ? {
+                  backgroundColor: 'var(--dk-surface)',
+                  borderColor: 'var(--dk-border)',
+                  boxShadow: '0 1px 0 var(--dk-border)'
+                } : {}}>
+          <button className={`lg:hidden p-2 rounded-lg transition-colors ${dark ? 'text-[var(--dk-text-2)] hover:bg-[var(--dk-elevated)]' : 'text-navy-600 hover:bg-gray-100'}`}
+                  onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className={`text-sm font-medium ${dark ? 'text-slate-300' : 'text-gray-700'}`}>متصل</span>
+              <span className={`text-sm font-medium ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-700'}`}>متصل</span>
             </div>
             <button onClick={toggle}
-              className={`p-2 rounded-lg transition-all ${dark ? 'text-yellow-400 hover:bg-slate-700' : 'text-navy-600 hover:bg-gray-100'}`}
+              className={`p-2 rounded-lg transition-all ${dark ? 'text-amber-400 hover:bg-[var(--dk-elevated)]' : 'text-navy-600 hover:bg-gray-100'}`}
               title={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}>
               {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6"
+              style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
           <Outlet />
         </main>
       </div>
