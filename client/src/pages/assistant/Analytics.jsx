@@ -5,8 +5,8 @@ import {
   CheckCircle2, XCircle, Clock, Star, ChevronUp, ChevronDown,
   Minus, Eye, Search, Filter, X as XIcon
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import StudentProfileModal from '../../components/ui/StudentProfileModal';
-import ExamReviewModal from '../../components/ui/ExamReviewModal';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -59,11 +59,11 @@ const StatCard = ({ label, value, icon: Icon, gradient, lightBg, textColor, sub 
 );
 
 export default function AssistantAnalytics() {
+  const navigate = useNavigate();
   const [stageFilter, setStageFilter]   = useState('الكل');
   const [sortField, setSortField]       = useState('points');
   const [sortDir, setSortDir]           = useState('desc');
   const [selectedStudentId, setSelectedStudentId] = useState(null);
-  const [reviewResultId, setReviewResultId]       = useState(null);
 
   // Search + extra filters
   const [searchQuery, setSearchQuery]   = useState('');
@@ -171,9 +171,6 @@ export default function AssistantAnalytics() {
     <div className="space-y-6">
       {selectedStudentId && (
         <StudentProfileModal studentId={selectedStudentId} onClose={() => setSelectedStudentId(null)} />
-      )}
-      {reviewResultId && (
-        <ExamReviewModal resultId={reviewResultId} onClose={() => setReviewResultId(null)} />
       )}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -514,7 +511,7 @@ export default function AssistantAnalytics() {
                     </td>
                     <td className="px-4 py-3.5">
                       <button
-                        onClick={() => setReviewResultId(r.id)}
+                        onClick={() => navigate(`/assistant/exam-review/${r.id}`)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors border border-indigo-200 whitespace-nowrap">
                         <Eye className="w-3.5 h-3.5" /> مراجعة
                       </button>

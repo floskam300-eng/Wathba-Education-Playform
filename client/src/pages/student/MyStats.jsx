@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart2, BookOpen, FileText, Award, Star, CreditCard,
   CheckCircle, XCircle, Clock, Play, TrendingUp, Trophy,
@@ -7,7 +8,6 @@ import {
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import ExamReviewModal from '../../components/ui/ExamReviewModal';
 
 const fmt = (n) => new Intl.NumberFormat('ar-EG').format(n);
 const fmtDate = (d) => new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -90,9 +90,9 @@ function ProgressRing({ value, max, size = 80, stroke = 8, color = '#f97316' }) 
 const EXAMS_PAGE = 3;
 
 export default function StudentMyStats() {
-  const { user } = useAuth();
-  const [reviewResultId, setReviewResultId] = useState(null);
-  const [showAllExams, setShowAllExams]     = useState(false);
+  const { user }  = useAuth();
+  const navigate  = useNavigate();
+  const [showAllExams, setShowAllExams] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['student-my-stats'],
@@ -115,9 +115,6 @@ export default function StudentMyStats() {
 
   return (
     <div className="h-full overflow-y-auto p-4 lg:p-6">
-      {reviewResultId && (
-        <ExamReviewModal resultId={reviewResultId} onClose={() => setReviewResultId(null)} />
-      )}
       <div className="space-y-5 max-w-4xl mx-auto">
 
         {/* ── Hero ── */}
@@ -255,7 +252,7 @@ export default function StudentMyStats() {
                               style={{ backgroundColor: r.badge_color || '#f97316' }}>🏅 {r.badge_name}</span>
                           )}
                           <button
-                            onClick={() => setReviewResultId(r.id)}
+                            onClick={() => navigate(`/student/exam-review/${r.id}`)}
                             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-navy-50 hover:bg-navy-100 text-navy-700 text-xs font-bold transition-colors border border-navy-200">
                             <Eye className="w-3.5 h-3.5" /> مراجعة
                           </button>

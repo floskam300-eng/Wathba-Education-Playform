@@ -216,8 +216,11 @@ router.get('/results/:resultId', authenticate, async (req, res) => {
 router.get('/results/:resultId/review', authenticate, async (req, res) => {
   try {
     const resultRes = await pool.query(
-      `SELECT er.*, s.name as student_name, s.id as sid,
-              e.title as exam_title, e.total_score, e.pass_score, e.id as exam_id
+      `SELECT er.id, er.student_id, er.exam_id, er.score, er.correct_count, er.wrong_count,
+              er.unanswered_count, er.points_earned, er.start_time, er.end_time, er.created_at,
+              er.answers,
+              s.name  AS student_name,
+              e.title AS exam_title, e.total_score, e.pass_score, e.teacher_id AS exam_teacher_id
        FROM exam_results er
        JOIN students s ON er.student_id = s.id
        JOIN exams e    ON er.exam_id    = e.id
@@ -229,11 +232,14 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
 
     // Access control: student can only see own results; teacher/assistant must own the exam
     if (req.user.role === 'student') {
-      if (row.sid !== req.user.id) return res.status(403).json({ error: 'Access denied' });
+      if (parseInt(row.student_id) !== parseInt(req.user.id)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
     } else {
       const teacherId = getTeacherId(req);
-      const owns = await pool.query('SELECT id FROM exams WHERE id=$1 AND teacher_id=$2', [row.exam_id, teacherId]);
-      if (!owns.rows.length) return res.status(403).json({ error: 'Access denied' });
+      if (parseInt(row.exam_teacher_id) !== parseInt(teacherId)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
     }
 
     const questionsRes = await pool.query(
@@ -243,21 +249,26 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
 
     // Parse stored answers array
     let storedAnswers = [];
-    try { storedAnswers = typeof row.answers === 'string' ? JSON.parse(row.answers) : (row.answers || []); } catch (_) {}
+    try {
+      storedAnswers = typeof row.answers === 'string'
+        ? JSON.parse(row.answers)
+        : (Array.isArray(row.answers) ? row.answers : []);
+    } catch (_) {}
     const answerMap = {};
-    storedAnswers.forEach(a => { answerMap[a.question_id] = a; });
+    storedAnswers.forEach(a => { answerMap[String(a.question_id)] = a; });
 
-    const questions = questionsRes.rows.map(q => ({
-      ...q,
-      student_answer:  answerMap[q.id]?.student_answer  || null,
-      correct_answer:  q.correct_answer_letter,
-      is_correct:      answerMap[q.id]?.is_correct      || false,
-    }));
-
-    res.json({
-      result: { ...row, answers: undefined },
-      questions,
+    const questions = questionsRes.rows.map(q => {
+      const stored = answerMap[String(q.id)];
+      return {
+        ...q,
+        student_answer: stored?.student_answer || null,
+        correct_answer: q.correct_answer_letter,
+        is_correct:     stored?.is_correct     || false,
+      };
     });
+
+    const { answers, exam_teacher_id, ...resultClean } = row;
+    res.json({ result: resultClean, questions });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

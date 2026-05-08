@@ -24,6 +24,7 @@ import StudentCourseView from './pages/student/CourseView';
 import StudentExams from './pages/student/Exams';
 import StudentLeaderboard from './pages/student/Leaderboard';
 import StudentMyStats from './pages/student/MyStats';
+import ExamReviewPage from './pages/ExamReviewPage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -49,6 +50,7 @@ const AppRoutes = () => {
         <Route path="analytics" element={<TeacherAnalytics />} />
         <Route path="payments" element={<TeacherPayments />} />
         <Route path="leaderboard" element={<TeacherLeaderboard />} />
+        <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
       </Route>
 
       <Route path="/assistant" element={<ProtectedRoute allowedRoles={['assistant']}><AssistantLayout /></ProtectedRoute>}>
@@ -56,6 +58,7 @@ const AppRoutes = () => {
         <Route path="students" element={<AssistantStudents />} />
         <Route path="exams" element={<AssistantExams />} />
         <Route path="analytics" element={<AssistantAnalytics />} />
+        <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
       </Route>
 
       <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}><StudentLayout /></ProtectedRoute>}>
@@ -65,6 +68,7 @@ const AppRoutes = () => {
         <Route path="exams" element={<StudentExams />} />
         <Route path="stats" element={<StudentMyStats />} />
         <Route path="leaderboard" element={<StudentLeaderboard />} />
+        <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
       </Route>
 
       <Route path="/" element={user ? <Navigate to={`/${user.role}`} replace /> : <LandingPage />} />

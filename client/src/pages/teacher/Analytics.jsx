@@ -9,9 +9,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
 import StudentProfileModal from '../../components/ui/StudentProfileModal';
-import ExamReviewModal from '../../components/ui/ExamReviewModal';
 
 const CHART_COLORS = ['#1A2E4A', '#FF8C00', '#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 const STAGES = ['الكل', 'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
@@ -57,11 +57,11 @@ const StatCard = ({ label, value, icon: Icon, gradient, lightBg, textColor }) =>
 );
 
 export default function TeacherAnalytics() {
+  const navigate = useNavigate();
   const [stageFilter, setStageFilter] = useState('الكل');
   const [sortField, setSortField]     = useState('points');
   const [sortDir, setSortDir]         = useState('desc');
   const [selectedStudentId, setSelectedStudentId] = useState(null);
-  const [reviewResultId, setReviewResultId]       = useState(null);
 
   // Search + extra filters state
   const [searchQuery, setSearchQuery]   = useState('');
@@ -169,9 +169,6 @@ export default function TeacherAnalytics() {
     <div className="space-y-6">
       {selectedStudentId && (
         <StudentProfileModal studentId={selectedStudentId} onClose={() => setSelectedStudentId(null)} />
-      )}
-      {reviewResultId && (
-        <ExamReviewModal resultId={reviewResultId} onClose={() => setReviewResultId(null)} />
       )}
 
       {/* Page Title */}
@@ -514,7 +511,7 @@ export default function TeacherAnalytics() {
                     </td>
                     <td className="px-4 py-3.5">
                       <button
-                        onClick={() => setReviewResultId(r.id)}
+                        onClick={() => navigate(`/teacher/exam-review/${r.id}`)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors border border-indigo-200 whitespace-nowrap">
                         <Eye className="w-3.5 h-3.5" /> مراجعة
                       </button>
