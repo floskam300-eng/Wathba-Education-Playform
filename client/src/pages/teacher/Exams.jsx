@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Plus, Pencil, Trash2, HelpCircle, ChevronDown, ChevronUp, Printer, Filter } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, HelpCircle, ChevronDown, ChevronUp, Printer, Filter, Calendar, AlignLeft } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Badge from '../../components/ui/Badge';
@@ -9,8 +9,20 @@ import toast from 'react-hot-toast';
 import { generatePDFReport } from '../../lib/pdfReport';
 
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
-const emptyExam = { title: '', duration_minutes: 60, total_score: 100, course_id: '', pass_score: 50, badge_name: '', badge_color: '#995400' };
-const emptyQ = { question_text: '', question_image_url: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer_letter: 'A', points: 1 };
+
+const emptyExam = { title: '', duration_minutes: 60, total_score: 100, course_id: '', pass_score: 50, badge_name: '', badge_color: '#995400', start_date: '', end_date: '' };
+const emptyQ = { question_text: '', question_image_url: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer_letter: 'A', points: 1, question_type: 'mcq', essay_answer_key: '' };
+
+const QUESTION_TYPES = [
+  { value: 'mcq', label: '🔘 اختيار متعدد (MCQ)' },
+  { value: 'true_false', label: '✅ صح / خطأ' },
+  { value: 'essay', label: '📝 مقالي' },
+];
+
+const fmtDateLocal = (iso) => {
+  if (!iso) return '';
+  return iso.slice(0, 16);
+};
 
 export default function TeacherExams() {
   const qc = useQueryClient();
@@ -73,7 +85,12 @@ export default function TeacherExams() {
   const openAdd = () => { setEditData(null); setForm(emptyExam); setModal(true); };
   const openEdit = (e) => {
     setEditData(e);
-    setForm({ title: e.title, duration_minutes: e.duration_minutes, total_score: e.total_score, course_id: e.course_id || '', pass_score: e.pass_score, badge_name: e.badge_name || '', badge_color: e.badge_color || '#995400' });
+    setForm({
+      title: e.title, duration_minutes: e.duration_minutes, total_score: e.total_score,
+      course_id: e.course_id || '', pass_score: e.pass_score,
+      badge_name: e.badge_name || '', badge_color: e.badge_color || '#995400',
+      start_date: fmtDateLocal(e.start_date), end_date: fmtDateLocal(e.end_date),
+    });
     setModal(true);
   };
   const closeModal = () => { setModal(false); setEditData(null); setForm(emptyExam); };
@@ -81,13 +98,15 @@ export default function TeacherExams() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title) return toast.error('عنوان الاختبار مطلوب');
-    if (editData) updateMut.mutate({ id: editData.id, data: form });
-    else createMut.mutate(form);
+    const payload = { ...form, start_date: form.start_date || null, end_date: form.end_date || null };
+    if (editData) updateMut.mutate({ id: editData.id, data: payload });
+    else createMut.mutate(payload);
   };
 
   const handleQSubmit = (e) => {
     e.preventDefault();
-    if (!qForm.question_text || !qForm.option_a || !qForm.option_b) return toast.error('السؤال والخياران الأول والثاني مطلوبان');
+    if (!qForm.question_text) return toast.error('نص السؤال مطلوب');
+    if (qForm.question_type === 'mcq' && (!qForm.option_a || !qForm.option_b)) return toast.error('الخياران الأول والثاني مطلوبان');
     if (editQ) updateQMut.mutate({ qid: editQ.id, data: qForm });
     else addQMut.mutate({ id: expandedExam, data: qForm });
   };
@@ -101,26 +120,28 @@ export default function TeacherExams() {
     generatePDFReport('تقرير الاختبارات', headers, data, 'exams_report.pdf');
   };
 
-  // Build course stage map
   const courseStageMap = {};
   courses.forEach(c => { if (c.id) courseStageMap[c.id] = c.target_stage; });
 
-  // Stage counts
   const stageCounts = ['الكل', ...STAGES].reduce((acc, s) => {
     if (s === 'الكل') { acc[s] = exams.length; return acc; }
-    acc[s] = exams.filter(ex => {
-      const stage = courseStageMap[ex.course_id] || null;
-      return stage === s;
-    }).length;
+    acc[s] = exams.filter(ex => courseStageMap[ex.course_id] === s).length;
     return acc;
   }, {});
 
   const filteredExams = stageFilter === 'الكل'
     ? exams
-    : exams.filter(ex => {
-        const stage = courseStageMap[ex.course_id] || null;
-        return stage === stageFilter;
-      });
+    : exams.filter(ex => courseStageMap[ex.course_id] === stageFilter);
+
+  const getScheduleStatus = (ex) => {
+    const now = new Date();
+    if (ex.start_date && new Date(ex.start_date) > now) return { label: '⏳ لم يبدأ', cls: 'bg-yellow-100 text-yellow-800' };
+    if (ex.end_date && new Date(ex.end_date) < now) return { label: '🔒 انتهى', cls: 'bg-red-100 text-red-800' };
+    if (ex.start_date || ex.end_date) return { label: '🟢 مفتوح', cls: 'bg-green-100 text-green-800' };
+    return null;
+  };
+
+  const qTypeLabel = (t) => ({ mcq: 'MCQ', true_false: 'صح/خطأ', essay: 'مقالي' })[t] || 'MCQ';
 
   return (
     <div className="space-y-5">
@@ -139,27 +160,17 @@ export default function TeacherExams() {
         </div>
       </div>
 
-      {/* Stage Filter */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <Filter className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-bold text-gray-500">تصفية حسب المرحلة الدراسية للكورس</span>
+          <span className="text-xs font-bold text-gray-500">تصفية حسب المرحلة الدراسية</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {['الكل', ...STAGES].map(stage => (
-            <button
-              key={stage}
-              onClick={() => setStageFilter(stage)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
-                stageFilter === stage
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
+            <button key={stage} onClick={() => setStageFilter(stage)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${stageFilter === stage ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {stage}
-              <span className={`text-xs rounded-full px-1.5 font-black ${
-                stageFilter === stage ? 'bg-white/20 text-white' : 'bg-white text-gray-600'
-              }`}>
+              <span className={`text-xs rounded-full px-1.5 font-black ${stageFilter === stage ? 'bg-white/20 text-white' : 'bg-white text-gray-600'}`}>
                 {stageCounts[stage] || 0}
               </span>
             </button>
@@ -173,111 +184,170 @@ export default function TeacherExams() {
         ) : filteredExams.length === 0 ? (
           <div className="card text-center py-16">
             <FileText className="w-16 h-16 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500 font-medium">
-              {stageFilter === 'الكل' ? 'لا توجد اختبارات بعد' : `لا توجد اختبارات لـ ${stageFilter}`}
-            </p>
+            <p className="text-gray-500 font-medium">لا توجد اختبارات بعد</p>
           </div>
-        ) : filteredExams.map(ex => (
-          <div key={ex.id} className="card !p-0 overflow-hidden">
-            <div className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex items-center justify-center flex-shrink-0">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-navy-600">{ex.title}</h3>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {ex.course_name && <Badge variant="info">{ex.course_name}</Badge>}
-                  {courseStageMap[ex.course_id] && (
-                    <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-full">
-                      {courseStageMap[ex.course_id]}
-                    </span>
+        ) : filteredExams.map(ex => {
+          const scheduleStatus = getScheduleStatus(ex);
+          return (
+            <div key={ex.id} className="card !p-0 overflow-hidden">
+              <div className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-navy-600">{ex.title}</h3>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {ex.course_name && <Badge variant="info">{ex.course_name}</Badge>}
+                    {courseStageMap[ex.course_id] && <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-full">{courseStageMap[ex.course_id]}</span>}
+                    <Badge variant="navy">⏱ {ex.duration_minutes} دقيقة</Badge>
+                    <Badge variant="warning">📝 {ex.question_count} سؤال</Badge>
+                    <Badge variant="gray">المجموع: {ex.total_score}</Badge>
+                    <Badge variant="success">محاولات: {ex.attempt_count}</Badge>
+                    {scheduleStatus && <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scheduleStatus.cls}`}>{scheduleStatus.label}</span>}
+                  </div>
+                  {(ex.start_date || ex.end_date) && (
+                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                      <Calendar className="w-3 h-3" />
+                      {ex.start_date && <span>من: {new Date(ex.start_date).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</span>}
+                      {ex.end_date && <span>· حتى: {new Date(ex.end_date).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</span>}
+                    </div>
                   )}
-                  <Badge variant="navy">⏱ {ex.duration_minutes} دقيقة</Badge>
-                  <Badge variant="warning">📝 {ex.question_count} سؤال</Badge>
-                  <Badge variant="gray">المجموع: {ex.total_score}</Badge>
-                  <Badge variant="success">محاولات: {ex.attempt_count}</Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => openEdit(ex)} className="p-2 text-navy-600 hover:bg-navy-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteId(ex.id)} className="p-2 text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setExpandedExam(expandedExam === ex.id ? null : ex.id)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    {expandedExam === ex.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => openEdit(ex)} className="p-2 text-navy-600 hover:bg-navy-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => setDeleteId(ex.id)} className="p-2 text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                <button onClick={() => setExpandedExam(expandedExam === ex.id ? null : ex.id)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                  {expandedExam === ex.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
 
-            {expandedExam === ex.id && (
-              <div className="border-t border-gray-200 p-4 bg-gray-50 space-y-4">
-                <h4 className="font-bold text-navy-600 flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4 text-orange-500" /> بنك الأسئلة ({questions.length})
-                </h4>
+              {expandedExam === ex.id && (
+                <div className="border-t border-gray-200 p-4 bg-gray-50 space-y-4">
+                  <h4 className="font-bold text-navy-600 flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4 text-orange-500" /> بنك الأسئلة ({questions.length})
+                  </h4>
 
-                {questions.map((q, qi) => (
-                  <div key={q.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <p className="font-semibold text-navy-600 text-sm mb-2">س{qi + 1}: {q.question_text}</p>
-                        {q.question_image_url && <img src={q.question_image_url} alt="question" className="w-40 h-24 object-cover rounded-lg mb-2" />}
-                        <div className="grid grid-cols-2 gap-1 text-xs">
-                          {['A', 'B', 'C', 'D'].map(opt => q[`option_${opt.toLowerCase()}`] && (
-                            <div key={opt} className={`p-1.5 rounded-lg font-semibold ${q.correct_answer_letter === opt ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-                              {opt}. {q[`option_${opt.toLowerCase()}`]}
+                  {questions.map((q, qi) => (
+                    <div key={q.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${q.question_type === 'essay' ? 'bg-blue-100 text-blue-700' : q.question_type === 'true_false' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {qTypeLabel(q.question_type)}
+                            </span>
+                          </div>
+                          <p className="font-semibold text-navy-600 text-sm mb-2">س{qi + 1}: {q.question_text}</p>
+                          {q.question_image_url && <img src={q.question_image_url} alt="question" className="w-40 h-24 object-cover rounded-lg mb-2" />}
+                          {q.question_type === 'essay' ? (
+                            <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700">
+                              <span className="font-bold">نموذج الإجابة: </span>{q.essay_answer_key || '(لم يُحدد)'}
                             </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                              {(q.question_type === 'true_false' ? ['A', 'B'] : ['A', 'B', 'C', 'D']).map(opt => q[`option_${opt.toLowerCase()}`] && q[`option_${opt.toLowerCase()}`] !== '-' && (
+                                <div key={opt} className={`p-1.5 rounded-lg font-semibold ${q.correct_answer_letter === opt ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                                  {opt}. {q[`option_${opt.toLowerCase()}`]}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditQ(q); setQForm({ ...q, question_type: q.question_type || 'mcq' }); }} className="p-1.5 text-navy-600 hover:bg-navy-50 rounded-lg"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => deleteQMut.mutate(q.id)} className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Question form */}
+                  <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-dashed border-orange-300">
+                    <h5 className="font-bold text-navy-600 mb-3 text-sm">{editQ ? 'تعديل السؤال' : '+ إضافة سؤال جديد'}</h5>
+                    <form onSubmit={handleQSubmit} className="space-y-3">
+                      {/* Question type selector */}
+                      <div>
+                        <label className="block text-xs font-bold text-navy-700 mb-1">نوع السؤال</label>
+                        <div className="flex gap-2 flex-wrap">
+                          {QUESTION_TYPES.map(t => (
+                            <button key={t.value} type="button"
+                              onClick={() => setQForm({ ...qForm, question_type: t.value, correct_answer_letter: 'A' })}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${qForm.question_type === t.value ? 'border-orange-500 bg-orange-50 text-orange-800' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                              {t.label}
+                            </button>
                           ))}
                         </div>
                       </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => { setEditQ(q); setQForm({ ...q }); }} className="p-1.5 text-navy-600 hover:bg-navy-50 rounded-lg"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => deleteQMut.mutate(q.id)} className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
 
-                <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-dashed border-orange-300">
-                  <h5 className="font-bold text-navy-600 mb-3 text-sm">{editQ ? 'تعديل السؤال' : '+ إضافة سؤال جديد'}</h5>
-                  <form onSubmit={handleQSubmit} className="space-y-3">
-                    <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })}
-                      className="input-field h-16 resize-none text-sm" placeholder="نص السؤال..." />
-                    <input value={qForm.question_image_url || ''} onChange={e => setQForm({ ...qForm, question_image_url: e.target.value })}
-                      className="input-field text-sm" placeholder="رابط صورة السؤال (اختياري)" dir="ltr" />
-                    <div className="grid grid-cols-2 gap-2">
-                      {['A', 'B', 'C', 'D'].map(opt => (
-                        <div key={opt} className="flex items-center gap-2">
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${qForm.correct_answer_letter === opt ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'}`}>{opt}</span>
-                          <input value={qForm[`option_${opt.toLowerCase()}`] || ''} onChange={e => setQForm({ ...qForm, [`option_${opt.toLowerCase()}`]: e.target.value })}
-                            className="input-field text-sm" placeholder={`الخيار ${opt}${opt === 'A' || opt === 'B' ? ' *' : ''}`} />
+                      <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })}
+                        className="input-field h-16 resize-none text-sm" placeholder="نص السؤال..." />
+
+                      <input value={qForm.question_image_url || ''} onChange={e => setQForm({ ...qForm, question_image_url: e.target.value })}
+                        className="input-field text-sm" placeholder="رابط صورة السؤال (اختياري)" dir="ltr" />
+
+                      {qForm.question_type === 'mcq' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {['A', 'B', 'C', 'D'].map(opt => (
+                            <div key={opt} className="flex items-center gap-2">
+                              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${qForm.correct_answer_letter === opt ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'}`}>{opt}</span>
+                              <input value={qForm[`option_${opt.toLowerCase()}`] || ''} onChange={e => setQForm({ ...qForm, [`option_${opt.toLowerCase()}`]: e.target.value })}
+                                className="input-field text-sm" placeholder={`الخيار ${opt}${opt === 'A' || opt === 'B' ? ' *' : ''}`} />
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm font-bold text-navy-700">الإجابة الصحيحة:</label>
-                        <select value={qForm.correct_answer_letter} onChange={e => setQForm({ ...qForm, correct_answer_letter: e.target.value })} className="input-field w-20">
-                          {['A', 'B', 'C', 'D'].map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
+                      )}
+
+                      {qForm.question_type === 'true_false' && (
+                        <div className="flex gap-3">
+                          {['A', 'B'].map((opt, i) => (
+                            <button key={opt} type="button"
+                              onClick={() => setQForm({ ...qForm, correct_answer_letter: opt })}
+                              className={`flex-1 py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${qForm.correct_answer_letter === opt ? 'border-green-500 bg-green-50 text-green-800' : 'border-gray-200 text-gray-600'}`}>
+                              {i === 0 ? '✅ صح' : '❌ خطأ'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {qForm.question_type === 'essay' && (
+                        <div>
+                          <label className="block text-xs font-bold text-navy-700 mb-1">نموذج الإجابة (للمراجعة)</label>
+                          <textarea value={qForm.essay_answer_key || ''} onChange={e => setQForm({ ...qForm, essay_answer_key: e.target.value })}
+                            className="input-field h-16 resize-none text-sm" placeholder="اكتب نموذج الإجابة المتوقعة هنا..." />
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        {qForm.question_type === 'mcq' && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm font-bold text-navy-700">الإجابة:</label>
+                            <select value={qForm.correct_answer_letter} onChange={e => setQForm({ ...qForm, correct_answer_letter: e.target.value })} className="input-field w-20">
+                              {['A', 'B', 'C', 'D'].map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-bold text-navy-700">درجة:</label>
+                          <input type="number" value={qForm.points} onChange={e => setQForm({ ...qForm, points: parseInt(e.target.value) || 1 })} className="input-field w-16" min={1} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm font-bold text-navy-700">درجة:</label>
-                        <input type="number" value={qForm.points} onChange={e => setQForm({ ...qForm, points: parseInt(e.target.value) || 1 })} className="input-field w-16" min={1} />
+
+                      <div className="flex gap-2">
+                        {editQ && <button type="button" onClick={() => { setEditQ(null); setQForm(emptyQ); }} className="btn-secondary px-3 py-2 text-sm">إلغاء</button>}
+                        <button type="submit" className="btn-primary text-sm" disabled={addQMut.isPending || updateQMut.isPending}>
+                          {editQ ? 'تحديث السؤال' : 'إضافة السؤال'}
+                        </button>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {editQ && <button type="button" onClick={() => { setEditQ(null); setQForm(emptyQ); }} className="btn-secondary px-3 py-2 text-sm">إلغاء</button>}
-                      <button type="submit" className="btn-primary text-sm" disabled={addQMut.isPending || updateQMut.isPending}>
-                        {editQ ? 'تحديث السؤال' : 'إضافة السؤال'}
-                      </button>
-                    </div>
-                  </form>
+                    </form>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
 
+      {/* Exam modal */}
       <Modal open={modal} onClose={closeModal} title={editData ? 'تعديل الاختبار' : 'إنشاء اختبار جديد'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -288,11 +358,7 @@ export default function TeacherExams() {
             <label className="block text-sm font-bold text-navy-700 mb-1">الكورس (اختياري)</label>
             <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })} className="input-field">
               <option value="">اختبار عام</option>
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.target_stage ? ` — ${c.target_stage}` : ''}
-                </option>
-              ))}
+              {courses.map(c => <option key={c.id} value={c.id}>{c.name}{c.target_stage ? ` — ${c.target_stage}` : ''}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -301,7 +367,7 @@ export default function TeacherExams() {
               <input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: e.target.value })} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-bold text-navy-700 mb-1">المجموع الكلي</label>
+              <label className="block text-sm font-bold text-navy-700 mb-1">المجموع</label>
               <input type="number" value={form.total_score} onChange={e => setForm({ ...form, total_score: e.target.value })} className="input-field" />
             </div>
             <div>
@@ -309,9 +375,26 @@ export default function TeacherExams() {
               <input type="number" value={form.pass_score} onChange={e => setForm({ ...form, pass_score: e.target.value })} className="input-field" />
             </div>
           </div>
+
+          {/* Scheduling */}
+          <div className="bg-orange-50 rounded-xl p-4 space-y-3 border border-orange-200">
+            <p className="text-sm font-black text-orange-800 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> جدولة الاختبار (اختياري)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-navy-700 mb-1">تاريخ وموعد البدء</label>
+                <input type="datetime-local" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="input-field text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-navy-700 mb-1">تاريخ وموعد الانتهاء</label>
+                <input type="datetime-local" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className="input-field text-sm" />
+              </div>
+            </div>
+            <p className="text-xs text-orange-700">إذا تركتها فارغة، سيكون الاختبار متاحاً في أي وقت</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-bold text-navy-700 mb-1">اسم الشارة (عند النجاح)</label>
+              <label className="block text-sm font-bold text-navy-700 mb-1">اسم الشارة</label>
               <input value={form.badge_name} onChange={e => setForm({ ...form, badge_name: e.target.value })} className="input-field" placeholder="مثال: متميز" />
             </div>
             <div>
@@ -319,6 +402,7 @@ export default function TeacherExams() {
               <input type="color" value={form.badge_color} onChange={e => setForm({ ...form, badge_color: e.target.value })} className="input-field h-10 p-1 cursor-pointer" />
             </div>
           </div>
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={closeModal} className="flex-1 btn-secondary">إلغاء</button>
             <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="flex-1 btn-primary">

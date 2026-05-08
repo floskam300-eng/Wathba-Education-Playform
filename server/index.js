@@ -21,6 +21,7 @@ app.use('/api/courses', require('./routes/courses'));
 app.use('/api/exams', require('./routes/exams'));
 app.use('/api/assistants', require('./routes/assistants'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));

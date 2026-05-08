@@ -14,7 +14,7 @@ const fmt = (min) => min >= 60
   : `${min} دقيقة`;
 
 /* ─── Custom Video Player ──────────────────────────────── */
-function VideoPlayer({ video }) {
+function VideoPlayer({ video, onProgressUpdate }) {
   const videoRef = useRef(null);
   const [playing, setPlaying]         = useState(false);
   const [progress, setProgress]       = useState(0);   // 0–100
@@ -23,13 +23,18 @@ function VideoPlayer({ video }) {
   const [volume, setVolume]           = useState(1);   // 0–1
   const [muted, setMuted]             = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const hideTimer = useRef(null);
-  const seeking   = useRef(false);
+  const hideTimer    = useRef(null);
+  const seeking      = useRef(false);
+  const saveTimer    = useRef(null);
+  const watchStart   = useRef(null);
+  const maxProgress  = useRef(0);
 
   useEffect(() => {
     setPlaying(false);
     setProgress(0);
     setCurrentTime(0);
+    maxProgress.current = 0;
+    watchStart.current = null;
   }, [video?.id]);
 
   const resetHideTimer = () => {
@@ -105,12 +110,39 @@ function VideoPlayer({ video }) {
           const ct = videoRef.current.currentTime;
           const d  = duration || 1;
           setCurrentTime(ct);
-          setProgress(ct / d * 100);
+          const pct = ct / d * 100;
+          setProgress(pct);
+          if (pct > maxProgress.current) maxProgress.current = pct;
         }}
         onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
-        onEnded={() => setPlaying(false)}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          if (onProgressUpdate && video?.id) {
+            const d = videoRef.current?.duration || 0;
+            onProgressUpdate(video.id, d / 60, 100, true);
+          }
+        }}
+        onPlay={() => {
+          setPlaying(true);
+          watchStart.current = Date.now();
+          saveTimer.current = setInterval(() => {
+            if (!videoRef.current) return;
+            const d = videoRef.current.duration || 0;
+            const watchedMin = d > 0 ? (maxProgress.current / 100) * (d / 60) : 0;
+            if (onProgressUpdate && video?.id) {
+              onProgressUpdate(video.id, watchedMin, maxProgress.current, false);
+            }
+          }, 30000);
+        }}
+        onPause={() => {
+          setPlaying(false);
+          clearInterval(saveTimer.current);
+          if (onProgressUpdate && video?.id && videoRef.current) {
+            const d = videoRef.current.duration || 0;
+            const watchedMin = d > 0 ? (maxProgress.current / 100) * (d / 60) : 0;
+            onProgressUpdate(video.id, watchedMin, maxProgress.current, false);
+          }
+        }}
         onClick={toggle}
       />
 
@@ -271,6 +303,15 @@ export default function CourseView() {
   const [activeVideo, setActiveVideo] = useState(null);
   const [activePdf, setActivePdf] = useState(null);
   const [activeTab, setActiveTab] = useState('videos');
+
+  const handleProgressUpdate = (videoId, watchedMinutes, progressPct, completed) => {
+    api.post('/students/me/video-progress', {
+      video_id: videoId,
+      watched_minutes: Math.round(watchedMinutes * 10) / 10,
+      progress_percentage: Math.round(progressPct),
+      watch_count_increment: completed ? 1 : 0,
+    }).catch(() => {});
+  };
 
   const { data: courses = [] } = useQuery({
     queryKey: ['student-courses'],
@@ -470,7 +511,7 @@ export default function CourseView() {
             <>
               {/* Video area */}
               <div className="flex-1 bg-black overflow-hidden">
-                <VideoPlayer video={currentVideo} />
+                <VideoPlayer video={currentVideo} onProgressUpdate={handleProgressUpdate} />
               </div>
 
               {/* Video info bar */}

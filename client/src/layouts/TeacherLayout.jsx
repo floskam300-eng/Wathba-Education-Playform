@@ -3,7 +3,8 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, BookOpen, FileText, UserCog,
-  BarChart3, CreditCard, Trophy, LogOut, Menu, MessageCircle
+  BarChart3, CreditCard, Trophy, LogOut, Menu, MessageCircle,
+  Bell, Database
 } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 
@@ -16,6 +17,8 @@ const navItems = [
   { to: '/teacher/analytics', icon: BarChart3, label: 'التحليلات' },
   { to: '/teacher/payments', icon: CreditCard, label: 'المدفوعات' },
   { to: '/teacher/leaderboard', icon: Trophy, label: 'المتصدرون' },
+  { to: '/teacher/notifications', icon: Bell, label: 'الإشعارات' },
+  { to: '/teacher/backup', icon: Database, label: 'النسخ الاحتياطي' },
 ];
 
 export default function TeacherLayout() {

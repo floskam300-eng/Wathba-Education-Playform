@@ -133,4 +133,68 @@ router.get('/course-stats', requireRole('teacher'), async (req, res) => {
   }
 });
 
+// ── Full data export ──
+router.get('/export', requireRole('teacher'), async (req, res) => {
+  const teacherId = req.user.id;
+  try {
+    const [teacher, students, courses, exams, questions, results, payments, enrollments, videoProgress] = await Promise.all([
+      pool.query('SELECT id,username,name,bio,classification,logo_url,photo_url,whatsapp_phone,created_at FROM teachers WHERE id=$1', [teacherId]),
+      pool.query('SELECT id,username,name,phone,parent_phone,academic_stage,gender,points,created_at FROM students WHERE teacher_id=$1 ORDER BY name', [teacherId]),
+      pool.query('SELECT * FROM courses WHERE teacher_id=$1 ORDER BY created_at', [teacherId]),
+      pool.query('SELECT * FROM exams WHERE teacher_id=$1 ORDER BY created_at', [teacherId]),
+      pool.query('SELECT q.* FROM questions q JOIN exams e ON q.exam_id=e.id WHERE e.teacher_id=$1 ORDER BY q.exam_id, q.id', [teacherId]),
+      pool.query(`SELECT er.id, er.student_id, er.exam_id, er.score, er.correct_count, er.wrong_count,
+                         er.unanswered_count, er.points_earned, er.start_time, er.end_time, er.created_at,
+                         s.name as student_name, e.title as exam_title
+                  FROM exam_results er
+                  JOIN students s ON er.student_id=s.id
+                  JOIN exams e ON er.exam_id=e.id
+                  WHERE e.teacher_id=$1 ORDER BY er.created_at DESC`, [teacherId]),
+      pool.query(`SELECT p.*, s.name as student_name, c.name as course_name
+                  FROM payments p
+                  JOIN students s ON p.student_id=s.id
+                  LEFT JOIN courses c ON p.course_id=c.id
+                  WHERE s.teacher_id=$1 ORDER BY p.payment_date DESC`, [teacherId]),
+      pool.query(`SELECT sce.*, s.name as student_name, c.name as course_name
+                  FROM student_course_enrollment sce
+                  JOIN students s ON sce.student_id=s.id
+                  JOIN courses c ON sce.course_id=c.id
+                  WHERE s.teacher_id=$1`, [teacherId]),
+      pool.query(`SELECT vp.*, s.name as student_name, v.title as video_title
+                  FROM video_progress vp
+                  JOIN students s ON vp.student_id=s.id
+                  JOIN videos v ON vp.video_id=v.id
+                  WHERE s.teacher_id=$1`, [teacherId]),
+    ]);
+
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      teacher: teacher.rows[0],
+      students: students.rows,
+      courses: courses.rows,
+      exams: exams.rows,
+      questions: questions.rows,
+      exam_results: results.rows,
+      payments: payments.rows,
+      enrollments: enrollments.rows,
+      video_progress: videoProgress.rows,
+      summary: {
+        total_students: students.rows.length,
+        total_courses: courses.rows.length,
+        total_exams: exams.rows.length,
+        total_questions: questions.rows.length,
+        total_results: results.rows.length,
+        total_payments: payments.rows.length,
+      }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="wathba-backup-${new Date().toISOString().slice(0,10)}.json"`);
+    res.json(exportData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
