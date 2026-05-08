@@ -6,31 +6,27 @@ import api from '../../lib/api';
 const OPTS = ['A', 'B', 'C', 'D'];
 const optLabel = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
 
-// answered = true only when the student actually picked an option
-function optStyle(opt, studentAnswer, correctAnswer, answered) {
+function optStyle(opt, studentAnswer, correctAnswer) {
   const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
-  if (!answered) return 'border-gray-200 bg-white text-gray-600';
   if (isCorrect && isStudentChoice) return 'border-green-500 bg-green-50 text-green-800';
   if (isCorrect)                    return 'border-green-400 bg-green-50 text-green-800';
   if (isStudentChoice && !isCorrect)return 'border-red-400 bg-red-50 text-red-800';
   return 'border-gray-200 bg-white text-gray-600';
 }
 
-function optBadge(opt, studentAnswer, correctAnswer, answered) {
+function optBadge(opt, studentAnswer, correctAnswer) {
   const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
-  if (!answered) return 'bg-gray-100 text-gray-500';
   if (isCorrect && isStudentChoice) return 'bg-green-500 text-white';
   if (isCorrect)                    return 'bg-green-400 text-white';
   if (isStudentChoice && !isCorrect)return 'bg-red-400 text-white';
   return 'bg-gray-100 text-gray-500';
 }
 
-function optIcon(opt, studentAnswer, correctAnswer, answered) {
+function optIcon(opt, studentAnswer, correctAnswer) {
   const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
-  if (!answered) return null;
   if (isCorrect && isStudentChoice) return <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />;
   if (isCorrect)                    return <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />;
   if (isStudentChoice && !isCorrect)return <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
@@ -183,12 +179,12 @@ export default function ExamReviewModal({ resultId, onClose }) {
                         if (!text || text === '-') return null;
                         return (
                           <div key={opt}
-                            className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all ${optStyle(opt, studentAns, correctAns, answered)}`}>
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${optBadge(opt, studentAns, correctAns, answered)}`}>
+                            className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all ${optStyle(opt, studentAns, correctAns)}`}>
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${optBadge(opt, studentAns, correctAns)}`}>
                               {optLabel[opt]}
                             </span>
                             <span className="text-sm font-medium flex-1">{text}</span>
-                            {optIcon(opt, studentAns, correctAns, answered)}
+                            {optIcon(opt, studentAns, correctAns)}
                           </div>
                         );
                       })}

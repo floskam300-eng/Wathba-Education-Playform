@@ -395,7 +395,7 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
     const resultRes = await pool.query(
       `SELECT er.id, er.student_id, er.exam_id, er.score, er.correct_count, er.wrong_count,
               er.unanswered_count, er.points_earned, er.start_time, er.end_time, er.created_at,
-              er.answers,
+              er.answers, er.essay_graded, er.essay_score_adjustment,
               s.name  AS student_name,
               e.title AS exam_title, e.total_score, e.pass_score, e.teacher_id AS exam_teacher_id
        FROM exam_results er
