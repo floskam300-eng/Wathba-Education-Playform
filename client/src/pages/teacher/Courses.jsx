@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BookOpen, Plus, Pencil, Trash2, Video, FileText, Users,
   ChevronDown, ChevronUp, GraduationCap, Filter, Upload,
-  X, Loader2, Play
+  X, Loader2, Play, FolderOpen, FolderPlus, Check
 } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -41,9 +41,10 @@ function UploadProgress({ progress, fileName, onCancel }) {
   );
 }
 
-function VideoUploadSection({ courseId, onSuccess }) {
+function VideoUploadSection({ courseId, onSuccess, sections = [] }) {
   const [title, setTitle] = useState('');
   const [duration, setDuration] = useState('');
+  const [sectionId, setSectionId] = useState('');
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -63,6 +64,7 @@ function VideoUploadSection({ courseId, onSuccess }) {
     fd.append('video', file);
     fd.append('title', title);
     fd.append('duration_minutes', duration || '0');
+    if (sectionId) fd.append('section_id', sectionId);
     setUploading(true);
     setProcessing(false);
     setProgress(0);
@@ -107,6 +109,12 @@ function VideoUploadSection({ courseId, onSuccess }) {
           className="input-field col-span-2" placeholder="عنوان الفيديو *" disabled={uploading} />
         <input type="number" value={duration} onChange={e => setDuration(e.target.value)}
           className="input-field" placeholder="المدة (دقائق)" disabled={uploading} />
+        {sections.length > 0 && (
+          <select value={sectionId} onChange={e => setSectionId(e.target.value)} className="input-field" disabled={uploading}>
+            <option value="">— بدون فصل —</option>
+            {sections.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          </select>
+        )}
         <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all text-sm font-bold
           ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
           ${file ? 'border-green-400 bg-green-50 text-green-700' : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-orange-400 hover:text-orange-500'}`}>
@@ -146,8 +154,9 @@ function VideoUploadSection({ courseId, onSuccess }) {
   );
 }
 
-function PdfUploadSection({ courseId, onSuccess }) {
+function PdfUploadSection({ courseId, onSuccess, sections = [] }) {
   const [title, setTitle] = useState('');
+  const [sectionId, setSectionId] = useState('');
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -162,6 +171,7 @@ function PdfUploadSection({ courseId, onSuccess }) {
     const fd = new FormData();
     fd.append('pdf', file);
     fd.append('title', title);
+    if (sectionId) fd.append('section_id', sectionId);
     setUploading(true);
     setProcessing(false);
     setProgress(0);
@@ -200,6 +210,12 @@ function PdfUploadSection({ courseId, onSuccess }) {
       <div className="grid grid-cols-2 gap-2">
         <input value={title} onChange={e => setTitle(e.target.value)}
           className="input-field col-span-2" placeholder="عنوان الملف *" disabled={uploading} />
+        {sections.length > 0 && (
+          <select value={sectionId} onChange={e => setSectionId(e.target.value)} className="input-field col-span-2" disabled={uploading}>
+            <option value="">— بدون فصل —</option>
+            {sections.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          </select>
+        )}
         <label className={`col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all text-sm font-bold
           ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
           ${file ? 'border-green-400 bg-green-50 text-green-700' : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-orange-400 hover:text-orange-500'}`}>
@@ -247,6 +263,9 @@ export default function TeacherCourses() {
   const [stageFilter, setStageFilter] = useState('الكل');
   const [deleteVideoId, setDeleteVideoId] = useState(null);
   const [deletePdfId, setDeletePdfId] = useState(null);
+  const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [editingSectionId, setEditingSectionId] = useState(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState('');
 
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ['courses'],
@@ -284,6 +303,23 @@ export default function TeacherCourses() {
   const deletePdfMut = useMutation({
     mutationFn: ({ courseId, pdfId }) => api.delete(`/courses/${courseId}/pdfs/${pdfId}`),
     onSuccess: () => { qc.invalidateQueries(['course-content', expandedCourse]); qc.invalidateQueries(['courses']); toast.success('تم حذف الملف'); setDeletePdfId(null); },
+  });
+
+  const createSectionMut = useMutation({
+    mutationFn: ({ courseId, title }) => api.post(`/courses/${courseId}/sections`, { title }),
+    onSuccess: () => { qc.invalidateQueries(['course-content', expandedCourse]); toast.success('تم إضافة الفصل'); setNewSectionTitle(''); },
+    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
+  });
+
+  const updateSectionMut = useMutation({
+    mutationFn: ({ courseId, sectionId, title }) => api.put(`/courses/${courseId}/sections/${sectionId}`, { title }),
+    onSuccess: () => { qc.invalidateQueries(['course-content', expandedCourse]); toast.success('تم تحديث الفصل'); setEditingSectionId(null); },
+    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
+  });
+
+  const deleteSectionMut = useMutation({
+    mutationFn: ({ courseId, sectionId }) => api.delete(`/courses/${courseId}/sections/${sectionId}`),
+    onSuccess: () => { qc.invalidateQueries(['course-content', expandedCourse]); toast.success('تم حذف الفصل'); },
   });
 
   const openAdd = () => { setEditData(null); setForm(emptyForm); setModal(true); };
@@ -391,53 +427,194 @@ export default function TeacherCourses() {
 
             {expandedCourse === c.id && (
               <div className="border-t border-gray-200 p-4 bg-gray-50">
-                <div className="flex gap-2 mb-4">
-                  {['videos', 'pdfs'].map(tab => (
-                    <button key={tab} onClick={() => setContentTab(tab)}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${contentTab === tab ? 'bg-navy-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`}>
-                      {tab === 'videos' ? '🎬 الفيديوهات' : '📄 الملفات'}
+                <div className="flex gap-2 mb-4 flex-wrap">
+                  {[
+                    { key: 'videos', label: '🎬 الفيديوهات' },
+                    { key: 'pdfs',   label: '📄 الملفات' },
+                    { key: 'sections', label: '📂 الفصول' },
+                  ].map(tab => (
+                    <button key={tab.key} onClick={() => setContentTab(tab.key)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${contentTab === tab.key ? 'bg-navy-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`}>
+                      {tab.label}
+                      {tab.key === 'sections' && content?.sections?.length > 0 && (
+                        <span className="mr-1.5 text-xs bg-white/20 rounded-full px-1.5">{content.sections.length}</span>
+                      )}
                     </button>
                   ))}
                 </div>
 
-                {contentTab === 'videos' && (
-                  <div className="space-y-3">
-                    {content?.videos?.map(v => (
-                      <div key={v.id} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div className="w-10 h-10 bg-navy-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Play className="w-5 h-5 text-navy-700" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-navy-600 text-sm truncate">{v.title}</p>
-                          <p className="text-xs text-gray-500 font-medium">{v.duration_minutes} دقيقة</p>
-                        </div>
-                        <button onClick={() => setDeleteVideoId(v.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                {contentTab === 'videos' && (() => {
+                  const sections = content?.sections || [];
+                  const grouped = {};
+                  sections.forEach(s => { grouped[s.id] = []; });
+                  grouped['_none'] = [];
+                  (content?.videos || []).forEach(v => {
+                    const key = v.section_id ? v.section_id : '_none';
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(v);
+                  });
+                  const VideoItem = ({ v }) => (
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
+                      <div className="w-10 h-10 bg-navy-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Play className="w-5 h-5 text-navy-700" />
                       </div>
-                    ))}
-                    <VideoUploadSection courseId={c.id} onSuccess={refreshContent} />
-                  </div>
-                )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-navy-600 text-sm truncate">{v.title}</p>
+                        <p className="text-xs text-gray-500 font-medium">{v.duration_minutes} دقيقة</p>
+                      </div>
+                      <button onClick={() => setDeleteVideoId(v.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                  return (
+                    <div className="space-y-4">
+                      {sections.length > 0 ? (
+                        <>
+                          {sections.map(s => (
+                            grouped[s.id]?.length > 0 && (
+                              <div key={s.id}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FolderOpen className="w-4 h-4 text-indigo-500" />
+                                  <span className="text-xs font-black text-indigo-600 uppercase tracking-wide">{s.title}</span>
+                                  <span className="text-xs text-gray-400">({grouped[s.id].length})</span>
+                                </div>
+                                <div className="space-y-2 pr-5 border-r-2 border-indigo-100">
+                                  {grouped[s.id].map(v => <VideoItem key={v.id} v={v} />)}
+                                </div>
+                              </div>
+                            )
+                          ))}
+                          {grouped['_none']?.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <FolderOpen className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs font-black text-gray-400 uppercase tracking-wide">بدون فصل</span>
+                              </div>
+                              <div className="space-y-2 pr-5 border-r-2 border-gray-100">
+                                {grouped['_none'].map(v => <VideoItem key={v.id} v={v} />)}
+                              </div>
+                            </div>
+                          )}
+                          {content?.videos?.length === 0 && <p className="text-gray-400 text-sm text-center py-4">لا توجد فيديوهات بعد</p>}
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          {(content?.videos || []).map(v => <VideoItem key={v.id} v={v} />)}
+                        </div>
+                      )}
+                      <VideoUploadSection courseId={c.id} onSuccess={refreshContent} sections={content?.sections || []} />
+                    </div>
+                  );
+                })()}
 
-                {contentTab === 'pdfs' && (
+                {contentTab === 'pdfs' && (() => {
+                  const sections = content?.sections || [];
+                  const grouped = {};
+                  sections.forEach(s => { grouped[s.id] = []; });
+                  grouped['_none'] = [];
+                  (content?.pdfs || []).forEach(p => {
+                    const key = p.section_id ? p.section_id : '_none';
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(p);
+                  });
+                  const PdfItem = ({ p }) => (
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
+                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-navy-600 text-sm truncate">{p.title}</p>
+                      </div>
+                      <button onClick={() => setDeletePdfId(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                  return (
+                    <div className="space-y-4">
+                      {sections.length > 0 ? (
+                        <>
+                          {sections.map(s => (
+                            grouped[s.id]?.length > 0 && (
+                              <div key={s.id}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FolderOpen className="w-4 h-4 text-orange-400" />
+                                  <span className="text-xs font-black text-orange-500 uppercase tracking-wide">{s.title}</span>
+                                </div>
+                                <div className="space-y-2 pr-5 border-r-2 border-orange-100">
+                                  {grouped[s.id].map(p => <PdfItem key={p.id} p={p} />)}
+                                </div>
+                              </div>
+                            )
+                          ))}
+                          {grouped['_none']?.length > 0 && (
+                            <div className="space-y-2 pr-5 border-r-2 border-gray-100">
+                              {grouped['_none'].map(p => <PdfItem key={p.id} p={p} />)}
+                            </div>
+                          )}
+                          {content?.pdfs?.length === 0 && <p className="text-gray-400 text-sm text-center py-4">لا توجد ملفات بعد</p>}
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          {(content?.pdfs || []).map(p => <PdfItem key={p.id} p={p} />)}
+                        </div>
+                      )}
+                      <PdfUploadSection courseId={c.id} onSuccess={refreshContent} sections={content?.sections || []} />
+                    </div>
+                  );
+                })()}
+
+                {contentTab === 'sections' && (
                   <div className="space-y-3">
-                    {content?.pdfs?.map(p => (
-                      <div key={p.id} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5 text-orange-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-navy-600 text-sm truncate">{p.title}</p>
-                        </div>
-                        <button onClick={() => setDeletePdfId(p.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    {(content?.sections || []).length === 0 && (
+                      <p className="text-gray-400 text-sm text-center py-6">لا توجد فصول بعد — أضف فصلاً لتنظيم المحتوى</p>
+                    )}
+                    {(content?.sections || []).map(s => (
+                      <div key={s.id} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
+                        <FolderOpen className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+                        {editingSectionId === s.id ? (
+                          <>
+                            <input autoFocus value={editingSectionTitle}
+                              onChange={e => setEditingSectionTitle(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') updateSectionMut.mutate({ courseId: c.id, sectionId: s.id, title: editingSectionTitle }); if (e.key === 'Escape') setEditingSectionId(null); }}
+                              className="input-field flex-1 !py-1 text-sm" />
+                            <button onClick={() => updateSectionMut.mutate({ courseId: c.id, sectionId: s.id, title: editingSectionTitle })}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg">
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setEditingSectionId(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex-1 font-semibold text-navy-600 text-sm">{s.title}</span>
+                            <span className="text-xs text-gray-400 ml-2">
+                              {(content?.videos || []).filter(v => v.section_id === s.id).length} فيديو
+                            </span>
+                            <button onClick={() => { setEditingSectionId(s.id); setEditingSectionTitle(s.title); }}
+                              className="p-1.5 text-navy-500 hover:bg-navy-50 rounded-lg">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => deleteSectionMut.mutate({ courseId: c.id, sectionId: s.id })}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     ))}
-                    <PdfUploadSection courseId={c.id} onSuccess={refreshContent} />
+                    <div className="flex gap-2 pt-1">
+                      <input value={newSectionTitle} onChange={e => setNewSectionTitle(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && newSectionTitle.trim()) createSectionMut.mutate({ courseId: c.id, title: newSectionTitle }); }}
+                        className="input-field flex-1 !py-2 text-sm" placeholder="اسم الفصل الجديد..." />
+                      <button onClick={() => newSectionTitle.trim() && createSectionMut.mutate({ courseId: c.id, title: newSectionTitle })}
+                        disabled={!newSectionTitle.trim() || createSectionMut.isPending}
+                        className="btn-primary flex items-center gap-2 !py-2 disabled:opacity-50">
+                        <FolderPlus className="w-4 h-4" /> إضافة فصل
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

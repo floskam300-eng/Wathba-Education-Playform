@@ -84,6 +84,31 @@ router.get('/analytics', requireRole('teacher'), async (req, res) => {
   }
 });
 
+router.get('/analytics/trend', requireRole('teacher'), async (req, res) => {
+  const teacherId = req.user.id;
+  try {
+    const result = await pool.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', er.created_at), 'YYYY-MM') AS month,
+        TO_CHAR(DATE_TRUNC('month', er.created_at), 'Mon YY')  AS label,
+        ROUND(AVG(er.score::numeric / NULLIF(e.total_score,0) * 100), 1) AS avg_pct,
+        COUNT(er.id)::int                                        AS exam_count,
+        COUNT(DISTINCT er.student_id)::int                       AS student_count,
+        COUNT(CASE WHEN er.score >= e.pass_score THEN 1 END)::int AS pass_count
+      FROM exam_results er
+      JOIN exams e ON er.exam_id = e.id
+      WHERE e.teacher_id = $1
+        AND er.created_at >= NOW() - INTERVAL '6 months'
+      GROUP BY DATE_TRUNC('month', er.created_at)
+      ORDER BY DATE_TRUNC('month', er.created_at) ASC
+    `, [teacherId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/course-stats', requireRole('teacher'), async (req, res) => {
   const teacherId = req.user.id;
   try {

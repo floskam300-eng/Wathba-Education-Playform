@@ -110,26 +110,78 @@ router.delete('/:id', requireRole('teacher'), async (req, res) => {
 // ── Course content ──
 router.get('/:id/content', async (req, res) => {
   try {
-    const [videos, pdfs, exams] = await Promise.all([
-      pool.query('SELECT * FROM videos WHERE course_id=$1 ORDER BY sort_order', [req.params.id]),
-      pool.query('SELECT * FROM pdf_files WHERE course_id=$1', [req.params.id]),
+    const [videos, pdfs, exams, sections] = await Promise.all([
+      pool.query('SELECT * FROM videos WHERE course_id=$1 ORDER BY sort_order, id', [req.params.id]),
+      pool.query('SELECT * FROM pdf_files WHERE course_id=$1 ORDER BY id', [req.params.id]),
       pool.query('SELECT id,title,duration_minutes,total_score,pass_score FROM exams WHERE course_id=$1', [req.params.id]),
+      pool.query('SELECT * FROM sections WHERE course_id=$1 ORDER BY sort_order, id', [req.params.id]),
     ]);
-    res.json({ videos: videos.rows, pdfs: pdfs.rows, exams: exams.rows });
+    res.json({ videos: videos.rows, pdfs: pdfs.rows, exams: exams.rows, sections: sections.rows });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// ── Sections CRUD ──
+router.post('/:id/sections', requireRole('teacher', 'assistant'), async (req, res) => {
+  const { title } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
+  try {
+    const maxOrder = await pool.query('SELECT COALESCE(MAX(sort_order),0) AS m FROM sections WHERE course_id=$1', [req.params.id]);
+    const result = await pool.query(
+      'INSERT INTO sections (course_id,title,sort_order) VALUES($1,$2,$3) RETURNING *',
+      [req.params.id, title.trim(), parseInt(maxOrder.rows[0].m) + 1]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/:id/sections/:sectionId', requireRole('teacher', 'assistant'), async (req, res) => {
+  const { title } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE sections SET title=$1 WHERE id=$2 AND course_id=$3 RETURNING *',
+      [title, req.params.sectionId, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Section not found' });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+router.delete('/:id/sections/:sectionId', requireRole('teacher', 'assistant'), async (req, res) => {
+  try {
+    await pool.query('UPDATE videos SET section_id=NULL WHERE section_id=$1', [req.params.sectionId]);
+    await pool.query('UPDATE pdf_files SET section_id=NULL WHERE section_id=$1', [req.params.sectionId]);
+    await pool.query('DELETE FROM sections WHERE id=$1 AND course_id=$2', [req.params.sectionId, req.params.id]);
+    res.json({ message: 'Section deleted' });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/:id/videos/:videoId/section', requireRole('teacher', 'assistant'), async (req, res) => {
+  const { section_id } = req.body;
+  try {
+    await pool.query('UPDATE videos SET section_id=$1 WHERE id=$2 AND course_id=$3', [section_id || null, req.params.videoId, req.params.id]);
+    res.json({ message: 'Updated' });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/:id/pdfs/:pdfId/section', requireRole('teacher', 'assistant'), async (req, res) => {
+  const { section_id } = req.body;
+  try {
+    await pool.query('UPDATE pdf_files SET section_id=$1 WHERE id=$2 AND course_id=$3', [section_id || null, req.params.pdfId, req.params.id]);
+    res.json({ message: 'Updated' });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Video upload (actual file) ──
 router.post('/:id/videos/upload', requireRole('teacher', 'assistant'), uploadVideo.single('video'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No video file uploaded' });
-    const { title, duration_minutes, sort_order } = req.body;
+    const { title, duration_minutes, sort_order, section_id } = req.body;
     const filePath = `/uploads/videos/${req.file.filename}`;
     const result = await pool.query(
-      'INSERT INTO videos (title,file_path_or_url,duration_minutes,course_id,sort_order) VALUES($1,$2,$3,$4,$5) RETURNING *',
-      [title || req.file.originalname, filePath, parseInt(duration_minutes) || 0, req.params.id, parseInt(sort_order) || 0]
+      'INSERT INTO videos (title,file_path_or_url,duration_minutes,course_id,sort_order,section_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
+      [title || req.file.originalname, filePath, parseInt(duration_minutes) || 0, req.params.id, parseInt(sort_order) || 0, section_id || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -142,11 +194,11 @@ router.post('/:id/videos/upload', requireRole('teacher', 'assistant'), uploadVid
 router.post('/:id/pdfs/upload', requireRole('teacher', 'assistant'), uploadPdf.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
-    const { title } = req.body;
+    const { title, section_id } = req.body;
     const filePath = `/uploads/pdfs/${req.file.filename}`;
     const result = await pool.query(
-      'INSERT INTO pdf_files (title,file_url,course_id) VALUES($1,$2,$3) RETURNING *',
-      [title || req.file.originalname, filePath, req.params.id]
+      'INSERT INTO pdf_files (title,file_url,course_id,section_id) VALUES($1,$2,$3,$4) RETURNING *',
+      [title || req.file.originalname, filePath, req.params.id, section_id || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

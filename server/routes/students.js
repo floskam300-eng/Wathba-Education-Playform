@@ -305,6 +305,41 @@ router.get('/me/stats', requireRole('student'), async (req, res) => {
   }
 });
 
+router.post('/bulk', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_add_students'), async (req, res) => {
+  const teacherId = getTeacherId(req);
+  const { students } = req.body;
+  if (!Array.isArray(students) || students.length === 0) {
+    return res.status(400).json({ error: 'No students provided' });
+  }
+  const results = { success: 0, failed: 0, errors: [] };
+  for (const s of students) {
+    const name     = (s['الاسم'] || s['name'] || '').toString().trim();
+    const username = (s['اسم المستخدم'] || s['username'] || '').toString().trim();
+    const password = (s['كلمة المرور'] || s['password'] || '').toString().trim();
+    const phone    = (s['الهاتف'] || s['phone'] || '').toString().trim() || null;
+    const parent_phone = (s['هاتف ولي الأمر'] || s['parent_phone'] || '').toString().trim() || null;
+    const academic_stage = (s['المرحلة'] || s['academic_stage'] || '').toString().trim() || null;
+    const gender = (s['الجنس'] || s['gender'] || '').toString().trim() || null;
+    if (!name || !username || !password) {
+      results.failed++;
+      results.errors.push(`${name || username || '؟'}: حقول مطلوبة ناقصة`);
+      continue;
+    }
+    try {
+      const hashed = await bcrypt.hash(password, 10);
+      await pool.query(
+        'INSERT INTO students (username,password,name,phone,parent_phone,academic_stage,gender,teacher_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+        [username, hashed, name, phone, parent_phone, academic_stage, gender, teacherId]
+      );
+      results.success++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push(`${name}: ${err.code === '23505' ? 'اسم المستخدم موجود مسبقاً' : 'خطأ في الحفظ'}`);
+    }
+  }
+  res.json(results);
+});
+
 router.get('/me/dashboard', requireRole('student'), async (req, res) => {
   const studentId = req.user.id;
   try {

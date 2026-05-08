@@ -8,6 +8,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  LineChart, Line, Area, AreaChart,
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
@@ -72,6 +73,11 @@ export default function TeacherAnalytics() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['teacher-analytics'],
     queryFn: () => api.get('/teachers/analytics').then(r => r.data),
+  });
+
+  const { data: trendData = [] } = useQuery({
+    queryKey: ['teacher-analytics-trend'],
+    queryFn: () => api.get('/teachers/analytics/trend').then(r => r.data),
   });
 
   const examChartData = (data?.examResults || []).map(e => ({
@@ -271,6 +277,45 @@ export default function TeacherAnalytics() {
               </ResponsiveContainer>
             ) : <EmptyState icon={Target} text="لا توجد محاولات بعد" />}
           </div>
+        </div>
+      )}
+
+      {/* ── Trend Chart ── */}
+      {trendData.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-indigo-500" />
+            </div>
+            <div>
+              <h2 className="font-black text-gray-800 text-sm">تطور الأداء خلال 6 أشهر</h2>
+              <p className="text-[11px] text-gray-400 font-medium">متوسط الدرجات ونسبة النجاح شهرياً</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={trendData.map(d => ({
+              name: d.label,
+              'متوسط الدرجات %': parseFloat(d.avg_pct) || 0,
+              'الطلاب': d.student_count,
+              'المحاولات': d.exam_count,
+            }))} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconType="circle" wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '8px' }} />
+              <Area type="monotone" dataKey="متوسط الدرجات %" stroke="#6366f1" strokeWidth={2.5}
+                fill="url(#trendGrad)" dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="الطلاب" stroke="#f97316" strokeWidth={2}
+                dot={{ r: 3, fill: '#f97316', strokeWidth: 2, stroke: '#fff' }} strokeDasharray="4 2" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       )}
 

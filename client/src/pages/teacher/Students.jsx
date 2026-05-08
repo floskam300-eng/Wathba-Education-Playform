@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Pencil, Trash2, Search, Eye, Printer, GraduationCap } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Search, Eye, Printer, GraduationCap, Upload, FileSpreadsheet, X, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Badge from '../../components/ui/Badge';
@@ -22,6 +23,10 @@ export default function TeacherStudents() {
   const [form, setForm] = useState(emptyForm);
   const [deleteId, setDeleteId] = useState(null);
   const [viewStudent, setViewStudent] = useState(null);
+  const [importModal, setImportModal] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const importFileRef = useRef();
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
@@ -51,6 +56,46 @@ export default function TeacherStudents() {
     onSuccess: () => { qc.invalidateQueries(['students']); toast.success('تم حذف الطالب'); setDeleteId(null); },
     onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
   });
+
+  const handleExcelFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        setImportRows(rows);
+        setImportModal(true);
+      } catch {
+        toast.error('تعذّر قراءة الملف — تأكد أنه Excel أو CSV');
+      }
+    };
+    reader.readAsBinaryString(file);
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
+
+  const handleBulkImport = async () => {
+    if (!importRows.length) return;
+    setImportLoading(true);
+    try {
+      const res = await api.post('/students/bulk', { students: importRows });
+      const { success, failed, errors } = res.data;
+      if (success > 0) {
+        qc.invalidateQueries(['students']);
+        toast.success(`تم إضافة ${success} طالب بنجاح${failed > 0 ? ` (${failed} فشل)` : ''}`);
+      }
+      if (failed > 0 && success === 0) toast.error(`فشل استيراد جميع الصفوف (${failed})`);
+      if (errors?.length) errors.slice(0, 3).forEach(e => toast.error(e, { duration: 4000 }));
+      setImportModal(false);
+      setImportRows([]);
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'حدث خطأ في الاستيراد');
+    } finally {
+      setImportLoading(false);
+    }
+  };
 
   const canAdd = user?.role === 'teacher' || user?.can_add_students;
   const canEdit = user?.role === 'teacher' || user?.can_edit_students;
@@ -97,17 +142,72 @@ export default function TeacherStudents() {
           <Users className="w-7 h-7 text-orange-500" /> الطلاب
           <span className="text-sm font-semibold text-gray-600">({students.length})</span>
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={handlePrint} className="btn-secondary flex items-center gap-2">
             <Printer className="w-4 h-4" /> طباعة
           </button>
           {canAdd && (
-            <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-              <Plus className="w-4 h-4" /> إضافة طالب
-            </button>
+            <>
+              <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelFile} />
+              <button onClick={() => importFileRef.current?.click()} className="btn-secondary flex items-center gap-2 !border-green-300 !text-green-700 hover:!bg-green-50">
+                <FileSpreadsheet className="w-4 h-4" /> استيراد Excel
+              </button>
+              <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+                <Plus className="w-4 h-4" /> إضافة طالب
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Import Preview Modal */}
+      {importModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="font-black text-gray-800">معاينة الاستيراد</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{importRows.length} صف سيتم استيراده</p>
+              </div>
+              <button onClick={() => { setImportModal(false); setImportRows([]); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-auto flex-1 p-4">
+              <div className="text-xs text-gray-500 mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <strong>أعمدة مدعومة:</strong> الاسم، اسم المستخدم، كلمة المرور، الهاتف، هاتف ولي الأمر، المرحلة، الجنس
+              </div>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-50">
+                    {importRows[0] && Object.keys(importRows[0]).map(k => (
+                      <th key={k} className="border border-gray-200 px-2 py-1.5 text-right font-semibold text-gray-600">{k}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {importRows.slice(0, 10).map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      {Object.values(row).map((v, j) => (
+                        <td key={j} className="border border-gray-200 px-2 py-1.5 text-gray-700">{String(v)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {importRows.length > 10 && (
+                <p className="text-center text-xs text-gray-400 mt-2">... و {importRows.length - 10} صف آخر</p>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
+              <button onClick={() => { setImportModal(false); setImportRows([]); }} className="btn-secondary">إلغاء</button>
+              <button onClick={handleBulkImport} disabled={importLoading} className="btn-primary flex items-center gap-2">
+                {importLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> جاري الاستيراد...</> : <><Upload className="w-4 h-4" /> استيراد {importRows.length} طالب</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="card !p-4">
