@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Clock, CheckCircle, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Clock, CheckCircle, Play, Eye } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
 import api from '../../lib/api';
@@ -61,6 +62,7 @@ export default function StudentExams() {
     return `${m}:${s}`;
   };
 
+  const navigate = useNavigate();
   const openExam = (exam) => { setAnswers({}); setResult(null); setTaking(exam); };
 
   if (taking && examData && !taking.already_taken) {
@@ -184,8 +186,15 @@ export default function StudentExams() {
               </div>
 
               {ex.already_taken ? (
-                <div className={`text-center py-2 rounded-xl font-bold text-lg ${ex.score >= ex.pass_score ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {ex.score}/{ex.total_score}
+                <div className="space-y-2">
+                  <div className={`text-center py-2 rounded-xl font-bold text-lg ${ex.score >= ex.pass_score ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {ex.score}/{ex.total_score}
+                  </div>
+                  <button
+                    onClick={() => navigate(`/student/exam-review/${ex.already_taken}`)}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-navy-200 hover:border-navy-400 hover:bg-navy-50 text-navy-700 text-sm font-bold transition-all">
+                    <Eye className="w-4 h-4" /> مراجعة الإجابات
+                  </button>
                 </div>
               ) : (
                 <button onClick={() => openExam(ex)} className="w-full btn-primary flex items-center justify-center gap-2">
