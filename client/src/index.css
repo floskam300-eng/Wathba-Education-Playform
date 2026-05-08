@@ -5,27 +5,41 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════
-   CSS VARIABLES
+   CSS VARIABLES — WARM DARK PALETTE
+   الفلسفة: خلفيات warm-dark (neutral بدون أزرق بارد)
+   تتناسق مع الـ orange brand accent
 ═══════════════════════════════════════════════════════ */
 :root {
-  --dk-bg:            #06101E;
-  --dk-surface:       #0C1829;
-  --dk-elevated:      #102038;
-  --dk-hover:         #152845;
-  --dk-border:        rgba(59, 130, 246, 0.12);
-  --dk-border-md:     rgba(99, 149, 255, 0.2);
-  --dk-border-strong: rgba(99, 149, 255, 0.32);
-  --dk-text-1:        #EDF2FA;
-  --dk-text-2:        #8BAAD4;
-  --dk-text-3:        #4D6B90;
-  --dk-orange:        #FF8C00;
-  --dk-orange-dim:    rgba(255, 140, 0, 0.15);
-  --dk-orange-glow:   0 0 20px rgba(255, 140, 0, 0.35);
-  --dk-blue:          #5BA4FF;
-  --dk-blue-dim:      rgba(91, 164, 255, 0.12);
-  --dk-green:         #34D399;
+  /* ── Backgrounds (warm-dark, not cold-blue) ── */
+  --dk-bg:            #0F0E15;   /* near-black, warm-neutral */
+  --dk-surface:       #17151F;   /* card surfaces */
+  --dk-elevated:      #1F1C2C;   /* modals, inputs */
+  --dk-hover:         #272439;   /* hover/active states */
+
+  /* ── Borders (warm orange-tinted, not blue) ── */
+  --dk-border:        rgba(230, 175, 80, 0.10);
+  --dk-border-md:     rgba(230, 175, 80, 0.20);
+  --dk-border-strong: rgba(230, 175, 80, 0.32);
+
+  /* ── Text (warm whites, not cold) ── */
+  --dk-text-1:        #F0EAE0;   /* primary — warm white */
+  --dk-text-2:        #A09488;   /* secondary — warm muted */
+  --dk-text-3:        #60584E;   /* disabled/placeholder */
+
+  /* ── Brand accent: warm amber-orange ── */
+  --dk-orange:        #F5A623;
+  --dk-orange-dim:    rgba(245, 166, 35, 0.14);
+  --dk-orange-glow:   0 0 24px rgba(245, 166, 35, 0.40);
+
+  /* ── Secondary accent: teal (complements warm orange) ── */
+  --dk-teal:          #2DD4BF;
+  --dk-teal-dim:      rgba(45, 212, 191, 0.12);
+
+  /* ── Semantic colors ── */
+  --dk-green:         #10B981;
   --dk-red:           #F87171;
   --dk-purple:        #A78BFA;
+  --dk-amber:         #FBBF24;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -146,12 +160,14 @@
    DARK MODE — COMPONENT OVERRIDES
 ═══════════════════════════════════════════════════════ */
 
-/* ── btn-primary: orange glow ── */
+/* ── btn-primary: warm orange glow ── */
 html.dark .btn-primary {
+  background-color: var(--dk-orange);
   box-shadow: 0 0 0 0 transparent;
   transition: all 0.2s;
 }
 html.dark .btn-primary:hover {
+  background-color: #E09320;
   box-shadow: var(--dk-orange-glow);
 }
 
@@ -164,7 +180,7 @@ html.dark .btn-secondary {
 html.dark .btn-secondary:hover {
   background-color: var(--dk-hover);
   color: var(--dk-text-1);
-  border-color: var(--dk-blue);
+  border-color: var(--dk-orange);
 }
 
 /* ── card ── */
@@ -173,7 +189,7 @@ html.dark .card {
   border-color: var(--dk-border);
   border-width: 1px;
   color: var(--dk-text-1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4),
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5),
               inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
@@ -194,18 +210,18 @@ html.dark .modal-box {
   background-color: var(--dk-elevated);
   border-color: var(--dk-border-md);
   border-width: 1px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7),
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75),
               0 0 0 1px var(--dk-border-md);
 }
 html.dark .modal-overlay {
-  background-color: rgba(3, 8, 20, 0.85);
+  background-color: rgba(8, 6, 16, 0.88);
   backdrop-filter: blur(8px);
 }
 
 /* ── table ── */
 html.dark .table-header {
-  background: linear-gradient(135deg, #0D2444, #142E54);
-  color: #A8C8FF;
+  background: linear-gradient(135deg, #1D1A2E, #251F38);
+  color: #C4A870;
   border-bottom: 1px solid var(--dk-border-strong);
 }
 html.dark .table-row {
@@ -251,9 +267,10 @@ html.dark .text-gray-700     { color: var(--dk-text-2) !important; }
 html.dark .text-gray-800     { color: var(--dk-text-1) !important; }
 html.dark .text-gray-900     { color: var(--dk-text-1) !important; }
 
+/* Navy text → warm amber-gold in dark */
 html.dark .text-navy-500,
 html.dark .text-navy-600,
-html.dark .text-navy-700     { color: var(--dk-blue) !important; }
+html.dark .text-navy-700     { color: var(--dk-orange) !important; }
 
 html.dark .border-gray-100   { border-color: var(--dk-border) !important; }
 html.dark .border-gray-200   { border-color: var(--dk-border) !important; }
@@ -262,34 +279,38 @@ html.dark .border-slate-100  { border-color: var(--dk-border) !important; }
 html.dark .border-slate-200  { border-color: var(--dk-border) !important; }
 html.dark .border-slate-300  { border-color: var(--dk-border-md) !important; }
 
+/* ── Tinted bg overrides ── */
 html.dark .bg-orange-50      { background-color: var(--dk-orange-dim) !important; }
-html.dark .bg-blue-50        { background-color: var(--dk-blue-dim) !important; }
-html.dark .bg-green-50       { background-color: rgba(52, 211, 153, 0.08) !important; }
-html.dark .bg-red-50         { background-color: rgba(248, 113, 113, 0.08) !important; }
-html.dark .bg-yellow-50      { background-color: rgba(251, 191, 36, 0.08) !important; }
-html.dark .bg-purple-50      { background-color: rgba(167, 139, 250, 0.08) !important; }
-html.dark .bg-indigo-50      { background-color: rgba(129, 140, 248, 0.08) !important; }
-html.dark .bg-teal-50        { background-color: rgba(45, 212, 191, 0.08) !important; }
-html.dark .bg-cyan-50        { background-color: rgba(34, 211, 238, 0.08) !important; }
-html.dark .bg-emerald-50     { background-color: rgba(52, 211, 153, 0.08) !important; }
-html.dark .bg-pink-50        { background-color: rgba(244, 114, 182, 0.08) !important; }
+html.dark .bg-blue-50        { background-color: var(--dk-teal-dim) !important; }
+html.dark .bg-green-50       { background-color: rgba(16, 185, 129, 0.10) !important; }
+html.dark .bg-red-50         { background-color: rgba(248, 113, 113, 0.10) !important; }
+html.dark .bg-yellow-50      { background-color: rgba(251, 191, 36, 0.10) !important; }
+html.dark .bg-purple-50      { background-color: rgba(167, 139, 250, 0.10) !important; }
+html.dark .bg-indigo-50      { background-color: rgba(129, 140, 248, 0.10) !important; }
+html.dark .bg-teal-50        { background-color: var(--dk-teal-dim) !important; }
+html.dark .bg-cyan-50        { background-color: rgba(34, 211, 238, 0.10) !important; }
+html.dark .bg-emerald-50     { background-color: rgba(16, 185, 129, 0.10) !important; }
+html.dark .bg-pink-50        { background-color: rgba(244, 114, 182, 0.10) !important; }
 
-html.dark .border-orange-200 { border-color: rgba(255, 140, 0, 0.25) !important; }
-html.dark .border-blue-200   { border-color: rgba(91, 164, 255, 0.25) !important; }
-html.dark .border-green-200  { border-color: rgba(52, 211, 153, 0.25) !important; }
-html.dark .border-red-200    { border-color: rgba(248, 113, 113, 0.25) !important; }
-html.dark .border-yellow-200 { border-color: rgba(251, 191, 36, 0.25) !important; }
-html.dark .border-purple-200 { border-color: rgba(167, 139, 250, 0.25) !important; }
+html.dark .border-orange-200 { border-color: rgba(245, 166, 35, 0.28) !important; }
+html.dark .border-blue-200   { border-color: rgba(45, 212, 191, 0.28) !important; }
+html.dark .border-green-200  { border-color: rgba(16, 185, 129, 0.28) !important; }
+html.dark .border-red-200    { border-color: rgba(248, 113, 113, 0.28) !important; }
+html.dark .border-yellow-200 { border-color: rgba(251, 191, 36, 0.28) !important; }
+html.dark .border-purple-200 { border-color: rgba(167, 139, 250, 0.28) !important; }
 
-/* Semantic text colors in dark */
-html.dark .text-orange-700   { color: #FFAA33 !important; }
-html.dark .text-orange-600   { color: #FF9F1A !important; }
+/* ── Semantic text colors in dark ── */
+html.dark .text-orange-700   { color: #F5B840 !important; }
+html.dark .text-orange-600   { color: #F5A623 !important; }
 html.dark .text-orange-500   { color: var(--dk-orange) !important; }
-html.dark .text-blue-700     { color: #74B3FF !important; }
-html.dark .text-blue-600     { color: #5BA4FF !important; }
-html.dark .text-blue-800     { color: #8DC5FF !important; }
-html.dark .text-green-700    { color: #4ADE80 !important; }
-html.dark .text-green-600    { color: #34D399 !important; }
+
+/* Teal replaces cold blue for secondary info */
+html.dark .text-blue-700     { color: #3DD8C5 !important; }
+html.dark .text-blue-600     { color: #2DD4BF !important; }
+html.dark .text-blue-800     { color: #5CE0D0 !important; }
+
+html.dark .text-green-700    { color: #34D399 !important; }
+html.dark .text-green-600    { color: #10B981 !important; }
 html.dark .text-green-800    { color: #6EE7B7 !important; }
 html.dark .text-red-700      { color: #FCA5A5 !important; }
 html.dark .text-red-600      { color: #F87171 !important; }
@@ -298,70 +319,60 @@ html.dark .text-yellow-800   { color: #FDE68A !important; }
 html.dark .text-purple-700   { color: #C4B5FD !important; }
 html.dark .text-purple-800   { color: #DDD6FE !important; }
 html.dark .text-indigo-700   { color: #A5B4FC !important; }
-html.dark .text-teal-700     { color: #5EEAD4 !important; }
+html.dark .text-teal-700     { color: var(--dk-teal) !important; }
 
 /* ═══════════════════════════════════════════════════════
    DARK MODE — LAYOUT STRUCTURAL
 ═══════════════════════════════════════════════════════ */
 
-/* Layout outer container */
-html.dark .dark-layout-bg {
-  background-color: var(--dk-bg);
-}
+html.dark .dark-layout-bg  { background-color: var(--dk-bg); }
+html.dark .dark-content-bg { background-color: var(--dk-bg); }
 
-/* Content area */
-html.dark .dark-content-bg {
-  background-color: var(--dk-bg);
-}
-
-/* ─ Special dark-mode backgrounds for inline styles ─ */
-/* Covers bg-white used inline on cards and tables */
 html.dark [class*="bg-white"] {
   background-color: var(--dk-surface) !important;
 }
 
-/* ─ Rounded panels / stat cards ─ */
 html.dark .rounded-2xl.border,
 html.dark .rounded-xl.border,
 html.dark .rounded-lg.border {
   border-color: var(--dk-border);
 }
 
-/* ─ shadow-sm in dark = subtle glow ─ */
+/* ── Shadows become warm-dark depth ── */
 html.dark .shadow-sm {
-  box-shadow: 0 1px 4px rgba(0,0,0,0.5),
+  box-shadow: 0 1px 4px rgba(0,0,0,0.55),
               0 0 0 1px var(--dk-border);
 }
 html.dark .shadow-md {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.6),
+  box-shadow: 0 4px 16px rgba(0,0,0,0.65),
               0 0 0 1px var(--dk-border-md);
 }
 html.dark .shadow-lg {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7),
+  box-shadow: 0 8px 32px rgba(0,0,0,0.75),
               0 0 0 1px var(--dk-border-md);
 }
 
-/* ─ stat card icon backgrounds ─ */
-html.dark .bg-navy-50  { background-color: rgba(13, 36, 68, 0.6) !important; }
-html.dark .bg-navy-100 { background-color: rgba(13, 36, 68, 0.8) !important; }
-html.dark .bg-blue-100 { background-color: rgba(91, 164, 255, 0.12) !important; }
-html.dark .bg-green-100{ background-color: rgba(52, 211, 153, 0.12) !important; }
+/* ── stat card icon backgrounds ── */
+html.dark .bg-navy-50  { background-color: rgba(30, 20, 50, 0.70) !important; }
+html.dark .bg-navy-100 { background-color: rgba(40, 28, 64, 0.80) !important; }
+html.dark .bg-blue-100 { background-color: rgba(45, 212, 191, 0.12) !important; }
+html.dark .bg-green-100{ background-color: rgba(16, 185, 129, 0.12) !important; }
 html.dark .bg-red-100  { background-color: rgba(248, 113, 113, 0.12) !important; }
 html.dark .bg-yellow-100{ background-color: rgba(251, 191, 36, 0.12) !important; }
-html.dark .bg-orange-100{ background-color: rgba(255, 140, 0, 0.12) !important; }
+html.dark .bg-orange-100{ background-color: rgba(245, 166, 35, 0.14) !important; }
 html.dark .bg-purple-100{ background-color: rgba(167, 139, 250, 0.12) !important; }
 html.dark .bg-indigo-100{ background-color: rgba(129, 140, 248, 0.12) !important; }
 html.dark .bg-teal-100 { background-color: rgba(45, 212, 191, 0.12) !important; }
-html.dark .bg-emerald-100{ background-color: rgba(52, 211, 153, 0.12) !important; }
+html.dark .bg-emerald-100{ background-color: rgba(16, 185, 129, 0.12) !important; }
 html.dark .bg-pink-100 { background-color: rgba(244, 114, 182, 0.12) !important; }
 
-/* ─ Dividers ─ */
+/* ── Dividers ── */
 html.dark hr,
 html.dark .divide-gray-200 > * + * {
   border-color: var(--dk-border);
 }
 
-/* ─ Recharts / chart backgrounds ─ */
+/* ── Chart backgrounds ── */
 html.dark .recharts-cartesian-grid-horizontal line,
 html.dark .recharts-cartesian-grid-vertical line {
   stroke: var(--dk-border-md);
@@ -392,7 +403,7 @@ html.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
   }
 
   html.dark .text-gradient {
-    background: linear-gradient(135deg, #5BA4FF, #FF8C00);
+    background: linear-gradient(135deg, #F5A623, #2DD4BF);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -418,11 +429,11 @@ html.dark ::-webkit-scrollbar-track {
   border-radius: 10px;
 }
 html.dark ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #2A4A7A, #1A3055);
+  background: linear-gradient(180deg, #3A3050, #28203E);
   border-radius: 10px;
 }
 html.dark ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--dk-orange), #CC7000);
+  background: linear-gradient(180deg, var(--dk-orange), #C88010);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -445,7 +456,7 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #FF8C00;
+  background: #F5A623;
   margin-top: -5px;
   transition: transform 0.15s;
 }
@@ -461,20 +472,20 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #FF8C00;
+  background: #F5A623;
   border: none;
 }
 .player-range-progress {
   background: linear-gradient(
     to right,
-    #FF8C00 var(--pct, 0%),
+    #F5A623 var(--pct, 0%),
     rgba(255,255,255,0.2) var(--pct, 0%)
   );
 }
 .player-range-volume {
   background: linear-gradient(
     to right,
-    #FF8C00 var(--vol, 100%),
+    #F5A623 var(--vol, 100%),
     rgba(255,255,255,0.2) var(--vol, 100%)
   );
 }

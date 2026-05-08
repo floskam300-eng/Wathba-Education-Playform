@@ -77,13 +77,13 @@ export default function AssistantLayout() {
     <div className={`flex h-screen overflow-hidden ${dark ? '' : 'bg-navy-50'}`}
          style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
       <aside className={`hidden lg:flex w-64 flex-col flex-shrink-0 ${dark ? '' : 'bg-navy-500'}`}
-             style={dark ? { background: 'linear-gradient(180deg, #0A1628 0%, #081220 100%)', borderLeft: '1px solid rgba(59,130,246,0.1)' } : {}}>
+             style={dark ? { background: 'linear-gradient(180deg, #161422 0%, #100E1A 100%)', borderLeft: '1px solid rgba(230,175,80,0.12)' } : {}}>
         <Sidebar />
       </aside>
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className={`w-64 flex flex-col ${dark ? '' : 'bg-navy-500'}`}
-               style={dark ? { background: 'linear-gradient(180deg, #0A1628 0%, #081220 100%)' } : {}}>
+               style={dark ? { background: 'linear-gradient(180deg, #161422 0%, #100E1A 100%)' } : {}}>
             <Sidebar />
           </div>
           <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
