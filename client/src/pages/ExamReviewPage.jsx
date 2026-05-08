@@ -12,35 +12,40 @@ import toast from 'react-hot-toast';
 const OPTS = ['A', 'B', 'C', 'D'];
 const optLabel = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
 
-function optStyle(opt, studentAnswer, correctAnswer) {
-  const isCorrect      = opt === correctAnswer;
+// answered = true only when the student actually picked an option
+function optStyle(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
+  if (!answered) return 'border-gray-200 bg-white';           // nothing chosen — all neutral
   if (isCorrect && isStudentChoice) return 'border-green-500 bg-green-50';
   if (isCorrect)                    return 'border-green-400 bg-green-50';
   if (isStudentChoice && !isCorrect)return 'border-red-400 bg-red-50';
   return 'border-gray-200 bg-white';
 }
 
-function optBadge(opt, studentAnswer, correctAnswer) {
-  const isCorrect      = opt === correctAnswer;
+function optBadge(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
+  if (!answered) return 'bg-gray-100 text-gray-500';
   if (isCorrect && isStudentChoice) return 'bg-green-500 text-white';
   if (isCorrect)                    return 'bg-green-400 text-white';
   if (isStudentChoice && !isCorrect)return 'bg-red-400 text-white';
   return 'bg-gray-100 text-gray-500';
 }
 
-function optTextColor(opt, studentAnswer, correctAnswer) {
-  const isCorrect      = opt === correctAnswer;
+function optTextColor(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
+  if (!answered) return 'text-gray-600';
   if (isCorrect)                    return 'text-green-800 font-semibold';
   if (isStudentChoice && !isCorrect)return 'text-red-800 font-semibold';
   return 'text-gray-600';
 }
 
-function optIcon(opt, studentAnswer, correctAnswer) {
-  const isCorrect      = opt === correctAnswer;
+function optIcon(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
+  if (!answered) return null;
   if (isCorrect && isStudentChoice) return <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />;
   if (isCorrect)                    return <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />;
   if (isStudentChoice && !isCorrect)return <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
@@ -402,14 +407,14 @@ export default function ExamReviewPage() {
                           if (!text || text === '-') return null;
                           return (
                             <div key={opt}
-                              className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${optStyle(opt, studentAns, correctAns)}`}>
-                              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${optBadge(opt, studentAns, correctAns)}`}>
+                              className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${optStyle(opt, studentAns, correctAns, answered)}`}>
+                              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${optBadge(opt, studentAns, correctAns, answered)}`}>
                                 {optLabel[opt]}
                               </span>
-                              <span className={`text-sm flex-1 leading-snug ${optTextColor(opt, studentAns, correctAns)}`}>
+                              <span className={`text-sm flex-1 leading-snug ${optTextColor(opt, studentAns, correctAns, answered)}`}>
                                 {text}
                               </span>
-                              {optIcon(opt, studentAns, correctAns)}
+                              {optIcon(opt, studentAns, correctAns, answered)}
                             </div>
                           );
                         })}

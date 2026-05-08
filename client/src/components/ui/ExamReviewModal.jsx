@@ -6,29 +6,31 @@ import api from '../../lib/api';
 const OPTS = ['A', 'B', 'C', 'D'];
 const optLabel = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
 
-function optStyle(opt, studentAnswer, correctAnswer) {
-  const isCorrect = opt === correctAnswer;
+// answered = true only when the student actually picked an option
+function optStyle(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
-
+  if (!answered) return 'border-gray-200 bg-white text-gray-600';
   if (isCorrect && isStudentChoice) return 'border-green-500 bg-green-50 text-green-800';
   if (isCorrect)                    return 'border-green-400 bg-green-50 text-green-800';
   if (isStudentChoice && !isCorrect)return 'border-red-400 bg-red-50 text-red-800';
   return 'border-gray-200 bg-white text-gray-600';
 }
 
-function optBadge(opt, studentAnswer, correctAnswer) {
-  const isCorrect = opt === correctAnswer;
+function optBadge(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
-
+  if (!answered) return 'bg-gray-100 text-gray-500';
   if (isCorrect && isStudentChoice) return 'bg-green-500 text-white';
   if (isCorrect)                    return 'bg-green-400 text-white';
   if (isStudentChoice && !isCorrect)return 'bg-red-400 text-white';
   return 'bg-gray-100 text-gray-500';
 }
 
-function optIcon(opt, studentAnswer, correctAnswer) {
-  const isCorrect = opt === correctAnswer;
+function optIcon(opt, studentAnswer, correctAnswer, answered) {
+  const isCorrect       = opt === correctAnswer;
   const isStudentChoice = opt === studentAnswer;
+  if (!answered) return null;
   if (isCorrect && isStudentChoice) return <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />;
   if (isCorrect)                    return <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />;
   if (isStudentChoice && !isCorrect)return <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
@@ -135,6 +137,7 @@ export default function ExamReviewModal({ resultId, onClose }) {
             const studentAns = q.student_answer;
             const correctAns = q.correct_answer;
             const answered   = !!studentAns;
+            const isEssay    = q.question_type === 'essay';
 
             return (
               <div key={q.id} className={`rounded-2xl border-2 p-4 ${
@@ -156,6 +159,7 @@ export default function ExamReviewModal({ resultId, onClose }) {
                     )}
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-xs text-gray-400 font-medium">{q.points} نقطة</span>
+                      {isEssay && <span className="text-xs text-purple-600 font-bold bg-purple-100 px-2 py-0.5 rounded-full">مقالي</span>}
                       {!answered && (
                         <span className="flex items-center gap-1 text-xs text-gray-400 font-bold">
                           <Clock className="w-3 h-3" /> لم تُجَب
@@ -165,36 +169,45 @@ export default function ExamReviewModal({ resultId, onClose }) {
                   </div>
                 </div>
 
-                {/* Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {OPTS.map(opt => {
-                    const text = q[`option_${opt.toLowerCase()}`];
-                    if (!text) return null;
-                    return (
-                      <div key={opt}
-                        className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all ${optStyle(opt, studentAns, correctAns)}`}>
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${optBadge(opt, studentAns, correctAns)}`}>
-                          {optLabel[opt]}
-                        </span>
-                        <span className="text-sm font-medium flex-1">{text}</span>
-                        {optIcon(opt, studentAns, correctAns)}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Legend for this question */}
-                {answered && !q.is_correct && (
-                  <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold">
-                    <span className="flex items-center gap-1 text-red-600">
-                      <XCircle className="w-3.5 h-3.5" />
-                      إجابتك: {optLabel[studentAns] || studentAns}
-                    </span>
-                    <span className="flex items-center gap-1 text-green-700">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      الصحيح: {optLabel[correctAns] || correctAns}
-                    </span>
+                {/* Essay answer display */}
+                {isEssay ? (
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 text-sm text-gray-700">
+                    {studentAns || <span className="italic text-gray-400">لم يُجِب</span>}
                   </div>
+                ) : (
+                  <>
+                    {/* MCQ / true-false Options */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {OPTS.map(opt => {
+                        const text = q[`option_${opt.toLowerCase()}`];
+                        if (!text || text === '-') return null;
+                        return (
+                          <div key={opt}
+                            className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all ${optStyle(opt, studentAns, correctAns, answered)}`}>
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${optBadge(opt, studentAns, correctAns, answered)}`}>
+                              {optLabel[opt]}
+                            </span>
+                            <span className="text-sm font-medium flex-1">{text}</span>
+                            {optIcon(opt, studentAns, correctAns, answered)}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Correction note for wrong answers */}
+                    {answered && !q.is_correct && (
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold">
+                        <span className="flex items-center gap-1 text-red-600">
+                          <XCircle className="w-3.5 h-3.5" />
+                          إجابتك: {optLabel[studentAns] || studentAns}
+                        </span>
+                        <span className="flex items-center gap-1 text-green-700">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          الصحيح: {optLabel[correctAns] || correctAns}
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );

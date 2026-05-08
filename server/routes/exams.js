@@ -431,11 +431,31 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
 
     const questions = questionsRes.rows.map(q => {
       const stored = answerMap[String(q.id)];
+      const qType  = q.question_type || 'mcq';
+
+      // Use ?? null so empty-string essay answers are preserved
+      const studentAnswer = stored?.student_answer ?? null;
+      const correctAnswer = qType === 'essay'
+        ? (q.essay_answer_key || null)
+        : q.correct_answer_letter;
+
+      // Always recompute is_correct from the actual comparison
+      // (never trust the cached JSONB value which may have been wrong)
+      let isCorrect;
+      if (qType === 'essay') {
+        // Essay answers are graded manually — keep null until graded
+        isCorrect = stored ? (stored.is_correct ?? null) : null;
+      } else if (!studentAnswer) {
+        isCorrect = false; // unanswered
+      } else {
+        isCorrect = studentAnswer === q.correct_answer_letter;
+      }
+
       return {
         ...q,
-        student_answer: stored?.student_answer || null,
-        correct_answer: q.question_type === 'essay' ? q.essay_answer_key : q.correct_answer_letter,
-        is_correct: stored?.is_correct !== undefined ? stored.is_correct : false,
+        student_answer: studentAnswer,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect,
       };
     });
 
