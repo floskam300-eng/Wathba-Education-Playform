@@ -52,22 +52,28 @@ router.get('/analytics', requireRole('teacher'), async (req, res) => {
   if (cached) return res.json(cached);
   try {
     const examResults = await pool.query(`
-      SELECT e.title, AVG(er.score) as avg_score, COUNT(er.id) as attempt_count,
-             MAX(er.score) as max_score, MIN(er.score) as min_score
+      SELECT e.id, e.title, e.total_score, e.pass_score,
+             ROUND(AVG(er.score::numeric / NULLIF(e.total_score,0) * 100), 1) AS avg_pct,
+             ROUND(MAX(er.score::numeric / NULLIF(e.total_score,0) * 100), 1) AS max_pct,
+             ROUND(MIN(er.score::numeric / NULLIF(e.total_score,0) * 100), 1) AS min_pct,
+             AVG(er.score) as avg_score, MAX(er.score) as max_score, MIN(er.score) as min_score,
+             COUNT(er.id) as attempt_count
       FROM exam_results er
       JOIN exams e ON er.exam_id = e.id
       WHERE e.teacher_id = $1
-      GROUP BY e.id, e.title
+      GROUP BY e.id, e.title, e.total_score, e.pass_score
       ORDER BY attempt_count DESC LIMIT 10
     `, [teacherId]);
 
     const topStudents = await pool.query(`
-      SELECT s.id, s.name, s.points, s.academic_stage,
-             COUNT(er.id) as exams_taken, COALESCE(AVG(er.score), 0) as avg_score
+      SELECT s.id, s.name, s.username, s.points, s.academic_stage, s.gender,
+             COUNT(er.id) as exams_taken,
+             COALESCE(ROUND(AVG(er.score::numeric / NULLIF(e.total_score,0) * 100), 1), 0) as avg_score
       FROM students s
       LEFT JOIN exam_results er ON s.id = er.student_id
-      WHERE s.teacher_id = $1
-      GROUP BY s.id, s.name, s.points, s.academic_stage
+      LEFT JOIN exams e ON er.exam_id = e.id
+      WHERE s.teacher_id = $1 AND s.deleted_at IS NULL
+      GROUP BY s.id, s.name, s.username, s.points, s.academic_stage, s.gender
       ORDER BY s.points DESC LIMIT 20
     `, [teacherId]);
 

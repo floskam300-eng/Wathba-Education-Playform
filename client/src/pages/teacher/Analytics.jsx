@@ -170,10 +170,12 @@ export default function TeacherAnalytics() {
   });
 
   const examChartData = (data?.examResults || []).map(e => ({
-    name: e.title?.length > 12 ? e.title.substring(0, 12) + '…' : e.title,
-    'متوسط': Math.round(parseFloat(e.avg_score) || 0),
-    'أعلى':  Math.round(parseFloat(e.max_score)  || 0),
+    name: e.title?.length > 14 ? e.title.substring(0, 14) + '…' : e.title,
+    fullName: e.title,
+    'متوسط': Math.round(parseFloat(e.avg_pct) || 0),
+    'أعلى':  Math.round(parseFloat(e.max_pct)  || 0),
     'محاولات': parseInt(e.attempt_count) || 0,
+    passScore: Math.round(parseFloat(e.pass_score || 0) / parseFloat(e.total_score || 1) * 100),
   }));
 
   const pieData = (data?.examResults || [])
@@ -182,7 +184,7 @@ export default function TeacherAnalytics() {
 
   const totalAttempts = (data?.examResults || []).reduce((s, e) => s + parseInt(e.attempt_count || 0), 0);
   const avgScore = data?.examResults?.length
-    ? Math.round((data.examResults || []).reduce((s, e) => s + parseFloat(e.avg_score || 0), 0) / data.examResults.length) : 0;
+    ? Math.round((data.examResults || []).reduce((s, e) => s + parseFloat(e.avg_pct || 0), 0) / data.examResults.length) : 0;
 
   const passRate = (() => {
     const results = data?.recentResults || [];
@@ -343,24 +345,96 @@ export default function TeacherAnalytics() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Exam Performance Bar */}
-          <ChartCard title="أداء الاختبارات" subtitle="متوسط وأعلى درجة لكل اختبار"
-            icon={BarChart3} iconBg="bg-blue-50" iconColor="text-blue-500">
-            {examChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={examChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }} barGap={4} barCategoryGap="28%">
-                  <GradientDefs />
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.05)', radius: 8 }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="متوسط" fill="url(#barNavy)" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1200} animationEasing="ease-out" />
-                  <Bar dataKey="أعلى"  fill="url(#barOrange)" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1400} animationEasing="ease-out" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <EmptyState icon={BarChart3} text="لا توجد بيانات اختبارات بعد" />}
-          </ChartCard>
+          {/* Exam Performance Card — Redesigned */}
+          {examChartData.length > 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 flex flex-col">
+              {/* Top accent */}
+              <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 flex-shrink-0" />
+
+              {/* Header */}
+              <div className="p-5 pb-3 flex-shrink-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                      <BarChart3 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-black text-gray-800 text-sm">أداء الاختبارات</h2>
+                      <p className="text-[11px] text-gray-400 mt-0.5">متوسط وأعلى درجة % لكل اختبار</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <div className="text-center px-2.5 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-xs font-black text-slate-700">{totalAttempts}</p>
+                      <p className="text-[9px] text-slate-400 font-semibold">محاولة</p>
+                    </div>
+                    <div className="text-center px-2.5 py-1.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                      <p className="text-xs font-black text-emerald-600">{examChartData.length ? Math.max(...examChartData.map(e => e['متوسط'])) : 0}%</p>
+                      <p className="text-[9px] text-emerald-400 font-semibold">أعلى متوسط</p>
+                    </div>
+                    <div className="text-center px-2.5 py-1.5 bg-rose-50 rounded-xl border border-rose-100">
+                      <p className="text-xs font-black text-rose-500">{examChartData.length ? Math.min(...examChartData.map(e => e['متوسط'])) : 0}%</p>
+                      <p className="text-[9px] text-rose-300 font-semibold">أدنى متوسط</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div className="px-3 pb-1 flex-shrink-0">
+                <ResponsiveContainer width="100%" height={175}>
+                  <BarChart data={examChartData} margin={{ top: 0, right: 5, left: -18, bottom: 0 }} barGap={3} barCategoryGap="30%">
+                    <GradientDefs />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={v => `${v}%`} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.05)', radius: 8 }} />
+                    <Bar dataKey="متوسط" fill="url(#barNavy)"   radius={[5,5,0,0]} maxBarSize={22} animationDuration={1200} animationEasing="ease-out" />
+                    <Bar dataKey="أعلى"  fill="url(#barOrange)" radius={[5,5,0,0]} maxBarSize={22} animationDuration={1400} animationEasing="ease-out" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Legend */}
+              <div className="px-5 pb-3 flex items-center gap-4 flex-shrink-0">
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500">
+                  <span className="w-3 h-3 rounded-sm" style={{ background: '#1A2E4A' }} />متوسط الدرجات
+                </span>
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500">
+                  <span className="w-3 h-3 rounded-sm" style={{ background: '#FF8C00' }} />أعلى درجة
+                </span>
+              </div>
+
+              {/* Exam rows */}
+              <div className="border-t border-gray-50 flex-1 overflow-y-auto">
+                {examChartData.map((e, i) => {
+                  const avg = e['متوسط'];
+                  const sc = avg >= 70 ? { text:'#10b981', bg:'#dcfce7' } : avg >= 50 ? { text:'#6366f1', bg:'#ede9fe' } : { text:'#f43f5e', bg:'#ffe4e6' };
+                  return (
+                    <div key={i} className="flex items-center justify-between px-5 py-2 hover:bg-gray-50/70 transition-colors border-b border-gray-50 last:border-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white flex-shrink-0"
+                          style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}>
+                          {i + 1}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-700 truncate" title={e.fullName}>{e.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[10px] text-gray-400 font-medium">{e['محاولات']} محاولة</span>
+                        <span className="text-[11px] font-black px-2 py-0.5 rounded-lg" style={{ color: sc.text, background: sc.bg }}>
+                          {avg}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex items-center justify-center">
+              <EmptyState icon={BarChart3} text="لا توجد بيانات اختبارات بعد" />
+            </div>
+          )}
 
           {/* Attempts Distribution Donut */}
           <ChartCard title="توزيع المحاولات" subtitle="نسبة المحاولات لكل اختبار"
