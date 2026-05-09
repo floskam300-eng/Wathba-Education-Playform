@@ -120,9 +120,9 @@ export default function TeacherDashboard() {
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(26,46,74,0.04)', radius: 8 }} />
                 <Legend iconType="circle"
                   wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '12px' }} />
-                <Bar dataKey="متوسط الدرجات" fill="url(#dbBarNavy)" radius={[6, 6, 0, 0]}
+                <Bar dataKey="متوسط الدرجات" fill="#1A2E4A" radius={[6, 6, 0, 0]}
                   maxBarSize={28} animationDuration={1400} animationEasing="ease-out" />
-                <Bar dataKey="محاولات" fill="url(#dbBarOrange)" radius={[6, 6, 0, 0]}
+                <Bar dataKey="محاولات" fill="#FF8C00" radius={[6, 6, 0, 0]}
                   maxBarSize={28} animationDuration={1600} animationEasing="ease-out" />
               </BarChart>
             </ResponsiveContainer>

@@ -389,8 +389,8 @@ export default function TeacherAnalytics() {
                     <XAxis dataKey="name" tick={{ fontSize: 9, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={0} />
                     <YAxis tick={{ fontSize: 9, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={v => `${v}%`} tickCount={5} />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.05)', radius: 8 }} />
-                    <Bar dataKey="متوسط" fill="url(#barNavy)"   radius={[5,5,0,0]} animationDuration={1200} animationEasing="ease-out" />
-                    <Bar dataKey="أعلى"  fill="url(#barOrange)" radius={[5,5,0,0]} animationDuration={1400} animationEasing="ease-out" />
+                    <Bar dataKey="متوسط" fill="#1A2E4A" radius={[5,5,0,0]} animationDuration={1200} animationEasing="ease-out" />
+                    <Bar dataKey="أعلى"  fill="#FF8C00" radius={[5,5,0,0]} animationDuration={1400} animationEasing="ease-out" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

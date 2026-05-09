@@ -277,8 +277,8 @@ export default function AssistantAnalytics() {
                   <YAxis tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={[0, 100]} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.05)', radius: 8 }} />
                   <Legend iconType="circle" wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="متوسط" fill="url(#aBarNavy)" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1200} animationEasing="ease-out" />
-                  <Bar dataKey="أعلى"  fill="url(#aBarOrange)" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1400} animationEasing="ease-out" />
+                  <Bar dataKey="متوسط" fill="#1A2E4A" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1200} animationEasing="ease-out" />
+                  <Bar dataKey="أعلى"  fill="#FF8C00" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1400} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyState icon={BarChart3} text="لا توجد بيانات اختبارات بعد" />}
