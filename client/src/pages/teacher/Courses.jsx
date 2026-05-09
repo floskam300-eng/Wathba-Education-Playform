@@ -267,6 +267,8 @@ export default function TeacherCourses() {
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [editingSectionTitle, setEditingSectionTitle] = useState('');
+  const [showRequestsPanel, setShowRequestsPanel] = useState(true);
+  const [requestsCourseFilter, setRequestsCourseFilter] = useState('الكل');
 
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ['courses'],
@@ -376,44 +378,136 @@ export default function TeacherCourses() {
         </button>
       </div>
 
-      {/* ── Enrollment Requests ── */}
-      {enrollRequests.filter(r => r.status === 'pending').length > 0 && (
-        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-5">
-          <h2 className="font-black text-yellow-800 flex items-center gap-2 mb-4">
-            <Bell className="w-5 h-5" />
-            طلبات الانضمام للكورسات
-            <span className="text-xs font-bold bg-yellow-400 text-white px-2 py-0.5 rounded-full">
-              {enrollRequests.filter(r => r.status === 'pending').length}
-            </span>
-          </h2>
-          <div className="space-y-3">
-            {enrollRequests.filter(r => r.status === 'pending').map(r => (
-              <div key={r.id} className="bg-white rounded-xl p-4 border border-yellow-200 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="font-bold text-navy-700 text-sm">{r.student_name}</p>
-                  <p className="text-xs text-gray-500 font-medium">{r.academic_stage}</p>
-                  <p className="text-xs text-orange-600 font-bold mt-0.5">كورس: {r.course_name}</p>
-                  {r.message && <p className="text-xs text-gray-400 mt-1 italic">"{r.message}"</p>}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleRequestMut.mutate({ id: r.id, action: 'approve' })}
-                    disabled={handleRequestMut.isPending}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition-colors">
-                    <CheckCircle className="w-3.5 h-3.5" /> قبول
-                  </button>
-                  <button
-                    onClick={() => handleRequestMut.mutate({ id: r.id, action: 'reject' })}
-                    disabled={handleRequestMut.isPending}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-xl transition-colors">
-                    <XCircle className="w-3.5 h-3.5" /> رفض
-                  </button>
-                </div>
+      {/* ── Enrollment Requests Panel ── */}
+      {(() => {
+        const pending = enrollRequests.filter(r => r.status === 'pending');
+        const courseNames = ['الكل', ...Array.from(new Set(pending.map(r => r.course_name).filter(Boolean)))];
+        const visibleRequests = requestsCourseFilter === 'الكل'
+          ? pending
+          : pending.filter(r => r.course_name === requestsCourseFilter);
+        return (
+          <div className={`rounded-2xl border shadow-sm transition-all ${pending.length > 0 ? 'border-yellow-300 bg-yellow-50' : 'border-slate-200 bg-white'}`}>
+            {/* Header — always visible */}
+            <button
+              className="w-full flex items-center justify-between p-4"
+              onClick={() => setShowRequestsPanel(v => !v)}
+            >
+              <div className="flex items-center gap-2">
+                <Bell className={`w-4 h-4 ${pending.length > 0 ? 'text-yellow-600' : 'text-gray-400'}`} />
+                <span className={`text-sm font-black ${pending.length > 0 ? 'text-yellow-800' : 'text-gray-500'}`}>
+                  طلبات الانضمام للكورسات
+                </span>
+                {pending.length > 0 ? (
+                  <span className="bg-yellow-500 text-white text-xs font-black px-2 py-0.5 rounded-full">
+                    {pending.length} طلب معلق
+                  </span>
+                ) : (
+                  <span className="bg-gray-200 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">
+                    لا توجد طلبات
+                  </span>
+                )}
               </div>
-            ))}
+              {showRequestsPanel
+                ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+            </button>
+
+            {/* Collapsible body */}
+            {showRequestsPanel && (
+              <div className="border-t border-yellow-200 px-4 pb-4 pt-3 space-y-3">
+
+                {/* Course filter chips — only show if >1 course */}
+                {courseNames.length > 2 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {courseNames.map(cn => (
+                      <button
+                        key={cn}
+                        onClick={() => setRequestsCourseFilter(cn)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                          requestsCourseFilter === cn
+                            ? 'bg-yellow-500 text-white'
+                            : 'bg-white border border-yellow-200 text-yellow-800 hover:bg-yellow-100'
+                        }`}
+                      >
+                        {cn}
+                        {cn !== 'الكل' && (
+                          <span className="mr-1 opacity-70">
+                            ({pending.filter(r => r.course_name === cn).length})
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Requests list — scrollable, max height */}
+                {pending.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 py-6">لا توجد طلبات انضمام معلقة</p>
+                ) : (
+                  <div className="overflow-y-auto max-h-80 space-y-2 pl-1">
+                    {visibleRequests.map(r => (
+                      <div
+                        key={r.id}
+                        className="bg-white rounded-xl border border-yellow-100 px-3 py-2.5 flex items-center gap-3"
+                      >
+                        {/* Avatar */}
+                        <div className="w-9 h-9 rounded-full bg-navy-600 flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+                          {r.student_name?.charAt(0)}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-navy-700 text-sm leading-tight">{r.student_name}</p>
+                            {r.academic_stage && (
+                              <span className="text-[10px] bg-gray-100 text-gray-600 font-bold px-1.5 py-0.5 rounded-full">
+                                {r.academic_stage}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-orange-600 font-semibold truncate">{r.course_name}</p>
+                          {r.message && (
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5" title={r.message}>"{r.message}"</p>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => handleRequestMut.mutate({ id: r.id, action: 'approve' })}
+                            disabled={handleRequestMut.isPending}
+                            title="قبول"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">قبول</span>
+                          </button>
+                          <button
+                            onClick={() => handleRequestMut.mutate({ id: r.id, action: 'reject' })}
+                            disabled={handleRequestMut.isPending}
+                            title="رفض"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">رفض</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Count summary when filtered */}
+                {requestsCourseFilter !== 'الكل' && (
+                  <p className="text-xs text-gray-400 text-center">
+                    عرض {visibleRequests.length} من {pending.length} طلب
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Stage Filter */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
