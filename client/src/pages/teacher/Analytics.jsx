@@ -440,21 +440,53 @@ export default function TeacherAnalytics() {
           <ChartCard title="توزيع المحاولات" subtitle="نسبة المحاولات لكل اختبار"
             icon={Target} iconBg="bg-orange-50" iconColor="text-orange-500">
             {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <GradientDefs />
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={95}
-                    paddingAngle={3} dataKey="value"
-                    animationBegin={100} animationDuration={1200} animationEasing="ease-out"
-                    stroke="none">
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend iconType="circle" wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '8px' }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="flex items-center gap-4">
+                {/* Donut */}
+                <div className="flex-shrink-0 w-[180px]">
+                  <ResponsiveContainer width={180} height={180}>
+                    <PieChart>
+                      <GradientDefs />
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={82}
+                        paddingAngle={3} dataKey="value"
+                        animationBegin={100} animationDuration={1200} animationEasing="ease-out"
+                        stroke="none">
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center label */}
+                  <p className="text-center -mt-2 text-[11px] font-bold text-gray-400">
+                    {totalAttempts} محاولة إجمالاً
+                  </p>
+                </div>
+
+                {/* Legend list */}
+                <div className="flex-1 space-y-2 overflow-y-auto max-h-[200px] pl-1">
+                  {pieData.map((item, i) => {
+                    const pct = totalAttempts > 0 ? Math.round((item.value / totalAttempts) * 100) : 0;
+                    const color = CHART_COLORS[i % CHART_COLORS.length];
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[11px] font-semibold text-gray-600 truncate">{item.name}</span>
+                            <span className="text-[11px] font-black flex-shrink-0 mr-1" style={{ color }}>{item.value}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${pct}%`, background: color }} />
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-400 flex-shrink-0 w-7 text-left">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ) : <EmptyState icon={Target} text="لا توجد محاولات بعد" />}
           </ChartCard>
         </div>
