@@ -86,29 +86,51 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
 
 router.post('/', requireRole('teacher', 'assistant'), checkManageCoursesPerm, async (req, res) => {
   const teacherId = getTeacherId(req);
-  const { name, description, price, thumbnail_url, target_stage } = req.body;
+  const { name, description, price, thumbnail_url, target_stage, is_free } = req.body;
+  const isFree = is_free === true || is_free === 'true';
   try {
     const result = await pool.query(
-      'INSERT INTO courses (name,description,price,thumbnail_url,teacher_id,target_stage) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
-      [name, description, price || 0, thumbnail_url, teacherId, target_stage || null]
+      'INSERT INTO courses (name,description,price,thumbnail_url,teacher_id,target_stage,is_free) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+      [name, description, isFree ? 0 : (price || 0), thumbnail_url, teacherId, target_stage || null, isFree]
     );
-    res.status(201).json(result.rows[0]);
+    const course = result.rows[0];
+    if (isFree && target_stage) {
+      await pool.query(
+        `INSERT INTO student_course_enrollment (student_id, course_id)
+         SELECT id, $1 FROM students WHERE teacher_id=$2 AND academic_stage=$3 AND deleted_at IS NULL
+         ON CONFLICT DO NOTHING`,
+        [course.id, teacherId, target_stage]
+      );
+    }
+    res.status(201).json(course);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 router.put('/:id', requireRole('teacher', 'assistant'), checkManageCoursesPerm, async (req, res) => {
   const teacherId = getTeacherId(req);
-  const { name, description, price, thumbnail_url, target_stage } = req.body;
+  const { name, description, price, thumbnail_url, target_stage, is_free } = req.body;
+  const isFree = is_free === true || is_free === 'true';
   try {
     const result = await pool.query(
-      'UPDATE courses SET name=$1,description=$2,price=$3,thumbnail_url=$4,target_stage=$5 WHERE id=$6 AND teacher_id=$7 RETURNING *',
-      [name, description, price, thumbnail_url, target_stage || null, req.params.id, teacherId]
+      'UPDATE courses SET name=$1,description=$2,price=$3,thumbnail_url=$4,target_stage=$5,is_free=$6 WHERE id=$7 AND teacher_id=$8 RETURNING *',
+      [name, description, isFree ? 0 : (price || 0), thumbnail_url, target_stage || null, isFree, req.params.id, teacherId]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Course not found' });
-    res.json(result.rows[0]);
+    const course = result.rows[0];
+    if (isFree && target_stage) {
+      await pool.query(
+        `INSERT INTO student_course_enrollment (student_id, course_id)
+         SELECT id, $1 FROM students WHERE teacher_id=$2 AND academic_stage=$3 AND deleted_at IS NULL
+         ON CONFLICT DO NOTHING`,
+        [course.id, teacherId, target_stage]
+      );
+    }
+    res.json(course);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });

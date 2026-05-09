@@ -18,6 +18,7 @@ import TeacherLeaderboard from './pages/teacher/Leaderboard';
 import TeacherNotifications from './pages/teacher/Notifications';
 import TeacherBackup from './pages/teacher/Backup';
 import TeacherAttendance from './pages/teacher/Attendance';
+import TeacherRequests from './pages/teacher/Requests';
 import AssistantDashboard from './pages/assistant/Dashboard';
 import AssistantStudents from './pages/assistant/Students';
 import AssistantExams from './pages/teacher/Exams';
@@ -59,6 +60,7 @@ const AppRoutes = () => {
         <Route path="notifications" element={<TeacherNotifications />} />
         <Route path="backup" element={<TeacherBackup />} />
         <Route path="attendance" element={<TeacherAttendance />} />
+        <Route path="requests" element={<TeacherRequests />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
       </Route>
 

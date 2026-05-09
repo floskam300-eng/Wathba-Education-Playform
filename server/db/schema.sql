@@ -216,3 +216,5 @@ CREATE TABLE IF NOT EXISTS exam_retry_requests (
   created_at TIMESTAMP DEFAULT NOW(),
   handled_at TIMESTAMP
 );
+
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT false;
