@@ -256,9 +256,9 @@ router.get('/me/stats', requireRole('student'), async (req, res) => {
       `, [studentId]),
       pool.query(`
         SELECT COUNT(*) AS total,
-               SUM(CASE WHEN points > $2 THEN 1 ELSE 0 END) AS above
+               SUM(CASE WHEN points > (SELECT points FROM students WHERE id=$1) THEN 1 ELSE 0 END) AS above
         FROM students WHERE teacher_id = (SELECT teacher_id FROM students WHERE id=$1)
-      `, [studentId, 0]),
+      `, [studentId]),
     ]);
 
     if (!studentRes.rows.length) return res.status(404).json({ error: 'Student not found' });
@@ -268,7 +268,7 @@ router.get('/me/stats', requireRole('student'), async (req, res) => {
     const payments  = paymentsRes.rows;
 
     // Aggregate totals
-    const totalPaid    = payments.filter(p => p.status === 'completed' || p.status === 'verified').reduce((s, p) => s + parseFloat(p.amount), 0);
+    const totalPaid    = payments.filter(p => p.status === 'verified').reduce((s, p) => s + parseFloat(p.amount), 0);
     const totalPending = payments.filter(p => p.status === 'pending').reduce((s, p) => s + parseFloat(p.amount), 0);
     const passCount    = exams.filter(e => e.score >= e.pass_score).length;
     const avgScore     = exams.length ? Math.round(exams.reduce((s, e) => s + (e.score / e.total_score * 100), 0) / exams.length) : 0;

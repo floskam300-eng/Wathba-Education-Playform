@@ -13,7 +13,7 @@ const fmt = (n) => new Intl.NumberFormat('ar-EG').format(n);
 const fmtDate = (d) => new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
 const fmtMins = (m) => m >= 60 ? `${Math.floor(m / 60)}س ${m % 60}د` : `${m} دقيقة`;
 
-const methodLabel = { instapay: 'إنستاباي', vodafone_cash: 'فودافون كاش', cash: 'كاش', bank: 'تحويل بنكي' };
+const methodLabel = { instapay: 'إنستاباي', vodafone_cash: 'فودافون كاش', cash: 'كاش', bank: 'تحويل بنكي', bank_transfer: 'تحويل بنكي' };
 const statusConfig = {
   completed: { label: 'مدفوع',    cls: 'bg-green-100 text-green-800' },
   verified:  { label: 'موثّق',    cls: 'bg-blue-100 text-blue-800' },

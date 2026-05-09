@@ -231,6 +231,14 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
   const { answers, start_time } = req.body;
 
   try {
+    const existing = await pool.query(
+      'SELECT id FROM exam_results WHERE student_id=$1 AND exam_id=$2',
+      [studentId, examId]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'لقد أديت هذا الاختبار مسبقاً' });
+    }
+
     const eligibilityCheck = await pool.query(
       `SELECT e.*
        FROM exams e

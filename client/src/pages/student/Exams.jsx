@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Clock, CheckCircle, Play, Eye, Calendar, Lock, AlignLeft } from 'lucide-react';
@@ -24,6 +24,9 @@ export default function StudentExams() {
   const [countdown, setCountdown] = useState(null);
   const [pendingExam, setPendingExam] = useState(null);
 
+  const answersRef = useRef({});
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+
   const { data: exams = [], isLoading } = useQuery({
     queryKey: ['student-exams'],
     queryFn: () => api.get('/exams/student/available').then(r => r.data),
@@ -37,7 +40,8 @@ export default function StudentExams() {
 
   const submitMut = useMutation({
     mutationFn: ({ id, data }) => api.post(`/exams/${id}/submit`, data),
-    onSuccess: (res) => {
+    onSuccess: (res, variables) => {
+      localStorage.removeItem(`exam_start_${variables.id}`);
       setResult(res.data);
       setTaking(null);
       qc.invalidateQueries(['student-exams']);
@@ -48,20 +52,46 @@ export default function StudentExams() {
 
   const handleSubmit = useCallback(() => {
     if (!taking || !examData) return;
-    submitMut.mutate({ id: taking.id, data: { answers, start_time: startTime } });
-  }, [taking, examData, answers, startTime]);
+    submitMut.mutate({ id: taking.id, data: { answers: answersRef.current, start_time: startTime } });
+  }, [taking, examData, startTime]);
 
   useEffect(() => {
-    if (!examData) return;
-    const secs = examData.exam.duration_minutes * 60;
-    setTimeLeft(secs);
-    setStartTime(new Date().toISOString());
+    if (!examData || !taking) return;
+    const examId = taking.id;
+    const storageKey = `exam_start_${examId}`;
+    const durationSecs = examData.exam.duration_minutes * 60;
+
+    let startTs = parseInt(localStorage.getItem(storageKey) || '0', 10);
+    if (!startTs) {
+      startTs = Date.now();
+      localStorage.setItem(storageKey, String(startTs));
+    }
+    const startIso = new Date(startTs).toISOString();
+    setStartTime(startIso);
+
+    const elapsed = Math.floor((Date.now() - startTs) / 1000);
+    const remaining = durationSecs - elapsed;
+
+    if (remaining <= 0) {
+      localStorage.removeItem(storageKey);
+      submitMut.mutate({ id: examId, data: { answers: answersRef.current, start_time: startIso } });
+      return;
+    }
+
+    setTimeLeft(remaining);
+
     const interval = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(interval); handleSubmit(); return 0; }
+        if (t <= 1) {
+          clearInterval(interval);
+          localStorage.removeItem(storageKey);
+          submitMut.mutate({ id: examId, data: { answers: answersRef.current, start_time: startIso } });
+          return 0;
+        }
         return t - 1;
       });
     }, 1000);
+
     return () => clearInterval(interval);
   }, [examData]);
 
@@ -196,7 +226,7 @@ export default function StudentExams() {
           </div>
 
           <div className="flex gap-4">
-            <button onClick={() => setTaking(null)} className="btn-secondary flex-1">إلغاء</button>
+            <button onClick={() => { localStorage.removeItem(`exam_start_${taking?.id}`); setTaking(null); }} className="btn-secondary flex-1">إلغاء</button>
             <button onClick={handleSubmit} disabled={submitMut.isPending}
               className="btn-primary flex-1 py-3 text-base">
               {submitMut.isPending ? 'جاري الإرسال...' : `تسليم الاختبار (${answered}/${questions.length})`}
