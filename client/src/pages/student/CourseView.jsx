@@ -7,14 +7,76 @@ import {
   Pause, Volume2, VolumeX, Maximize2, RotateCcw
 } from 'lucide-react';
 import api from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 
 /* ─── helpers ─────────────────────────────────────────── */
 const fmt = (min) => min >= 60
   ? `${Math.floor(min / 60)}س ${min % 60}د`
   : `${min} دقيقة`;
 
+/* ─── Floating Watermark ───────────────────────────────── */
+function FloatingWatermark({ name, code }) {
+  const [pos, setPos] = useState({ x: 10, y: 15 });
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const move = () => {
+      // Fade out, relocate, fade back in
+      setVisible(false);
+      setTimeout(() => {
+        setPos({
+          x: Math.floor(Math.random() * 62) + 4,   // 4%–66% from left
+          y: Math.floor(Math.random() * 60) + 8,   // 8%–68% from top (avoid bottom controls)
+        });
+        setVisible(true);
+      }, 600);
+    };
+    const id = setInterval(move, 8000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!name && !code) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: `${pos.x}%`,
+        top: `${pos.y}%`,
+        transition: 'opacity 0.6s ease',
+        opacity: visible ? 0.38 : 0,
+        pointerEvents: 'none',
+        zIndex: 20,
+        userSelect: 'none',
+        direction: 'rtl',
+      }}
+    >
+      <div
+        style={{
+          background: 'rgba(0,0,0,0.45)',
+          borderRadius: '8px',
+          padding: '5px 10px',
+          backdropFilter: 'blur(2px)',
+          border: '1px solid rgba(255,255,255,0.15)',
+        }}
+      >
+        {name && (
+          <p style={{ color: '#fff', fontSize: '13px', fontWeight: 700, margin: 0, lineHeight: 1.4, textShadow: '0 1px 3px rgba(0,0,0,0.8)', whiteSpace: 'nowrap' }}>
+            {name}
+          </p>
+        )}
+        {code && (
+          <p style={{ color: '#ffa94d', fontSize: '11px', fontWeight: 800, margin: 0, lineHeight: 1.3, fontFamily: 'monospace', letterSpacing: '0.08em', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+            {code}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Custom Video Player ──────────────────────────────── */
-function VideoPlayer({ video, onProgressUpdate }) {
+function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
   const videoRef = useRef(null);
   const [playing, setPlaying]         = useState(false);
   const [progress, setProgress]       = useState(0);   // 0–100
@@ -99,6 +161,9 @@ function VideoPlayer({ video, onProgressUpdate }) {
       onMouseMove={resetHideTimer}
       onMouseLeave={() => { if (!seeking.current && playing) setShowControls(false); }}
     >
+      {/* ── Floating student watermark (anti-leak) ── */}
+      <FloatingWatermark name={studentName} code={studentCode} />
+
       <video
         ref={videoRef}
         key={video.id}
@@ -300,6 +365,7 @@ function PdfViewer({ pdf }) {
 export default function CourseView() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeVideo, setActiveVideo] = useState(null);
   const [activePdf, setActivePdf] = useState(null);
   const [activeTab, setActiveTab] = useState('videos');
@@ -526,7 +592,12 @@ export default function CourseView() {
             <>
               {/* Video area */}
               <div className="flex-1 bg-black overflow-hidden">
-                <VideoPlayer video={currentVideo} onProgressUpdate={handleProgressUpdate} />
+                <VideoPlayer
+                  video={currentVideo}
+                  onProgressUpdate={handleProgressUpdate}
+                  studentName={user?.name}
+                  studentCode={user?.username}
+                />
               </div>
 
               {/* Video info bar */}
