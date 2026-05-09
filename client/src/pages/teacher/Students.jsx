@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Plus, Pencil, Trash2, Search, Eye, Printer, GraduationCap, Upload, FileSpreadsheet, X, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -17,7 +17,13 @@ export default function TeacherStudents() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('الكل');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
   const [modal, setModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -29,8 +35,8 @@ export default function TeacherStudents() {
   const importFileRef = useRef();
 
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students'],
-    queryFn: () => api.get('/students').then(r => r.data),
+    queryKey: ['students', debouncedSearch],
+    queryFn: () => api.get('/students', { params: debouncedSearch ? { search: debouncedSearch } : {} }).then(r => r.data),
   });
 
   const { data: results = [] } = useQuery({
@@ -120,11 +126,7 @@ export default function TeacherStudents() {
   }, {});
 
   const filtered = students.filter(s => {
-    const matchSearch = s.name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.username?.toLowerCase().includes(search.toLowerCase()) ||
-      s.phone?.includes(search);
-    const matchStage = stageFilter === 'الكل' || s.academic_stage === stageFilter;
-    return matchSearch && matchStage;
+    return stageFilter === 'الكل' || s.academic_stage === stageFilter;
   });
 
   const handlePrint = () => {

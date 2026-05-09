@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { invalidateCache } = require('../lib/analyticsCache');
+const { getPermissions } = require('../lib/permissionsCache');
 
 const router = express.Router();
 router.use(authenticate);
@@ -14,14 +15,21 @@ const getTeacherId = (req) => {
 
 router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
+  const { search } = req.query;
   try {
+    const params = [teacherId];
+    let searchClause = '';
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      searchClause = `AND (s.name ILIKE $2 OR s.username ILIKE $2 OR s.phone ILIKE $2)`;
+    }
     const result = await pool.query(
       `SELECT s.*, COUNT(sce.course_id) as enrolled_courses
        FROM students s
        LEFT JOIN student_course_enrollment sce ON s.id = sce.student_id
-       WHERE s.teacher_id = $1 AND s.deleted_at IS NULL
+       WHERE s.teacher_id = $1 AND s.deleted_at IS NULL ${searchClause}
        GROUP BY s.id ORDER BY s.created_at DESC`,
-      [teacherId]
+      params
     );
     res.json(result.rows.map(({ password: _, ...s }) => s));
   } catch (err) {
@@ -32,9 +40,9 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
 const checkPermission = async (req, res, next, perm) => {
   if (req.user.role === 'teacher') return next();
   try {
-    const result = await pool.query('SELECT * FROM assistants WHERE id = $1', [req.user.id]);
-    if (result.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
-    if (!result.rows[0][perm]) return res.status(403).json({ error: 'Access denied: missing permission' });
+    const perms = await getPermissions(req.user.id, pool);
+    if (!perms) return res.status(403).json({ error: 'Access denied' });
+    if (!perms[perm]) return res.status(403).json({ error: 'Access denied: missing permission' });
     next();
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

@@ -6,6 +6,8 @@ const { invalidateCache } = require('../lib/analyticsCache');
 const router = express.Router();
 router.use(authenticate);
 
+const { getPermissions } = require('../lib/permissionsCache');
+
 const getTeacherId = (req) => req.user.role === 'teacher' ? req.user.id : req.user.teacher_id;
 
 const verifyExamOwnership = async (examId, teacherId) => {
@@ -42,10 +44,23 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
   }
 });
 
+const validateExamFields = ({ title, duration_minutes, total_score, pass_score }) => {
+  if (!title || !title.trim()) return 'عنوان الامتحان مطلوب';
+  const dur = parseInt(duration_minutes);
+  const total = parseInt(total_score);
+  const pass = parseInt(pass_score);
+  if (!dur || dur <= 0) return 'مدة الامتحان يجب أن تكون أكبر من صفر';
+  if (!total || total <= 0) return 'الدرجة الكلية يجب أن تكون أكبر من صفر';
+  if (pass < 0 || pass > total) return `درجة النجاح يجب أن تكون بين 0 و ${total}`;
+  return null;
+};
+
 // ── Create exam ──
 router.post('/', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
   const { title, duration_minutes, total_score, course_id, pass_score, badge_name, badge_color, start_date, end_date } = req.body;
+  const validationError = validateExamFields({ title, duration_minutes: duration_minutes || 60, total_score: total_score || 100, pass_score: pass_score ?? 50 });
+  if (validationError) return res.status(400).json({ error: validationError });
   try {
     if (course_id) {
       const courseCheck = await pool.query('SELECT id FROM courses WHERE id=$1 AND teacher_id=$2', [course_id, teacherId]);
@@ -53,7 +68,7 @@ router.post('/', requireRole('teacher', 'assistant'), async (req, res) => {
     }
     const result = await pool.query(
       'INSERT INTO exams (title,duration_minutes,total_score,course_id,teacher_id,pass_score,badge_name,badge_color,start_date,end_date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-      [title, duration_minutes || 60, total_score || 100, course_id || null, teacherId, pass_score || 50, badge_name, badge_color || '#FF8C00', start_date || null, end_date || null]
+      [title, duration_minutes || 60, total_score || 100, course_id || null, teacherId, pass_score ?? 50, badge_name, badge_color || '#FF8C00', start_date || null, end_date || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -65,6 +80,8 @@ router.post('/', requireRole('teacher', 'assistant'), async (req, res) => {
 router.put('/:id', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
   const { title, duration_minutes, total_score, course_id, pass_score, badge_name, badge_color, start_date, end_date } = req.body;
+  const validationError = validateExamFields({ title, duration_minutes, total_score, pass_score });
+  if (validationError) return res.status(400).json({ error: validationError });
   try {
     const result = await pool.query(
       'UPDATE exams SET title=$1,duration_minutes=$2,total_score=$3,course_id=$4,pass_score=$5,badge_name=$6,badge_color=$7,start_date=$8,end_date=$9 WHERE id=$10 AND teacher_id=$11 RETURNING *',
@@ -219,6 +236,9 @@ router.get('/:id/take', requireRole('student'), async (req, res) => {
       'SELECT id,question_text,question_image_url,option_a,option_b,option_c,option_d,points,question_type FROM questions WHERE exam_id=$1 ORDER BY id',
       [req.params.id]
     );
+    if (questions.rows.length === 0) {
+      return res.status(400).json({ error: 'هذا الاختبار لا يحتوي على أسئلة بعد' });
+    }
     res.json({ exam: eligibilityCheck.rows[0], questions: questions.rows });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

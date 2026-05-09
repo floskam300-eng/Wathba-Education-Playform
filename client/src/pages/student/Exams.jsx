@@ -23,6 +23,7 @@ export default function StudentExams() {
   const [startTime, setStartTime] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [pendingExam, setPendingExam] = useState(null);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const answersRef = useRef({});
   useEffect(() => { answersRef.current = answers; }, [answers]);
@@ -227,11 +228,44 @@ export default function StudentExams() {
 
           <div className="flex gap-4">
             <button onClick={() => { localStorage.removeItem(`exam_start_${taking?.id}`); setTaking(null); }} className="btn-secondary flex-1">إلغاء</button>
-            <button onClick={handleSubmit} disabled={submitMut.isPending}
+            <button onClick={() => setShowSubmitConfirm(true)} disabled={submitMut.isPending}
               className="btn-primary flex-1 py-3 text-base">
               {submitMut.isPending ? 'جاري الإرسال...' : `تسليم الاختبار (${answered}/${questions.length})`}
             </button>
           </div>
+
+          {showSubmitConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center space-y-4">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
+                  <FileText className="w-8 h-8 text-orange-500" />
+                </div>
+                <h3 className="text-xl font-black text-navy-700">تأكيد التسليم</h3>
+                {answered < questions.length ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
+                    <p className="text-yellow-800 font-bold text-sm">⚠️ أجبت على {answered} من {questions.length} سؤال</p>
+                    <p className="text-yellow-700 text-xs mt-1">{questions.length - answered} سؤال لم تُجب عليه بعد — ستُحسب أسئلة فارغة كإجابة خاطئة</p>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                    <p className="text-green-800 font-bold text-sm">✓ أجبت على جميع الأسئلة ({questions.length})</p>
+                  </div>
+                )}
+                <p className="text-gray-500 text-sm">لا يمكن التراجع عن التسليم بعد التأكيد</p>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={() => setShowSubmitConfirm(false)} className="flex-1 btn-secondary py-3">
+                    العودة للاختبار
+                  </button>
+                  <button
+                    onClick={() => { setShowSubmitConfirm(false); handleSubmit(); }}
+                    disabled={submitMut.isPending}
+                    className="flex-1 btn-primary py-3">
+                    تسليم نهائي
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

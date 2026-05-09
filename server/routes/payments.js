@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { getPermissions } = require('../lib/permissionsCache');
 
 const router = express.Router();
 router.use(authenticate);
@@ -10,9 +11,9 @@ const getTeacherId = (req) => req.user.role === 'teacher' ? req.user.id : req.us
 const checkPermission = async (req, res, next, perm) => {
   if (req.user.role === 'teacher') return next();
   try {
-    const result = await pool.query('SELECT * FROM assistants WHERE id = $1', [req.user.id]);
-    if (result.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
-    if (!result.rows[0][perm]) return res.status(403).json({ error: 'Access denied: missing permission' });
+    const perms = await getPermissions(req.user.id, pool);
+    if (!perms) return res.status(403).json({ error: 'Access denied' });
+    if (!perms[perm]) return res.status(403).json({ error: 'Access denied: missing permission' });
     next();
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -37,7 +38,12 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
 
 router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_manage_payments'), async (req, res) => {
   const teacherId = getTeacherId(req);
-  const { student_id, course_id, amount, method, reference_number, notes } = req.body;
+  const { student_id, course_id, method, reference_number, notes } = req.body;
+  const amount = parseFloat(req.body.amount);
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'المبلغ يجب أن يكون أكبر من صفر' });
+  }
+  if (!student_id) return res.status(400).json({ error: 'يجب اختيار الطالب' });
   try {
     const studentCheck = await pool.query('SELECT id FROM students WHERE id=$1 AND teacher_id=$2', [student_id, teacherId]);
     if (!studentCheck.rows.length) {
