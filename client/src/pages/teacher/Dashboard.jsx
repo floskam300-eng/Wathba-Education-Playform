@@ -1,11 +1,33 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Users, BookOpen, FileText, UserCog, TrendingUp, Eye } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Users, BookOpen, FileText, UserCog, TrendingUp, Eye, Star, Activity } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  Legend, Cell, AreaChart, Area,
+} from 'recharts';
 import StatCard from '../../components/ui/StatCard';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white/95 backdrop-blur border border-gray-100 rounded-2xl shadow-2xl p-3 text-sm font-cairo min-w-[150px]"
+      style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+      {label && <p className="font-black text-gray-800 mb-2 text-xs border-b border-gray-100 pb-1.5">{label}</p>}
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center justify-between gap-4 py-0.5">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+            <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+            {p.name}
+          </span>
+          <span className="font-black text-xs" style={{ color: p.color }}>{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -27,220 +49,237 @@ export default function TeacherDashboard() {
   });
 
   const chartData = analytics?.examResults?.map(e => ({
-    name: e.title?.substring(0, 12) + (e.title?.length > 12 ? '...' : ''),
-    متوسط: Math.round(e.avg_score),
-    محاولات: parseInt(e.attempt_count),
+    name: e.title?.substring(0, 12) + (e.title?.length > 12 ? '…' : ''),
+    'متوسط الدرجات': Math.round(parseFloat(e.avg_score) || 0),
+    'محاولات': parseInt(e.attempt_count) || 0,
   })) || [];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-navy-600">لوحة التحكم</h1>
-          {/* gray-700 on white = 10:1 ✓ */}
-          <p className="text-gray-700 text-sm mt-1">مرحباً {user?.name}، هذا ملخص نشاطك</p>
+          <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-navy-600 to-navy-400 flex items-center justify-center shadow-md">
+              <Activity className="w-4 h-4 text-white" />
+            </div>
+            لوحة التحكم
+          </h1>
+          <p className="text-gray-600 text-sm mt-1 mr-11">مرحباً {user?.name}، هذا ملخص نشاطك</p>
         </div>
         <div className="hidden sm:block text-left">
-          {/* gray-600 on white = 7.2:1 ✓ */}
-          <p className="text-xs text-gray-600 font-semibold">التخصص</p>
-          {/* orange-700 (#995400) on white = 7.4:1 ✓ */}
-          <p className="text-sm font-bold text-orange-700">{user?.classification || 'معلم'}</p>
+          <p className="text-xs text-gray-500 font-semibold">التخصص</p>
+          <p className="text-sm font-bold text-orange-600">{user?.classification || 'معلم'}</p>
         </div>
       </div>
 
+      {/* Stat Cards */}
       {statsLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="h-24 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse" />)}
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Users} label="الطلاب" value={stats?.totalStudents || 0} color="navy" />
-          <StatCard icon={BookOpen} label="الكورسات" value={stats?.totalCourses || 0} color="orange" />
-          <StatCard icon={FileText} label="الاختبارات" value={stats?.totalExams || 0} color="purple" />
-          <StatCard icon={UserCog} label="المساعدون" value={stats?.totalAssistants || 0} color="teal" />
+          <StatCard icon={Users}   label="الطلاب"      value={stats?.totalStudents   || 0} color="navy"   />
+          <StatCard icon={BookOpen} label="الكورسات"    value={stats?.totalCourses    || 0} color="orange" />
+          <StatCard icon={FileText} label="الاختبارات"  value={stats?.totalExams      || 0} color="purple" />
+          <StatCard icon={UserCog}  label="المساعدون"   value={stats?.totalAssistants || 0} color="teal"   />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="card lg:col-span-2">
-          <h2 className="section-title mb-4">
-            <TrendingUp className="w-5 h-5 text-orange-500" />
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Bar Chart */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 lg:col-span-2 hover:shadow-md transition-shadow">
+          <h2 className="font-black text-gray-800 text-sm flex items-center gap-2 mb-5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-blue-500" />
+            </div>
             أداء الاختبارات
+            <span className="text-[11px] font-medium text-gray-400 mr-1">— متوسط الدرجات والمحاولات</span>
           </h2>
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EBF0F7" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 12, fontFamily: 'Cairo', fill: '#6B7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                  dy={10}
-                />
-                <YAxis
-                  tick={{ fontSize: 12, fontFamily: 'Cairo', fill: '#6B7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                  dx={-10}
-                />
-                <Tooltip
-                  contentStyle={{
-                    fontFamily: 'Cairo',
-                    borderRadius: '12px',
-                    border: 'none',
-                    boxShadow: '0 8px 30px rgba(26,46,74,0.12)',
-                    backgroundColor: '#ffffff',
-                    padding: '12px'
-                  }}
-                  cursor={{ fill: '#F4F7FB' }}
-                />
-                <Legend
-                  wrapperStyle={{ fontFamily: 'Cairo', fontSize: '13px', paddingTop: '20px' }}
-                  iconType="circle"
-                />
-                <Bar
-                  dataKey="متوسط"
-                  name="متوسط الدرجات (%)"
-                  fill="#1A2E4A"
-                  radius={[6, 6, 0, 0]}
-                  barSize={32}
-                  animationDuration={1500}
-                />
-                <Bar
-                  dataKey="محاولات"
-                  name="عدد المحاولات"
-                  fill="#FF8C00"
-                  radius={[6, 6, 0, 0]}
-                  barSize={32}
-                  animationDuration={1500}
-                />
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }} barGap={4} barCategoryGap="28%">
+                <defs>
+                  <linearGradient id="dbBarNavy" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#1A2E4A" />
+                    <stop offset="100%" stopColor="#2d4a7a" />
+                  </linearGradient>
+                  <linearGradient id="dbBarOrange" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FF8C00" />
+                    <stop offset="100%" stopColor="#f97316" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name"
+                  tick={{ fontSize: 11, fontFamily: 'Cairo', fill: '#94a3b8' }}
+                  axisLine={false} tickLine={false} dy={8} />
+                <YAxis tick={{ fontSize: 11, fontFamily: 'Cairo', fill: '#94a3b8' }}
+                  axisLine={false} tickLine={false} dx={-5} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(26,46,74,0.04)', radius: 8 }} />
+                <Legend iconType="circle"
+                  wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '12px' }} />
+                <Bar dataKey="متوسط الدرجات" fill="url(#dbBarNavy)" radius={[6, 6, 0, 0]}
+                  maxBarSize={28} animationDuration={1400} animationEasing="ease-out" />
+                <Bar dataKey="محاولات" fill="url(#dbBarOrange)" radius={[6, 6, 0, 0]}
+                  maxBarSize={28} animationDuration={1600} animationEasing="ease-out" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-48 flex items-center justify-center">
-              <div className="text-center">
-                <FileText className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                {/* gray-600 on white = 7.2:1 ✓ */}
-                <p className="text-sm text-gray-600 font-medium">لا توجد بيانات اختبارات بعد</p>
+            <div className="h-52 flex flex-col items-center justify-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center">
+                <FileText className="w-7 h-7 text-gray-300" />
               </div>
+              <p className="text-sm text-gray-400 font-semibold">لا توجد بيانات اختبارات بعد</p>
             </div>
           )}
         </div>
 
-        <div className="card">
-          <h2 className="section-title mb-4">
-            <Users className="w-5 h-5 text-orange-500" />
+        {/* Top Students */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+          <h2 className="font-black text-gray-800 text-sm flex items-center gap-2 mb-5">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+              <Star className="w-4 h-4 text-amber-500" />
+            </div>
             أفضل الطلاب
           </h2>
           <div className="space-y-3">
-            {analytics?.topStudents?.slice(0, 5).map((s, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-500' : i === 2 ? 'bg-orange-700' : 'bg-navy-500'}`}>
-                  {i + 1}
+            {analytics?.topStudents?.slice(0, 5).map((s, i) => {
+              const avg = Math.round(parseFloat(s.avg_score) || 0);
+              const avgColor = avg >= 80 ? '#10b981' : avg >= 60 ? '#6366f1' : '#f59e0b';
+              const rankBg = i === 0 ? 'bg-gradient-to-br from-yellow-400 to-amber-500'
+                : i === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400'
+                : i === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500'
+                : 'bg-gradient-to-br from-navy-400 to-navy-600';
+              return (
+                <div key={i} className="flex items-center gap-3 group hover:bg-orange-50/40 rounded-xl p-1.5 -mx-1.5 transition-colors cursor-default">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-sm ${rankBg}`}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-navy-700 truncate group-hover:text-orange-600 transition-colors">{s.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-1.5 rounded-full transition-all duration-700"
+                          style={{ width: `${avg}%`, background: avgColor }} />
+                      </div>
+                      <span className="text-[10px] font-black" style={{ color: avgColor }}>{avg}%</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-amber-500 flex items-center gap-0.5 flex-shrink-0">
+                    <Star className="w-3 h-3 fill-amber-400 stroke-amber-400" /> {s.points}
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-navy-600 truncate">{s.name}</p>
-                  {/* gray-600 on white = 7.2:1 ✓ */}
-                  <p className="text-xs text-gray-600 font-medium">{s.points} نقطة</p>
-                </div>
-                {/* orange-700 on white = 7.4:1 ✓ */}
-                <div className="text-xs font-bold text-orange-700">{Math.round(s.avg_score)}%</div>
-              </div>
-            )) || (
-                <p className="text-gray-600 text-sm text-center py-4">لا توجد بيانات</p>
-              )}
+              );
+            }) || <p className="text-gray-400 text-sm text-center py-4">لا توجد بيانات</p>}
           </div>
         </div>
       </div>
 
+      {/* Course Progress */}
       {courseStats.length > 0 && (
-        <div className="card">
-          <h2 className="section-title mb-4">
-            <BookOpen className="w-5 h-5 text-orange-500" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+          <h2 className="font-black text-gray-800 text-sm flex items-center gap-2 mb-5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-emerald-500" />
+            </div>
             متابعة الكورسات
           </h2>
           <div className="space-y-3">
-            {courseStats.map(c => (
-              <div key={c.id} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-navy-50 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-4 h-4 text-navy-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-bold text-navy-700 truncate">{c.name}</p>
-                    <span className="text-xs font-black text-gray-500 flex-shrink-0 mr-2">
-                      {c.avg_progress}%
-                    </span>
+            {courseStats.map(c => {
+              const prog = Math.min(c.avg_progress, 100);
+              const barColor = prog >= 60
+                ? 'linear-gradient(90deg,#10b981,#06b6d4)'
+                : prog >= 30
+                ? 'linear-gradient(90deg,#f59e0b,#f97316)'
+                : 'linear-gradient(90deg,#ef4444,#f97316)';
+              return (
+                <div key={c.id} className="flex items-center gap-3 group hover:bg-gray-50/70 rounded-xl p-2 -mx-2 transition-colors">
+                  <div className="w-9 h-9 rounded-xl bg-navy-50 flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-4 h-4 text-navy-600" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="h-1.5 rounded-full transition-all duration-700"
-                        style={{
-                          width: `${Math.min(c.avg_progress, 100)}%`,
-                          background: c.avg_progress >= 60
-                            ? 'linear-gradient(90deg,#10b981,#06b6d4)'
-                            : c.avg_progress >= 30
-                            ? 'linear-gradient(90deg,#f59e0b,#f97316)'
-                            : 'linear-gradient(90deg,#ef4444,#f97316)',
-                        }}
-                      />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-bold text-navy-700 truncate">{c.name}</p>
+                      <span className="text-xs font-black text-gray-600 flex-shrink-0 mr-2">{prog}%</span>
                     </div>
-                    <span className="text-[11px] text-gray-500 font-semibold flex-shrink-0 whitespace-nowrap">
-                      {c.enrolled_count} طالب · {c.total_videos} فيديو
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${prog}%`, background: barColor }} />
+                      </div>
+                      <span className="text-[11px] text-gray-400 font-semibold flex-shrink-0 whitespace-nowrap">
+                        {c.enrolled_count} طالب · {c.total_videos} فيديو
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      <div className="card">
-        <h2 className="section-title mb-4">
-          <FileText className="w-5 h-5 text-orange-500" />
-          آخر النتائج
-        </h2>
+      {/* Recent Results */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+        <div className="p-5 border-b border-gray-50 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+            <FileText className="w-4 h-4 text-indigo-500" />
+          </div>
+          <div>
+            <h2 className="font-black text-gray-800 text-sm">آخر النتائج</h2>
+            <p className="text-[11px] text-gray-400">أحدث نتائج الطلاب</p>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px]">
             <thead>
-              <tr>
-                <th className="table-header rounded-r-lg">الطالب</th>
-                <th className="table-header">الاختبار</th>
-                <th className="table-header">الدرجة</th>
-                <th className="table-header">الصواب</th>
-                <th className="table-header">الخطأ</th>
-                <th className="table-header rounded-l-lg"></th>
+              <tr className="bg-gray-50/50">
+                <th className="px-4 py-3 text-right text-[11px] font-black text-gray-500">الطالب</th>
+                <th className="px-4 py-3 text-right text-[11px] font-black text-gray-500">الاختبار</th>
+                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500">الدرجة</th>
+                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500">الحالة</th>
+                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500">صواب / خطأ</th>
+                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500"></th>
               </tr>
             </thead>
             <tbody>
-              {analytics?.recentResults?.slice(0, 8).map((r) => (
-                <tr key={r.id} className="table-row group">
-                  <td className="table-cell font-semibold text-navy-700">{r.student_name}</td>
-                  <td className="table-cell text-gray-700">{r.exam_title}</td>
-                  <td className="table-cell">
-                    <span className={`font-bold ${r.score >= r.pass_score ? 'text-green-700' : 'text-red-700'}`}>
-                      {r.score}/{r.total_score}
-                    </span>
-                  </td>
-                  <td className="table-cell text-green-700 font-semibold">✓ {r.correct_count}</td>
-                  <td className="table-cell text-red-700 font-semibold">✗ {r.wrong_count}</td>
-                  <td className="table-cell">
-                    <button
-                      onClick={() => navigate(`/teacher/exam-review/${r.id}`)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 bg-navy-50 hover:bg-navy-600 text-navy-600 hover:text-white text-xs font-bold rounded-lg transition-all opacity-0 group-hover:opacity-100 border border-navy-200 hover:border-navy-600"
-                      title="مراجعة إجابات الطالب"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      مراجعة
-                    </button>
-                  </td>
-                </tr>
-              )) || (
-                  <tr><td colSpan={6} className="table-cell text-center text-gray-600 py-8">لا توجد نتائج بعد</td></tr>
-                )}
+              {analytics?.recentResults?.slice(0, 8).map(r => {
+                const passed = r.score >= r.pass_score;
+                const pct = r.total_score ? Math.round((r.score / r.total_score) * 100) : 0;
+                return (
+                  <tr key={r.id} className="border-t border-gray-50 hover:bg-gray-50/60 transition-colors group">
+                    <td className="px-4 py-3 font-bold text-gray-800 text-sm">{r.student_name}</td>
+                    <td className="px-4 py-3 text-gray-600 text-sm max-w-[160px] truncate">{r.exam_title}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className={`font-black text-sm ${passed ? 'text-emerald-600' : 'text-rose-500'}`}>{r.score}/{r.total_score}</span>
+                        <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: passed ? '#10b981' : '#f43f5e' }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${passed ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+                        {passed ? '✓ ناجح' : '✗ راسب'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs font-semibold">
+                      <span className="text-emerald-600">✓ {r.correct_count}</span>
+                      <span className="mx-1.5 text-gray-300">|</span>
+                      <span className="text-rose-500">✗ {r.wrong_count}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => navigate(`/teacher/exam-review/${r.id}`)}
+                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-2.5 py-1 bg-navy-50 hover:bg-navy-600 text-navy-600 hover:text-white text-xs font-bold rounded-lg transition-all border border-navy-200 hover:border-navy-600 mx-auto">
+                        <Eye className="w-3.5 h-3.5" /> مراجعة
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }) || (
+                <tr><td colSpan={6} className="text-center py-8 text-gray-400 text-sm font-semibold">لا توجد نتائج بعد</td></tr>
+              )}
             </tbody>
           </table>
         </div>

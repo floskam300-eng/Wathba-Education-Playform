@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BarChart3, TrendingUp, Users, Award, Target, GraduationCap,
   CheckCircle2, XCircle, Clock, Star, ChevronUp, ChevronDown,
-  Minus, Eye, Search, Filter, X as XIcon
+  Minus, Eye, Search, Filter, X as XIcon, Zap, Trophy, Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StudentProfileModal from '../../components/ui/StudentProfileModal';
@@ -104,6 +104,35 @@ export default function AssistantAnalytics() {
     if (!results.length) return 0;
     return Math.round((results.filter(r => r.score >= r.pass_score).length / results.length) * 100);
   })();
+
+  const passFailData = useMemo(() => {
+    const results = data?.recentResults || [];
+    const pass = results.filter(r => r.score >= r.pass_score).length;
+    const fail = results.length - pass;
+    if (!results.length) return [];
+    return [
+      { name: 'ناجح', value: pass, fill: '#10b981' },
+      { name: 'راسب', value: fail, fill: '#f43f5e' },
+    ];
+  }, [data]);
+
+  const scoreDistData = useMemo(() => {
+    const results = data?.recentResults || [];
+    const bands = [
+      { name: '0–39',   min: 0,  max: 39,  fill: '#f43f5e' },
+      { name: '40–59',  min: 40, max: 59,  fill: '#f59e0b' },
+      { name: '60–74',  min: 60, max: 74,  fill: '#06b6d4' },
+      { name: '75–89',  min: 75, max: 89,  fill: '#6366f1' },
+      { name: '90–100', min: 90, max: 100, fill: '#10b981' },
+    ];
+    return bands.map(b => ({
+      ...b,
+      count: results.filter(r => {
+        const pct = r.total_score ? Math.round((r.score / r.total_score) * 100) : 0;
+        return pct >= b.min && pct <= b.max;
+      }).length,
+    }));
+  }, [data]);
 
   const stats = [
     { label: 'الاختبارات النشطة', value: data?.examResults?.length || 0, icon: BarChart3,  gradient: 'linear-gradient(135deg,#3b82f6,#6366f1)', lightBg: 'bg-blue-50',    textColor: '#3b82f6' },
@@ -214,55 +243,66 @@ export default function AssistantAnalytics() {
         </div>
       )}
 
-      {/* Charts */}
+      {/* Charts Row 1 */}
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {[...Array(2)].map((_, i) => <div key={i} className="h-72 rounded-2xl bg-gray-100 animate-pulse" />)}
+          {[...Array(2)].map((_, i) => <div key={i} className="h-72 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse" />)}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+          {/* Exam Performance */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-blue-500" />
               </div>
               <div>
                 <h2 className="font-black text-gray-800 text-sm">أداء الاختبارات</h2>
-                <p className="text-[11px] text-gray-400 font-medium">متوسط وأعلى درجة لكل اختبار</p>
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">متوسط وأعلى درجة لكل اختبار</p>
               </div>
             </div>
             {examChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={examChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }} barGap={4}>
+                <BarChart data={examChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }} barGap={4} barCategoryGap="28%">
+                  <defs>
+                    <linearGradient id="aBarNavy" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1A2E4A" /><stop offset="100%" stopColor="#2d4a7a" />
+                    </linearGradient>
+                    <linearGradient id="aBarOrange" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FF8C00" /><stop offset="100%" stopColor="#f97316" />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.05)', radius: 8 }} />
                   <Legend iconType="circle" wrapperStyle={{ fontFamily: 'Cairo', fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="متوسط" fill="#1A2E4A" radius={[6, 6, 0, 0]} maxBarSize={28} />
-                  <Bar dataKey="أعلى"  fill="#FF8C00" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="متوسط" fill="url(#aBarNavy)" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1200} animationEasing="ease-out" />
+                  <Bar dataKey="أعلى"  fill="url(#aBarOrange)" radius={[6, 6, 0, 0]} maxBarSize={26} animationDuration={1400} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyState icon={BarChart3} text="لا توجد بيانات اختبارات بعد" />}
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+          {/* Attempts Donut */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
                 <Target className="w-4 h-4 text-orange-500" />
               </div>
               <div>
                 <h2 className="font-black text-gray-800 text-sm">توزيع المحاولات</h2>
-                <p className="text-[11px] text-gray-400 font-medium">عدد المحاولات لكل اختبار</p>
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">نسبة المحاولات لكل اختبار</p>
               </div>
             </div>
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
-                  <Pie data={pieData} cx="50%" cy="45%" innerRadius={65} outerRadius={100}
-                    paddingAngle={3} dataKey="value" animationBegin={0} animationDuration={800}>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={95}
+                    paddingAngle={3} dataKey="value"
+                    animationBegin={100} animationDuration={1200} animationEasing="ease-out" stroke="none">
                     {pieData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="transparent" />
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
@@ -270,6 +310,82 @@ export default function AssistantAnalytics() {
                 </PieChart>
               </ResponsiveContainer>
             ) : <EmptyState icon={Target} text="لا توجد محاولات بعد" />}
+          </div>
+        </div>
+      )}
+
+      {/* Charts Row 2 — Pass/Fail + Score Distribution */}
+      {!isLoading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Pass vs Fail */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="font-black text-gray-800 text-sm">نجاح مقابل رسوب</h2>
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">توزيع النتائج الكلية</p>
+              </div>
+            </div>
+            {passFailData.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <ResponsiveContainer width="50%" height={190}>
+                  <PieChart>
+                    <Pie data={passFailData} cx="50%" cy="50%" innerRadius={48} outerRadius={76}
+                      dataKey="value" paddingAngle={4}
+                      animationBegin={200} animationDuration={1200} animationEasing="ease-out" stroke="none">
+                      {passFailData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-3">
+                  {passFailData.map((d, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50/50">
+                      <span className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                        <span className="w-3 h-3 rounded-full" style={{ background: d.fill }} />
+                        {d.name}
+                      </span>
+                      <div className="text-left">
+                        <p className="text-lg font-black" style={{ color: d.fill }}>{d.value}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">
+                          {passFailData.reduce((s,x)=>s+x.value,0) > 0
+                            ? Math.round(d.value / passFailData.reduce((s,x)=>s+x.value,0) * 100) : 0}%
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : <EmptyState icon={Trophy} text="لا توجد نتائج بعد" />}
+          </div>
+
+          {/* Score Distribution */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-purple-500" />
+              </div>
+              <div>
+                <h2 className="font-black text-gray-800 text-sm">توزيع الدرجات</h2>
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">تصنيف النتائج حسب مستوى الأداء</p>
+              </div>
+            </div>
+            {scoreDistData.some(d => d.count > 0) ? (
+              <ResponsiveContainer width="100%" height={190}>
+                <BarChart data={scoreDistData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fontFamily: 'Cairo', fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(139,92,246,0.05)', radius: 8 }} />
+                  <Bar dataKey="count" name="عدد الطلاب" radius={[8, 8, 0, 0]} maxBarSize={40}
+                    animationDuration={1300} animationEasing="ease-out">
+                    {scoreDistData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyState icon={Zap} text="لا توجد بيانات كافية" />}
           </div>
         </div>
       )}
