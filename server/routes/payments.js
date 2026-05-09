@@ -84,7 +84,7 @@ router.put('/:id/verify', requireRole('teacher', 'assistant'), (req, res, next) 
 
     const result = await pool.query(
       'UPDATE payments SET status=$1, verified_by=$2, verified_at=NOW() WHERE id=$3 RETURNING *',
-      [status, req.user.role === 'assistant' ? req.user.id : null, req.params.id]
+      [status, req.user.id, req.params.id]
     );
 
     if (status === 'verified' && result.rows[0].course_id) {

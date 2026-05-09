@@ -6,6 +6,7 @@ const pool = require('./db/connection');
 const fs = require('fs');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors({ origin: '*' }));
 app.use((req, res, next) => {
   if (req.is('multipart/form-data')) return next();

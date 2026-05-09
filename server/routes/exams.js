@@ -214,10 +214,14 @@ router.post('/:id/retry-request', requireRole('student'), async (req, res) => {
     );
     if (!taken.rows.length) return res.status(400).json({ error: 'لم تؤدِ هذا الاختبار بعد' });
     const pending = await pool.query(
-      "SELECT id FROM exam_retry_requests WHERE student_id=$1 AND exam_id=$2 AND status='pending'",
+      "SELECT id, status FROM exam_retry_requests WHERE student_id=$1 AND exam_id=$2 AND status IN ('pending','approved') ORDER BY created_at DESC LIMIT 1",
       [studentId, examId]
     );
-    if (pending.rows.length) return res.status(409).json({ error: 'يوجد طلب معلق بالفعل، انتظر رد المعلم' });
+    if (pending.rows.length) {
+      const st = pending.rows[0].status;
+      const msg = st === 'approved' ? 'تمت الموافقة على طلبك — يمكنك الآن إعادة الاختبار' : 'يوجد طلب معلق بالفعل، انتظر رد المعلم';
+      return res.status(409).json({ error: msg });
+    }
     const result = await pool.query(
       'INSERT INTO exam_retry_requests (student_id, exam_id, message) VALUES ($1,$2,$3) RETURNING *',
       [studentId, examId, message || null]
@@ -446,7 +450,7 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
     const gradableQuestions = questions.filter(q => (q.question_type || 'mcq') !== 'essay');
     const totalPoints = gradableQuestions.reduce((s, q) => s + q.points, 0);
     const normalizedScore = totalPoints > 0 ? Math.round((score / totalPoints) * exam.total_score) : 0;
-    const pointsEarned = correct * 10;
+    const pointsEarned = normalizedScore;
 
     const result = await pool.query(
       'INSERT INTO exam_results (student_id,exam_id,score,correct_count,wrong_count,unanswered_count,start_time,end_time,answers,points_earned) VALUES($1,$2,$3,$4,$5,$6,$7,NOW(),$8,$9) RETURNING *',
@@ -492,6 +496,13 @@ router.put('/results/:resultId/grade-essay', requireRole('teacher', 'assistant')
       'UPDATE exam_results SET essay_graded=true, essay_score_adjustment=$1, score=$2 WHERE id=$3',
       [totalEssayPoints, newScore, req.params.resultId]
     );
+
+    if (totalEssayPoints > 0) {
+      await pool.query(
+        'UPDATE students SET points = points + $1 WHERE id = $2',
+        [totalEssayPoints, row.student_id]
+      );
+    }
 
     try {
       await pool.query(

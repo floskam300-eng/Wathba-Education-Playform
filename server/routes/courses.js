@@ -326,8 +326,6 @@ router.post('/:id/enroll/:studentId', requireRole('teacher', 'assistant'), check
 
 router.get('/student/my-courses', requireRole('student'), async (req, res) => {
   try {
-    const studentRes = await pool.query('SELECT academic_stage FROM students WHERE id=$1', [req.user.id]);
-    const stage = studentRes.rows[0]?.academic_stage;
     const result = await pool.query(
       `SELECT c.*, sce.enrollment_date, sce.status,
               COUNT(DISTINCT v.id) as video_count, COUNT(DISTINCT p.id) as pdf_count
@@ -336,10 +334,9 @@ router.get('/student/my-courses', requireRole('student'), async (req, res) => {
        LEFT JOIN videos v ON c.id = v.course_id
        LEFT JOIN pdf_files p ON c.id = p.course_id
        WHERE sce.student_id = $1
-         AND (c.target_stage = $2 OR c.target_stage IS NULL)
        GROUP BY c.id, sce.enrollment_date, sce.status
        ORDER BY c.created_at DESC`,
-      [req.user.id, stage]
+      [req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
