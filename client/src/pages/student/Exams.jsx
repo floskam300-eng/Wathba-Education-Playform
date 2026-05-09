@@ -245,10 +245,10 @@ export default function StudentExams() {
         </h1>
 
         {result && (
-          <div className={`card text-center border-2 ${result.normalizedScore >= 50 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
-            <div className="text-5xl mb-3">{result.normalizedScore >= 50 ? '🎉' : '📚'}</div>
+          <div className={`card text-center border-2 ${result.normalizedScore >= (result.result?.pass_score ?? 50) ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+            <div className="text-5xl mb-3">{result.normalizedScore >= (result.result?.pass_score ?? 50) ? '🎉' : '📚'}</div>
             <h2 className="text-2xl font-black text-navy-700 mb-1">النتيجة</h2>
-            <p className={`text-4xl font-black mb-3 ${result.normalizedScore >= 50 ? 'text-green-800' : 'text-red-800'}`}>{result.normalizedScore}/100</p>
+            <p className={`text-4xl font-black mb-3 ${result.normalizedScore >= (result.result?.pass_score ?? 50) ? 'text-green-800' : 'text-red-800'}`}>{result.normalizedScore}/{result.result?.total_score ?? 100}</p>
             <div className="flex justify-center gap-6 text-sm flex-wrap">
               <span className="text-green-800 font-bold">✓ صواب: {result.result.correct_count}</span>
               <span className="text-red-800 font-bold">✗ خطأ: {result.result.wrong_count}</span>

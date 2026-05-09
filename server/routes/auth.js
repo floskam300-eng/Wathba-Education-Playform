@@ -20,7 +20,10 @@ router.post('/login', async (req, res) => {
     else if (role === 'student') table = 'students';
     else return res.status(400).json({ error: 'Invalid role' });
 
-    const result = await pool.query(`SELECT * FROM ${table} WHERE username = $1`, [username]);
+    const whereClause = role === 'student'
+      ? `WHERE username = $1 AND deleted_at IS NULL`
+      : `WHERE username = $1`;
+    const result = await pool.query(`SELECT * FROM ${table} ${whereClause}`, [username]);
     if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 
     user = result.rows[0];

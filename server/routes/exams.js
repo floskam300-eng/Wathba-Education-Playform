@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { invalidateCache } = require('../lib/analyticsCache');
 
 const router = express.Router();
 router.use(authenticate);
@@ -297,6 +298,7 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
     );
 
     await pool.query('UPDATE students SET points = points + $1 WHERE id = $2', [pointsEarned, studentId]);
+    invalidateCache(exam.teacher_id);
 
     if (normalizedScore >= exam.pass_score && exam.badge_name) {
       await pool.query(

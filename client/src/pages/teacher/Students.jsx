@@ -388,7 +388,7 @@ export default function TeacherStudents() {
         onClose={() => setDeleteId(null)}
         onConfirm={() => deleteMut.mutate(deleteId)}
         title="حذف الطالب"
-        message="هل أنت متأكد من حذف هذا الطالب نهائياً؟ سيتم حذف جميع بياناته ونتائجه."
+        message="سيتم إخفاء الطالب من القوائم ولن يتمكن من تسجيل الدخول. بياناته ونتائجه محفوظة في قاعدة البيانات ويمكن استرجاعها عند الحاجة."
         danger
       />
     </div>

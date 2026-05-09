@@ -236,10 +236,16 @@ export default function StudentCourses() {
                       {c.price > 0 && <span className="font-bold text-gray-700 mr-auto">{c.price} ج.م</span>}
                     </div>
 
-                    {c.request_status ? (
+                    {c.request_status && c.request_status !== 'rejected' ? (
                       <RequestStatusBadge status={c.request_status} />
                     ) : (
                       <div className="space-y-2">
+                        {c.request_status === 'rejected' && (
+                          <div className="flex items-center gap-2 mb-1">
+                            <RequestStatusBadge status="rejected" />
+                            <span className="text-xs text-gray-500 font-medium">يمكنك إعادة الطلب</span>
+                          </div>
+                        )}
                         <textarea
                           rows={2}
                           placeholder="رسالة اختيارية للمعلم..."
@@ -251,7 +257,7 @@ export default function StudentCourses() {
                           onClick={() => requestMut.mutate({ courseId: c.id, message: requestMsg[c.id] })}
                           disabled={requestMut.isPending}
                           className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-navy-600 hover:bg-navy-700 text-white text-sm font-bold transition-colors">
-                          <Bell className="w-4 h-4" /> طلب الانضمام
+                          <Bell className="w-4 h-4" /> {c.request_status === 'rejected' ? 'إعادة طلب الانضمام' : 'طلب الانضمام'}
                         </button>
                       </div>
                     )}

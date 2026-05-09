@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { invalidateCache } = require('../lib/analyticsCache');
 
 const router = express.Router();
 router.use(authenticate);
@@ -18,7 +19,7 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
       `SELECT s.*, COUNT(sce.course_id) as enrolled_courses
        FROM students s
        LEFT JOIN student_course_enrollment sce ON s.id = sce.student_id
-       WHERE s.teacher_id = $1
+       WHERE s.teacher_id = $1 AND s.deleted_at IS NULL
        GROUP BY s.id ORDER BY s.created_at DESC`,
       [teacherId]
     );
@@ -50,6 +51,7 @@ router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkP
       'INSERT INTO students (username,password,name,phone,parent_phone,academic_stage,gender,teacher_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
       [username, hashed, name, phone, parent_phone, academic_stage, gender, teacherId]
     );
+    invalidateCache(teacherId);
     const { password: _, ...safe } = result.rows[0];
     res.status(201).json(safe);
   } catch (err) {
@@ -83,8 +85,12 @@ router.put('/:id', requireRole('teacher', 'assistant'), (req, res, next) => chec
 router.delete('/:id', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_delete_students'), async (req, res) => {
   const teacherId = getTeacherId(req);
   try {
-    const result = await pool.query('DELETE FROM students WHERE id=$1 AND teacher_id=$2 RETURNING id', [req.params.id, teacherId]);
+    const result = await pool.query(
+      'UPDATE students SET deleted_at=NOW() WHERE id=$1 AND teacher_id=$2 AND deleted_at IS NULL RETURNING id',
+      [req.params.id, teacherId]
+    );
     if (!result.rows.length) return res.status(404).json({ error: 'Student not found' });
+    invalidateCache(teacherId);
     res.json({ message: 'Student deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
