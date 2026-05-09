@@ -221,13 +221,37 @@ export default function TeacherAnalytics() {
     }));
   }, [data]);
 
-  const trendChartData = trendData.map(d => ({
-    name: d.label,
-    'متوسط %': parseFloat(d.avg_pct) || 0,
-    'محاولات': d.exam_count,
-    'طلاب':    d.student_count,
-    'ناجح':    d.pass_count,
-  }));
+  const trendChartData = useMemo(() => {
+    if (trendMonths === 0) {
+      return trendData.map(d => ({
+        name: d.label,
+        'متوسط %': parseFloat(d.avg_pct) || 0,
+        'محاولات': d.exam_count,
+        'طلاب':    d.student_count,
+        'ناجح':    d.pass_count,
+      }));
+    }
+    const dataMap = {};
+    trendData.forEach(d => { dataMap[d.month] = d; });
+    const result = [];
+    for (let i = trendMonths - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const found = dataMap[key];
+      const shortMonth = d.toLocaleDateString('ar-EG', { month: 'short' });
+      const shortYear = String(d.getFullYear()).slice(-2);
+      result.push({
+        name: found ? found.label : `${shortMonth} ${shortYear}`,
+        'متوسط %': found ? parseFloat(found.avg_pct) || 0 : 0,
+        'محاولات': found ? found.exam_count : 0,
+        'طلاب':    found ? found.student_count : 0,
+        'ناجح':    found ? found.pass_count : 0,
+      });
+    }
+    return result;
+  }, [trendData, trendMonths]);
 
   const stats = [
     { label: 'الاختبارات النشطة',  value: data?.examResults?.length || 0,  icon: BarChart3,  gradient: 'linear-gradient(135deg,#3b82f6,#6366f1)', lightBg: 'bg-blue-50',    textColor: '#3b82f6' },
@@ -312,7 +336,7 @@ export default function TeacherAnalytics() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {selectedStudentId && (
         <StudentProfileModal studentId={selectedStudentId} onClose={() => setSelectedStudentId(null)} />
       )}
@@ -340,11 +364,11 @@ export default function TeacherAnalytics() {
 
       {/* Row 1: Exam Bar + Attempts Donut */}
       {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {[...Array(2)].map((_, i) => <div key={i} className="h-72 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
           {/* Exam Performance Card — Redesigned */}
           {examChartData.length > 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 flex flex-col">
@@ -437,7 +461,7 @@ export default function TeacherAnalytics() {
           )}
 
           {/* Right column: Attempts Donut + Top Students */}
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
 
             {/* Attempts Distribution Donut */}
             <ChartCard title="توزيع المحاولات" subtitle="نسبة المحاولات لكل اختبار"
@@ -552,7 +576,7 @@ export default function TeacherAnalytics() {
 
       {/* Row 2: Pass/Fail + Score Distribution */}
       {!isLoading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Pass vs Fail */}
           <ChartCard title="نجاح مقابل رسوب" subtitle="توزيع النتائج الكلية"
             icon={Trophy} iconBg="bg-emerald-50" iconColor="text-emerald-500">
