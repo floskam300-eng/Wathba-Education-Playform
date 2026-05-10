@@ -387,29 +387,57 @@ router.post('/bulk', requireRole('teacher', 'assistant'), (req, res, next) => ch
   if (students.length > MAX_BULK) {
     return res.status(400).json({ error: `الحد الأقصى للاستيراد الجماعي هو ${MAX_BULK} طالب في المرة الواحدة` });
   }
-  const results = { success: 0, failed: 0, errors: [] };
+  const results = { success: 0, failed: 0, errors: [], created: [] };
   for (const s of students) {
     const name           = (s['الاسم'] || s['name'] || '').toString().trim();
     const manualUsername = (s['اسم المستخدم'] || s['username'] || '').toString().trim();
-    const password       = (s['كلمة المرور'] || s['password'] || '').toString().trim();
+    const manualPassword = (s['كلمة المرور'] || s['password'] || '').toString().trim();
     const phone          = (s['الهاتف'] || s['phone'] || '').toString().trim() || null;
     const parent_phone   = (s['هاتف ولي الأمر'] || s['parent_phone'] || '').toString().trim() || null;
     const academic_stage = (s['المرحلة'] || s['academic_stage'] || '').toString().trim() || null;
     const gender         = (s['الجنس'] || s['gender'] || '').toString().trim() || null;
-    if (!name || !password) {
+
+    if (!name) {
       results.failed++;
-      results.errors.push(`${name || '؟'}: الاسم وكلمة المرور مطلوبان`);
+      results.errors.push(`(صف فارغ): الاسم مطلوب`);
       continue;
     }
+
+    // Auto-generate password if not supplied
+    const finalPassword = manualPassword || Math.floor(100000 + Math.random() * 900000).toString();
+
     try {
       // Use manual username if provided, otherwise auto-generate
-      const username = manualUsername || await generateUsername(teacherId, academic_stage || '', pool);
-      const hashed = await bcrypt.hash(password, 10);
-      await pool.query(
-        'INSERT INTO students (username,password,name,phone,parent_phone,academic_stage,gender,teacher_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
-        [username, hashed, name, phone, parent_phone, academic_stage, gender, teacherId]
-      );
-      results.success++;
+      let username = manualUsername || await generateUsername(teacherId, academic_stage || '', pool);
+
+      // Retry up to 5 times on username collision
+      let retries = 0;
+      while (retries < 5) {
+        try {
+          const hashed = await bcrypt.hash(finalPassword, 10);
+          await pool.query(
+            'INSERT INTO students (username,password,name,phone,parent_phone,academic_stage,gender,teacher_id,plain_password) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+            [username, hashed, name, phone, parent_phone, academic_stage, gender, teacherId, finalPassword]
+          );
+          results.success++;
+          // Only report generated credentials (not user-supplied ones)
+          if (!manualPassword || !manualUsername) {
+            results.created.push({ name, username, generated_password: finalPassword });
+          }
+          break;
+        } catch (err) {
+          if (err.code === '23505' && !manualUsername) {
+            retries++;
+            username = await generateUsername(teacherId, academic_stage || '', pool);
+          } else {
+            throw err;
+          }
+        }
+      }
+      if (retries >= 5) {
+        results.failed++;
+        results.errors.push(`${name}: تعذّر توليد اسم مستخدم فريد`);
+      }
     } catch (err) {
       results.failed++;
       results.errors.push(`${name}: ${err.code === '23505' ? 'اسم المستخدم موجود مسبقاً' : 'خطأ في الحفظ'}`);

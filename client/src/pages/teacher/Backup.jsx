@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Database, Users, BookOpen, FileText, CreditCard, BarChart3, CheckCircle } from 'lucide-react';
+import { Download, Upload, Database, Users, BookOpen, FileText, CreditCard, BarChart3, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 
 export default function Backup() {
   const [exporting, setExporting] = useState(false);
   const [lastExport, setLastExport] = useState(null);
+
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
+  const [importResult, setImportResult] = useState(null);
+  const importFileRef = useRef(null);
 
   const { data: stats } = useQuery({
     queryKey: ['teacher-dashboard'],
@@ -34,6 +40,55 @@ export default function Backup() {
     }
   };
 
+  const handleImportFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportResult(null);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target.result);
+        if (!parsed.exported_at) {
+          toast.error('الملف غير صالح — تأكد أنه ملف JSON صادر من وثبة');
+          return;
+        }
+        setImportFile(parsed);
+        setImportPreview({
+          exported_at: parsed.exported_at,
+          courses:  (parsed.courses  || []).length,
+          students: (parsed.students || []).length,
+          exams:    (parsed.exams    || []).length,
+          questions:(parsed.questions|| []).length,
+          videos:   (parsed.videos   || []).length,
+          pdfs:     (parsed.pdfs     || []).length,
+          payments: (parsed.payments || []).length,
+          results:  (parsed.exam_results || []).length,
+        });
+      } catch {
+        toast.error('تعذّر قراءة الملف — تأكد أنه ملف JSON صحيح');
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await api.post('/teachers/import', importFile);
+      setImportResult(res.data);
+      toast.success('تم استيراد البيانات بنجاح!');
+      setImportFile(null);
+      setImportPreview(null);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'حدث خطأ أثناء الاستيراد');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleExportCSV = (type) => {
     api.get('/teachers/export').then(res => {
       const data = res.data;
@@ -42,16 +97,28 @@ export default function Backup() {
 
       if (type === 'students') {
         filename = 'students.csv';
-        const headers = ['الاسم', 'اسم المستخدم', 'الهاتف', 'هاتف ولي الأمر', 'المرحلة', 'الجنس', 'النقاط', 'تاريخ التسجيل'];
-        rows = [headers, ...data.students.map(s => [s.name, s.username, s.phone || '', s.parent_phone || '', s.academic_stage || '', s.gender || '', s.points, new Date(s.created_at).toLocaleDateString('ar-EG')])];
+        const headers = ['الاسم', 'اسم المستخدم', 'كلمة المرور', 'الهاتف', 'هاتف ولي الأمر', 'المرحلة', 'الجنس', 'النقاط', 'تاريخ التسجيل'];
+        rows = [headers, ...data.students.map(s => [
+          s.name, s.username, s.plain_password || '',
+          s.phone || '', s.parent_phone || '', s.academic_stage || '',
+          s.gender || '', s.points, new Date(s.created_at).toLocaleDateString('ar-EG')
+        ])];
       } else if (type === 'results') {
         filename = 'exam_results.csv';
-        const headers = ['اسم الطالب', 'الاختبار', 'الدرجة', 'صحيح', 'خطأ', 'لم يُجب', 'التاريخ'];
-        rows = [headers, ...data.exam_results.map(r => [r.student_name, r.exam_title, r.score, r.correct_count, r.wrong_count, r.unanswered_count, new Date(r.created_at).toLocaleDateString('ar-EG')])];
+        const headers = ['معرف الطالب', 'معرف الاختبار', 'الدرجة', 'صحيح', 'خطأ', 'لم يُجب', 'التاريخ'];
+        rows = [headers, ...data.exam_results.map(r => [
+          r.student_id, r.exam_id, r.score,
+          r.correct_count, r.wrong_count, r.unanswered_count,
+          new Date(r.created_at).toLocaleDateString('ar-EG')
+        ])];
       } else if (type === 'payments') {
         filename = 'payments.csv';
-        const headers = ['اسم الطالب', 'الكورس', 'المبلغ', 'طريقة الدفع', 'الحالة', 'رقم مرجعي', 'التاريخ'];
-        rows = [headers, ...data.payments.map(p => [p.student_name, p.course_name || '', p.amount, p.method, p.status, p.reference_number || '', new Date(p.payment_date).toLocaleDateString('ar-EG')])];
+        const headers = ['معرف الطالب', 'معرف الكورس', 'المبلغ', 'طريقة الدفع', 'الحالة', 'رقم مرجعي', 'التاريخ'];
+        rows = [headers, ...data.payments.map(p => [
+          p.student_id, p.course_id || '', p.amount,
+          p.method, p.status, p.reference_number || '',
+          new Date(p.payment_date).toLocaleDateString('ar-EG')
+        ])];
       }
 
       const csvContent = '\uFEFF' + rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -68,16 +135,16 @@ export default function Backup() {
   };
 
   const statCards = [
-    { icon: Users, label: 'الطلاب', value: stats?.totalStudents, color: 'text-blue-600 bg-blue-50' },
-    { icon: BookOpen, label: 'الكورسات', value: stats?.totalCourses, color: 'text-purple-600 bg-purple-50' },
-    { icon: FileText, label: 'الاختبارات', value: stats?.totalExams, color: 'text-orange-600 bg-orange-50' },
-    { icon: CreditCard, label: 'الإيرادات (جنيه)', value: stats?.totalRevenue?.toLocaleString(), color: 'text-green-600 bg-green-50' },
+    { icon: Users,    label: 'الطلاب',            value: stats?.totalStudents,             color: 'text-blue-600 bg-blue-50'   },
+    { icon: BookOpen, label: 'الكورسات',           value: stats?.totalCourses,              color: 'text-purple-600 bg-purple-50'},
+    { icon: FileText, label: 'الاختبارات',         value: stats?.totalExams,                color: 'text-orange-600 bg-orange-50'},
+    { icon: CreditCard, label: 'الإيرادات (جنيه)', value: stats?.totalRevenue?.toLocaleString(), color: 'text-green-600 bg-green-50'},
   ];
 
   const csvExports = [
-    { key: 'students', label: 'قائمة الطلاب', desc: 'بيانات الطلاب كاملة', icon: Users },
-    { key: 'results', label: 'نتائج الاختبارات', desc: 'جميع نتائج الاختبارات', icon: BarChart3 },
-    { key: 'payments', label: 'سجل المدفوعات', desc: 'جميع عمليات الدفع', icon: CreditCard },
+    { key: 'students', label: 'قائمة الطلاب',     desc: 'بيانات الطلاب كاملة مع كلمات المرور', icon: Users      },
+    { key: 'results',  label: 'نتائج الاختبارات', desc: 'جميع نتائج الاختبارات',               icon: BarChart3   },
+    { key: 'payments', label: 'سجل المدفوعات',    desc: 'جميع عمليات الدفع',                   icon: CreditCard  },
   ];
 
   return (
@@ -99,7 +166,7 @@ export default function Backup() {
         ))}
       </div>
 
-      {/* Full JSON backup */}
+      {/* Full JSON backup - Export */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 bg-navy-100 rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -108,7 +175,7 @@ export default function Backup() {
           <div className="flex-1">
             <h2 className="text-lg font-black text-navy-700 mb-1">نسخة احتياطية كاملة (JSON)</h2>
             <p className="text-sm text-gray-500 mb-4">
-              تصدير جميع بياناتك — الطلاب، الكورسات، الاختبارات، النتائج، والمدفوعات — في ملف JSON واحد يمكنك حفظه أو استعادته لاحقاً.
+              تصدير جميع بياناتك — الطلاب وكلمات المرور، الكورسات، الفيديوهات، الملفات، الاختبارات، النتائج، والمدفوعات — في ملف JSON واحد يمكنك استعادته لاحقاً بالكامل.
             </p>
             <div className="flex items-center gap-4">
               <button
@@ -116,7 +183,7 @@ export default function Backup() {
                 disabled={exporting}
                 className="btn-primary flex items-center gap-2 px-6 py-3 disabled:opacity-50"
               >
-                <Download className="w-5 h-5" />
+                {exporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                 {exporting ? 'جاري التصدير...' : 'تنزيل النسخة الاحتياطية'}
               </button>
               {lastExport && (
@@ -126,6 +193,134 @@ export default function Backup() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Full JSON backup - Import */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Upload className="w-7 h-7 text-green-700" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-black text-navy-700 mb-1">استعادة نسخة احتياطية (JSON)</h2>
+            <p className="text-sm text-gray-500 mb-1">
+              ارفع ملف JSON صادر من وثبة لاستعادة جميع بياناتك — الكورسات، الطلاب، الاختبارات، النتائج، والمدفوعات.
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              ⚠️ سيتم إضافة البيانات المستوردة إلى حسابك الحالي. الطلاب ذوو أسماء المستخدمين المكررة سيُتجاهلون تلقائياً.
+            </p>
+
+            <input ref={importFileRef} type="file" accept=".json" className="hidden" onChange={handleImportFileChange} />
+
+            {!importPreview && !importResult && (
+              <button
+                onClick={() => importFileRef.current?.click()}
+                className="flex items-center gap-2 px-5 py-3 border-2 border-dashed border-green-400 text-green-700 font-bold rounded-xl hover:bg-green-50 transition-all text-sm"
+              >
+                <Upload className="w-4 h-4" /> اختر ملف النسخة الاحتياطية
+              </button>
+            )}
+
+            {/* Preview */}
+            {importPreview && (
+              <div className="space-y-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-bold text-navy-700 text-sm">محتويات الملف</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">تاريخ التصدير: {new Date(importPreview.exported_at).toLocaleString('ar-EG')}</span>
+                      <button onClick={() => { setImportFile(null); setImportPreview(null); }} className="p-1 text-gray-400 hover:text-gray-700 rounded">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: 'الكورسات',  value: importPreview.courses   },
+                      { label: 'الطلاب',    value: importPreview.students   },
+                      { label: 'الفيديوهات',value: importPreview.videos     },
+                      { label: 'الملفات PDF',value: importPreview.pdfs     },
+                      { label: 'الاختبارات',value: importPreview.exams      },
+                      { label: 'الأسئلة',   value: importPreview.questions  },
+                      { label: 'النتائج',   value: importPreview.results    },
+                      { label: 'المدفوعات', value: importPreview.payments   },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white border border-gray-100 rounded-lg p-2 text-center">
+                        <p className="text-lg font-black text-navy-700">{value}</p>
+                        <p className="text-xs text-gray-500">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => importFileRef.current?.click()}
+                    className="btn-secondary flex items-center gap-2 text-sm"
+                  >
+                    <Upload className="w-4 h-4" /> تغيير الملف
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    disabled={importing}
+                    className="btn-primary flex items-center gap-2 px-6 disabled:opacity-50"
+                  >
+                    {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    {importing ? 'جاري الاستيراد...' : 'بدء الاستيراد'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Result */}
+            {importResult && (
+              <div className="space-y-3">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle className="w-5 h-5 text-green-700" />
+                    <p className="font-bold text-green-800">تم الاستيراد بنجاح!</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: 'كورسات جديدة',   value: importResult.stats?.courses    },
+                      { label: 'طلاب جدد',        value: importResult.stats?.students   },
+                      { label: 'فيديوهات',        value: importResult.stats?.videos     },
+                      { label: 'ملفات PDF',       value: importResult.stats?.pdfs       },
+                      { label: 'اختبارات',        value: importResult.stats?.exams      },
+                      { label: 'أسئلة',           value: importResult.stats?.questions  },
+                      { label: 'نتائج',           value: importResult.stats?.results    },
+                      { label: 'مدفوعات',         value: importResult.stats?.payments   },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white border border-green-100 rounded-lg p-2 text-center">
+                        <p className="text-lg font-black text-green-800">{value ?? 0}</p>
+                        <p className="text-xs text-gray-600">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {importResult.stats?.skipped_students > 0 && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      ⚠️ تم تجاهل {importResult.stats.skipped_students} طالب بسبب تكرار اسم المستخدم.
+                    </p>
+                  )}
+                  {importResult.stats?.errors?.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {importResult.stats.errors.slice(0, 5).map((e, i) => (
+                        <p key={i} className="text-xs text-red-700 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" /> {e}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setImportResult(null); setImportFile(null); setImportPreview(null); }}
+                  className="btn-secondary text-sm"
+                >
+                  استيراد ملف آخر
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -154,7 +349,7 @@ export default function Backup() {
 
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800">
         <p className="font-bold mb-1">💡 نصيحة</p>
-        <p>ننصح بعمل نسخة احتياطية أسبوعياً على الأقل لضمان عدم فقدان أي بيانات.</p>
+        <p>ننصح بعمل نسخة احتياطية أسبوعياً على الأقل لضمان عدم فقدان أي بيانات. النسخة الاحتياطية JSON هي الوحيدة التي تدعم الاستعادة الكاملة.</p>
       </div>
     </div>
   );

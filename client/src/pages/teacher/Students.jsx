@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Pencil, Trash2, Search, Eye, EyeOff, Printer, GraduationCap, Upload, FileSpreadsheet, X, Loader2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Search, Eye, EyeOff, Printer, GraduationCap, Upload, FileSpreadsheet, Download, X, Loader2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -133,13 +133,26 @@ export default function TeacherStudents() {
     setImportLoading(true);
     try {
       const res = await api.post('/students/bulk', { students: importRows });
-      const { success, failed, errors } = res.data;
+      const { success, failed, errors, created } = res.data;
       if (success > 0) {
         qc.invalidateQueries(['students']);
         toast.success(`تم إضافة ${success} طالب بنجاح${failed > 0 ? ` (${failed} فشل)` : ''}`);
       }
       if (failed > 0 && success === 0) toast.error(`فشل استيراد جميع الصفوف (${failed})`);
       if (errors?.length) errors.slice(0, 3).forEach(e => toast.error(e, { duration: 4000 }));
+      // If any credentials were auto-generated, download them as Excel
+      if (created?.length) {
+        const exportData = created.map(s => ({
+          'الاسم': s.name,
+          'اسم المستخدم': s.username,
+          'كلمة المرور': s.generated_password,
+        }));
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'بيانات الدخول');
+        XLSX.writeFile(wb, 'student_credentials.xlsx');
+        toast.success('تم تنزيل بيانات الدخول المولّدة تلقائياً');
+      }
       setImportModal(false);
       setImportRows([]);
     } catch (e) {
@@ -147,6 +160,23 @@ export default function TeacherStudents() {
     } finally {
       setImportLoading(false);
     }
+  };
+
+  const handleExportExcel = () => {
+    const exportData = filtered.map(s => ({
+      'الاسم': s.name,
+      'اسم المستخدم': s.username,
+      'كلمة المرور': s.plain_password || '',
+      'الهاتف': s.phone || '',
+      'هاتف ولي الأمر': s.parent_phone || '',
+      'المرحلة': s.academic_stage || '',
+      'الجنس': s.gender || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+    XLSX.writeFile(wb, `students_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`تم تصدير ${exportData.length} طالب`);
   };
 
   const canAdd = user?.role === 'teacher' || user?.can_add_students;
@@ -217,6 +247,9 @@ export default function TeacherStudents() {
           <button onClick={handlePrint} className="btn-secondary flex items-center gap-2">
             <Printer className="w-4 h-4" /> طباعة
           </button>
+          <button onClick={handleExportExcel} className="btn-secondary flex items-center gap-2 !border-blue-300 !text-blue-700 hover:!bg-blue-50">
+            <Download className="w-4 h-4" /> تصدير Excel
+          </button>
           {canAdd && (
             <>
               <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelFile} />
@@ -278,8 +311,9 @@ export default function TeacherStudents() {
               </button>
             </div>
             <div className="overflow-auto flex-1 p-4">
-              <div className="text-xs text-gray-500 mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <strong>أعمدة مدعومة:</strong> الاسم، اسم المستخدم، كلمة المرور، الهاتف، هاتف ولي الأمر، المرحلة، الجنس
+              <div className="text-xs text-gray-600 mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
+                <p><strong>الأعمدة المدعومة:</strong> الاسم، اسم المستخدم، كلمة المرور، الهاتف، هاتف ولي الأمر، المرحلة، الجنس</p>
+                <p className="text-blue-700">✨ <strong>الاسم فقط مطلوب</strong> — اسم المستخدم وكلمة المرور يُولَّدان تلقائياً إن لم يُحدَّدا. بعد الاستيراد ستُنزَّل بيانات الدخول تلقائياً.</p>
               </div>
               <table className="w-full text-xs border-collapse">
                 <thead>
