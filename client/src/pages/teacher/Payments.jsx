@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, Plus, CheckCircle, XCircle, Printer, TrendingUp } from 'lucide-react';
+import { CreditCard, Plus, CheckCircle, XCircle, Printer, TrendingUp, AlertCircle } from 'lucide-react';
+import { validatePaymentForm, hasErrors } from '../../lib/validation';
+
+function FieldError({ error }) {
+  if (!error) return null;
+  return (
+    <p className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
+    </p>
+  );
+}
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
@@ -27,6 +37,8 @@ export default function TeacherPayments() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [formErrors, setFormErrors] = useState({});
+  const clearError = (field) => setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
 
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['payments'],
@@ -231,14 +243,22 @@ export default function TeacherPayments() {
         </div>
       </div>
 
-      <Modal open={modal} onClose={() => { setModal(false); setForm(emptyForm); }} title="تسجيل دفعة جديدة">
-        <form onSubmit={(e) => { e.preventDefault(); if (!form.student_id || !form.amount) return toast.error('الطالب والمبلغ مطلوبان'); createMut.mutate(form); }} className="space-y-4">
+      <Modal open={modal} onClose={() => { setModal(false); setForm(emptyForm); setFormErrors({}); }} title="تسجيل دفعة جديدة">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const errs = validatePaymentForm(form);
+          if (hasErrors(errs)) { setFormErrors(errs); return; }
+          setFormErrors({});
+          createMut.mutate(form);
+        }} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">الطالب *</label>
-            <select value={form.student_id} onChange={e => setForm({ ...form, student_id: e.target.value })} className="input-field">
+            <select value={form.student_id} onChange={e => { setForm({ ...form, student_id: e.target.value }); clearError('student_id'); }}
+              className={`input-field ${formErrors.student_id ? 'border-red-400 focus:ring-red-300' : ''}`}>
               <option value="">اختر الطالب</option>
               {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+            <FieldError error={formErrors.student_id} />
           </div>
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">الكورس (اختياري)</label>
@@ -250,16 +270,20 @@ export default function TeacherPayments() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">المبلغ (جنيه) *</label>
-              <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className="input-field" placeholder="0" />
+              <input type="number" value={form.amount} onChange={e => { setForm({ ...form, amount: e.target.value }); clearError('amount'); }}
+                className={`input-field ${formErrors.amount ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="0" min="0.01" step="0.01" />
+              <FieldError error={formErrors.amount} />
             </div>
             <div>
-              <label className="block text-sm font-bold text-navy-700 mb-1">طريقة الدفع</label>
-              <select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} className="input-field">
+              <label className="block text-sm font-bold text-navy-700 mb-1">طريقة الدفع *</label>
+              <select value={form.method} onChange={e => { setForm({ ...form, method: e.target.value }); clearError('method'); }}
+                className={`input-field ${formErrors.method ? 'border-red-400 focus:ring-red-300' : ''}`}>
                 <option value="Vodafone Cash">فودافون كاش</option>
                 <option value="Instapay">إنستاباي</option>
                 <option value="Cash">كاش</option>
                 <option value="Bank Transfer">تحويل بنكي</option>
               </select>
+              <FieldError error={formErrors.method} />
             </div>
           </div>
           <div>
@@ -271,7 +295,7 @@ export default function TeacherPayments() {
             <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="input-field h-16 resize-none" />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => { setModal(false); setForm(emptyForm); }} className="flex-1 btn-secondary">إلغاء</button>
+            <button type="button" onClick={() => { setModal(false); setForm(emptyForm); setFormErrors({}); }} className="flex-1 btn-secondary">إلغاء</button>
             <button type="submit" disabled={createMut.isPending} className="flex-1 btn-primary">تسجيل الدفعة</button>
           </div>
         </form>

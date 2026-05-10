@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { getPermissions } = require('../lib/permissionsCache');
+const { validatePayment } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticate);
@@ -144,14 +145,10 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
   }
 });
 
-router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_manage_payments'), async (req, res) => {
+router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_manage_payments'), validatePayment, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { student_id, course_id, method, reference_number, notes } = req.body;
   const amount = parseFloat(req.body.amount);
-  if (!amount || amount <= 0) {
-    return res.status(400).json({ error: 'المبلغ يجب أن يكون أكبر من صفر' });
-  }
-  if (!student_id) return res.status(400).json({ error: 'يجب اختيار الطالب' });
   try {
     const studentCheck = await pool.query('SELECT id FROM students WHERE id=$1 AND teacher_id=$2', [student_id, teacherId]);
     if (!studentCheck.rows.length) {

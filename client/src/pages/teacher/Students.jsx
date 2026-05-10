@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Pencil, Trash2, Search, Eye, EyeOff, Printer, GraduationCap, Upload, FileSpreadsheet, X, Loader2, Copy, CheckCircle } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Search, Eye, EyeOff, Printer, GraduationCap, Upload, FileSpreadsheet, X, Loader2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -9,6 +9,16 @@ import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { generatePDFReport } from '../../lib/pdfReport';
+import { validateStudentForm, hasErrors } from '../../lib/validation';
+
+function FieldError({ error }) {
+  if (!error) return null;
+  return (
+    <p className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
+    </p>
+  );
+}
 
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
 
@@ -143,9 +153,9 @@ export default function TeacherStudents() {
   const canEdit = user?.role === 'teacher' || user?.can_edit_students;
   const canDelete = user?.role === 'teacher' || user?.can_delete_students;
 
-  const openAdd = () => { setEditData(null); setForm(emptyForm); setPreviewUsername(''); setModal(true); };
-  const openEdit = (s) => { setEditData(s); setForm({ ...s, password: '' }); setPreviewUsername(''); setModal(true); };
-  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); setPreviewUsername(''); };
+  const openAdd = () => { setEditData(null); setForm(emptyForm); setPreviewUsername(''); setFormErrors({}); setModal(true); };
+  const openEdit = (s) => { setEditData(s); setForm({ ...s, password: '' }); setPreviewUsername(''); setFormErrors({}); setModal(true); };
+  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); setPreviewUsername(''); setFormErrors({}); };
   const copyToClipboard = (text) => { navigator.clipboard.writeText(text).then(() => toast.success('تم النسخ!')); };
 
   // Fetch preview username when stage changes (only when adding a new student)
@@ -166,9 +176,14 @@ export default function TeacherStudents() {
     return () => { cancelled = true; };
   }, [form.academic_stage, editData, modal]);
 
+  const [formErrors, setFormErrors] = useState({});
+  const clearError = (field) => setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) return toast.error('الاسم مطلوب');
+    const errs = validateStudentForm(form, !!editData);
+    if (hasErrors(errs)) { setFormErrors(errs); return; }
+    setFormErrors({});
     if (editData) updateMut.mutate({ id: editData.id, data: form });
     else createMut.mutate(form);
   };
@@ -432,13 +447,17 @@ export default function TeacherStudents() {
 
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">الاسم *</label>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="الاسم الكامل" />
+            <input value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); clearError('name'); }}
+              className={`input-field ${formErrors.name ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="الاسم الكامل" />
+            <FieldError error={formErrors.name} />
           </div>
 
           {editData && (
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">كلمة المرور (اتركها فارغة للإبقاء)</label>
-              <input type="password" value={form.password || ''} onChange={e => setForm({ ...form, password: e.target.value })} className="input-field" placeholder="••••••" dir="ltr" />
+              <input type="password" value={form.password || ''} onChange={e => { setForm({ ...form, password: e.target.value }); clearError('password'); }}
+                className={`input-field ${formErrors.password ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="••••••" dir="ltr" />
+              <FieldError error={formErrors.password} />
             </div>
           )}
           {!editData && (
@@ -469,11 +488,15 @@ export default function TeacherStudents() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">هاتف الطالب</label>
-              <input value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} className="input-field" placeholder="01xxxxxxxxx" dir="ltr" />
+              <input value={form.phone || ''} onChange={e => { setForm({ ...form, phone: e.target.value }); clearError('phone'); }}
+                className={`input-field ${formErrors.phone ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="01xxxxxxxxx" dir="ltr" />
+              <FieldError error={formErrors.phone} />
             </div>
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">هاتف ولي الأمر</label>
-              <input value={form.parent_phone || ''} onChange={e => setForm({ ...form, parent_phone: e.target.value })} className="input-field" placeholder="01xxxxxxxxx" dir="ltr" />
+              <input value={form.parent_phone || ''} onChange={e => { setForm({ ...form, parent_phone: e.target.value }); clearError('parent_phone'); }}
+                className={`input-field ${formErrors.parent_phone ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="01xxxxxxxxx" dir="ltr" />
+              <FieldError error={formErrors.parent_phone} />
             </div>
           </div>
 

@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { invalidateCache } = require('../lib/analyticsCache');
+const { validateExam } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticate);
@@ -56,11 +57,9 @@ const validateExamFields = ({ title, duration_minutes, total_score, pass_score }
 };
 
 // ── Create exam ──
-router.post('/', requireRole('teacher', 'assistant'), async (req, res) => {
+router.post('/', requireRole('teacher', 'assistant'), validateExam, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { title, duration_minutes, total_score, course_id, pass_score, badge_name, badge_color, start_date, end_date } = req.body;
-  const validationError = validateExamFields({ title, duration_minutes: duration_minutes || 60, total_score: total_score || 100, pass_score: pass_score ?? 50 });
-  if (validationError) return res.status(400).json({ error: validationError });
   try {
     if (course_id) {
       const courseCheck = await pool.query('SELECT id FROM courses WHERE id=$1 AND teacher_id=$2', [course_id, teacherId]);
@@ -77,11 +76,9 @@ router.post('/', requireRole('teacher', 'assistant'), async (req, res) => {
 });
 
 // ── Update exam ──
-router.put('/:id', requireRole('teacher', 'assistant'), async (req, res) => {
+router.put('/:id', requireRole('teacher', 'assistant'), validateExam, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { title, duration_minutes, total_score, course_id, pass_score, badge_name, badge_color, start_date, end_date } = req.body;
-  const validationError = validateExamFields({ title, duration_minutes, total_score, pass_score });
-  if (validationError) return res.status(400).json({ error: validationError });
   try {
     const result = await pool.query(
       'UPDATE exams SET title=$1,duration_minutes=$2,total_score=$3,course_id=$4,pass_score=$5,badge_name=$6,badge_color=$7,start_date=$8,end_date=$9 WHERE id=$10 AND teacher_id=$11 RETURNING *',

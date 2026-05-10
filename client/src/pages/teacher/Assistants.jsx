@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserCog, Plus, Trash2, Settings } from 'lucide-react';
+import { UserCog, Plus, Trash2, Settings, AlertCircle } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
+import { validateAssistantForm, hasErrors } from '../../lib/validation';
+
+function FieldError({ error }) {
+  if (!error) return null;
+  return (
+    <p className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
+    </p>
+  );
+}
 
 const PERMISSIONS = [
   { key: 'can_add_students', label: 'إضافة طلاب' },
@@ -27,6 +37,8 @@ export default function TeacherAssistants() {
   const [form, setForm] = useState(emptyForm);
   const [permForm, setPermForm] = useState({});
   const [deleteId, setDeleteId] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const clearError = (field) => setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
 
   const { data: assistants = [], isLoading } = useQuery({
     queryKey: ['assistants'],
@@ -108,26 +120,40 @@ export default function TeacherAssistants() {
         ))}
       </div>
 
-      <Modal open={modal} onClose={() => { setModal(false); setForm(emptyForm); }} title="إضافة مساعد جديد">
-        <form onSubmit={(e) => { e.preventDefault(); if (!form.username || !form.password || !form.name) return toast.error('جميع الحقول المطلوبة'); createMut.mutate(form); }} className="space-y-4">
+      <Modal open={modal} onClose={() => { setModal(false); setForm(emptyForm); setFormErrors({}); }} title="إضافة مساعد جديد">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const errs = validateAssistantForm(form);
+          if (hasErrors(errs)) { setFormErrors(errs); return; }
+          setFormErrors({});
+          createMut.mutate(form);
+        }} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">الاسم *</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field" />
+              <input value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); clearError('name'); }}
+                className={`input-field ${formErrors.name ? 'border-red-400 focus:ring-red-300' : ''}`} />
+              <FieldError error={formErrors.name} />
             </div>
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">اسم المستخدم *</label>
-              <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} className="input-field" dir="ltr" />
+              <input value={form.username} onChange={e => { setForm({ ...form, username: e.target.value }); clearError('username'); }}
+                className={`input-field ${formErrors.username ? 'border-red-400 focus:ring-red-300' : ''}`} dir="ltr" />
+              <FieldError error={formErrors.username} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">كلمة المرور *</label>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="input-field" dir="ltr" />
+              <input type="password" value={form.password} onChange={e => { setForm({ ...form, password: e.target.value }); clearError('password'); }}
+                className={`input-field ${formErrors.password ? 'border-red-400 focus:ring-red-300' : ''}`} dir="ltr" />
+              <FieldError error={formErrors.password} />
             </div>
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">الهاتف</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="input-field" dir="ltr" />
+              <input value={form.phone} onChange={e => { setForm({ ...form, phone: e.target.value }); clearError('phone'); }}
+                className={`input-field ${formErrors.phone ? 'border-red-400 focus:ring-red-300' : ''}`} dir="ltr" placeholder="01xxxxxxxxx" />
+              <FieldError error={formErrors.phone} />
             </div>
           </div>
           <div>

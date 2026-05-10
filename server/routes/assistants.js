@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { validateAssistant } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticate);
@@ -18,7 +19,7 @@ router.get('/', requireRole('teacher'), async (req, res) => {
   }
 });
 
-router.post('/', requireRole('teacher'), async (req, res) => {
+router.post('/', requireRole('teacher'), validateAssistant, async (req, res) => {
   const { username, password, name, phone, can_add_students, can_edit_students, can_delete_students, can_manage_exams, can_view_analytics, can_send_reports, can_manage_payments, can_manage_courses } = req.body;
   try {
     const hashed = await bcrypt.hash(password, 10);

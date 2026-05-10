@@ -4,6 +4,7 @@ const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { invalidateCache } = require('../lib/analyticsCache');
 const { getPermissions } = require('../lib/permissionsCache');
+const { validateStudent } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticate);
@@ -90,10 +91,9 @@ const checkPermission = async (req, res, next, perm) => {
   }
 };
 
-router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_add_students'), async (req, res) => {
+router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_add_students'), validateStudent, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { name, phone, parent_phone, academic_stage, gender } = req.body;
-  if (!name) return res.status(400).json({ error: 'الاسم مطلوب' });
   // Auto-generate 6-digit numeric password
   const generatedPassword = Math.floor(100000 + Math.random() * 900000).toString();
   try {
@@ -126,7 +126,7 @@ router.post('/', requireRole('teacher', 'assistant'), (req, res, next) => checkP
   }
 });
 
-router.put('/:id', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_edit_students'), async (req, res) => {
+router.put('/:id', requireRole('teacher', 'assistant'), (req, res, next) => checkPermission(req, res, next, 'can_edit_students'), validateStudent, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { name, phone, parent_phone, academic_stage, gender, password } = req.body;
   try {

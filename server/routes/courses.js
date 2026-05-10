@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { validateCourse } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(authenticate);
@@ -84,7 +85,7 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
   }
 });
 
-router.post('/', requireRole('teacher', 'assistant'), checkManageCoursesPerm, async (req, res) => {
+router.post('/', requireRole('teacher', 'assistant'), checkManageCoursesPerm, validateCourse, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { name, description, price, thumbnail_url, target_stage, is_free } = req.body;
   const isFree = is_free === true || is_free === 'true';
@@ -109,7 +110,7 @@ router.post('/', requireRole('teacher', 'assistant'), checkManageCoursesPerm, as
   }
 });
 
-router.put('/:id', requireRole('teacher', 'assistant'), checkManageCoursesPerm, async (req, res) => {
+router.put('/:id', requireRole('teacher', 'assistant'), checkManageCoursesPerm, validateCourse, async (req, res) => {
   const teacherId = getTeacherId(req);
   const { name, description, price, thumbnail_url, target_stage, is_free } = req.body;
   const isFree = is_free === true || is_free === 'true';

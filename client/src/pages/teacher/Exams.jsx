@@ -1,13 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Pencil, Trash2, HelpCircle, ChevronDown, ChevronUp, Printer, Filter, Calendar, User, Eye, Search } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, HelpCircle, ChevronDown, ChevronUp, Printer, Filter, Calendar, User, Eye, Search, AlertCircle } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Badge from '../../components/ui/Badge';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { generatePDFReport } from '../../lib/pdfReport';
+import { validateExamForm, hasErrors } from '../../lib/validation';
+
+function FieldError({ error }) {
+  if (!error) return null;
+  return (
+    <p className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
+    </p>
+  );
+}
 
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
 
@@ -110,7 +120,10 @@ export default function TeacherExams() {
     onSuccess: () => { qc.invalidateQueries(['questions', expandedExam]); toast.success('تم حذف السؤال'); },
   });
 
-  const openAdd = () => { setEditData(null); setForm(emptyExam); setModal(true); };
+  const [formErrors, setFormErrors] = useState({});
+  const clearError = (field) => setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+
+  const openAdd = () => { setEditData(null); setForm(emptyExam); setFormErrors({}); setModal(true); };
   const openEdit = (e) => {
     setEditData(e);
     setForm({
@@ -119,13 +132,16 @@ export default function TeacherExams() {
       badge_name: e.badge_name || '', badge_color: e.badge_color || '#995400',
       start_date: fmtDateLocal(e.start_date), end_date: fmtDateLocal(e.end_date),
     });
+    setFormErrors({});
     setModal(true);
   };
-  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyExam); };
+  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyExam); setFormErrors({}); };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title) return toast.error('عنوان الاختبار مطلوب');
+    const errs = validateExamForm(form);
+    if (hasErrors(errs)) { setFormErrors(errs); return; }
+    setFormErrors({});
     const payload = { ...form, start_date: form.start_date || null, end_date: form.end_date || null };
     if (editData) updateMut.mutate({ id: editData.id, data: payload });
     else createMut.mutate(payload);
@@ -490,7 +506,9 @@ export default function TeacherExams() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">عنوان الاختبار *</label>
-            <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="input-field" placeholder="مثال: اختبار الفصل الأول" />
+            <input value={form.title} onChange={e => { setForm({ ...form, title: e.target.value }); clearError('title'); }}
+              className={`input-field ${formErrors.title ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="مثال: اختبار الفصل الأول" />
+            <FieldError error={formErrors.title} />
           </div>
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">الكورس (اختياري)</label>
@@ -501,16 +519,22 @@ export default function TeacherExams() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-bold text-navy-700 mb-1">المدة (دقيقة)</label>
-              <input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: e.target.value })} className="input-field" />
+              <label className="block text-sm font-bold text-navy-700 mb-1">المدة (دقيقة) *</label>
+              <input type="number" value={form.duration_minutes} onChange={e => { setForm({ ...form, duration_minutes: e.target.value }); clearError('duration_minutes'); }}
+                className={`input-field ${formErrors.duration_minutes ? 'border-red-400 focus:ring-red-300' : ''}`} min="1" max="600" />
+              <FieldError error={formErrors.duration_minutes} />
             </div>
             <div>
-              <label className="block text-sm font-bold text-navy-700 mb-1">المجموع</label>
-              <input type="number" value={form.total_score} onChange={e => setForm({ ...form, total_score: e.target.value })} className="input-field" />
+              <label className="block text-sm font-bold text-navy-700 mb-1">المجموع *</label>
+              <input type="number" value={form.total_score} onChange={e => { setForm({ ...form, total_score: e.target.value }); clearError('total_score'); clearError('pass_score'); }}
+                className={`input-field ${formErrors.total_score ? 'border-red-400 focus:ring-red-300' : ''}`} min="1" max="1000" />
+              <FieldError error={formErrors.total_score} />
             </div>
             <div>
-              <label className="block text-sm font-bold text-navy-700 mb-1">درجة النجاح</label>
-              <input type="number" value={form.pass_score} onChange={e => setForm({ ...form, pass_score: e.target.value })} className="input-field" />
+              <label className="block text-sm font-bold text-navy-700 mb-1">درجة النجاح *</label>
+              <input type="number" value={form.pass_score} onChange={e => { setForm({ ...form, pass_score: e.target.value }); clearError('pass_score'); }}
+                className={`input-field ${formErrors.pass_score ? 'border-red-400 focus:ring-red-300' : ''}`} min="0" />
+              <FieldError error={formErrors.pass_score} />
             </div>
           </div>
 
@@ -520,11 +544,13 @@ export default function TeacherExams() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-navy-700 mb-1">تاريخ وموعد البدء</label>
-                <input type="datetime-local" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="input-field text-sm" />
+                <input type="datetime-local" value={form.start_date} onChange={e => { setForm({ ...form, start_date: e.target.value }); clearError('end_date'); }} className="input-field text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-navy-700 mb-1">تاريخ وموعد الانتهاء</label>
-                <input type="datetime-local" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className="input-field text-sm" />
+                <input type="datetime-local" value={form.end_date} onChange={e => { setForm({ ...form, end_date: e.target.value }); clearError('end_date'); }}
+                  className={`input-field text-sm ${formErrors.end_date ? 'border-red-400 focus:ring-red-300' : ''}`} />
+                <FieldError error={formErrors.end_date} />
               </div>
             </div>
             <p className="text-xs text-orange-700">إذا تركتها فارغة، سيكون الاختبار متاحاً في أي وقت</p>

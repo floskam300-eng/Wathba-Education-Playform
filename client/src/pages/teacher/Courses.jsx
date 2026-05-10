@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BookOpen, Plus, Pencil, Trash2, Video, FileText, Users,
   ChevronDown, ChevronUp, GraduationCap, Filter, Upload,
-  X, Loader2, Play, FolderOpen, FolderPlus, Check
+  X, Loader2, Play, FolderOpen, FolderPlus, Check, AlertCircle
 } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -11,6 +11,16 @@ import Badge from '../../components/ui/Badge';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { validateCourseForm, hasErrors } from '../../lib/validation';
+
+function FieldError({ error }) {
+  if (!error) return null;
+  return (
+    <p className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
+    </p>
+  );
+}
 
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
 const emptyForm = { name: '', description: '', price: '', thumbnail_url: '', target_stage: '', is_free: false };
@@ -321,17 +331,23 @@ export default function TeacherCourses() {
     onSuccess: () => { qc.invalidateQueries(['course-content', expandedCourse]); toast.success('تم حذف الفصل'); },
   });
 
-  const openAdd = () => { setEditData(null); setForm(emptyForm); setModal(true); };
+  const [formErrors, setFormErrors] = useState({});
+  const clearError = (field) => setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+
+  const openAdd = () => { setEditData(null); setForm(emptyForm); setFormErrors({}); setModal(true); };
   const openEdit = (c) => {
     setEditData(c);
     setForm({ name: c.name, description: c.description || '', price: c.price, thumbnail_url: c.thumbnail_url || '', target_stage: c.target_stage || '', is_free: !!c.is_free });
+    setFormErrors({});
     setModal(true);
   };
-  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); };
+  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); setFormErrors({}); };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) return toast.error('اسم الكورس مطلوب');
+    const errs = validateCourseForm(form);
+    if (hasErrors(errs)) { setFormErrors(errs); return; }
+    setFormErrors({});
     if (editData) updateMut.mutate({ id: editData.id, data: form });
     else createMut.mutate(form);
   };
@@ -627,7 +643,9 @@ export default function TeacherCourses() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">اسم الكورس *</label>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="مثال: الرياضيات للثانوية العامة" />
+            <input value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); clearError('name'); }}
+              className={`input-field ${formErrors.name ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="مثال: الرياضيات للثانوية العامة" />
+            <FieldError error={formErrors.name} />
           </div>
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">المرحلة الدراسية المستهدفة</label>
@@ -674,7 +692,9 @@ export default function TeacherCourses() {
           {!form.is_free && (
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">السعر (جنيه)</label>
-              <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="0" />
+              <input type="number" value={form.price} onChange={e => { setForm({ ...form, price: e.target.value }); clearError('price'); }}
+                className={`input-field ${formErrors.price ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="0" min="0" step="0.01" />
+              <FieldError error={formErrors.price} />
             </div>
           )}
           <div>
