@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { sendEvent } = require('../sse');
 
 const router = express.Router();
 router.use(authenticate);
@@ -37,6 +38,9 @@ router.post('/log', requireRole('teacher', 'assistant'), async (req, res) => {
       'INSERT INTO notification_log (teacher_id, student_id, recipient_phone, recipient_type, message) VALUES ($1,$2,$3,$4,$5) RETURNING *',
       [teacherId, student_id || null, recipient_phone, recipient_type || 'student', message]
     );
+    if (student_id) {
+      sendEvent(`student_${student_id}`, 'notification', { message, type: 'general' });
+    }
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

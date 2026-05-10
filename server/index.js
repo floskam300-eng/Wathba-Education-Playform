@@ -4,6 +4,8 @@ const cors = require('cors');
 const path = require('path');
 const pool = require('./db/connection');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const { addClient, removeClient } = require('./sse');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -13,6 +15,40 @@ app.use((req, res, next) => {
   express.json({ limit: '50mb' })(req, res, next);
 });
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// ── SSE endpoint ──────────────────────────────────────────────
+app.get('/api/sse', (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(401).end();
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (_) {
+    return res.status(401).end();
+  }
+
+  const key = `${decoded.role}_${decoded.id}`;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  addClient(key, res);
+  res.write(`event: connected\ndata: ${JSON.stringify({ key })}\n\n`);
+
+  const heartbeat = setInterval(() => {
+    try { res.write(': heartbeat\n\n'); } catch (_) { clearInterval(heartbeat); }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    removeClient(key, res);
+  });
+});
+// ─────────────────────────────────────────────────────────────
 
 app.use('/api/public', require('./routes/public'));
 app.use('/api/auth', require('./routes/auth'));

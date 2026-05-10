@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LayoutDashboard, BookOpen, FileText, Trophy, LogOut, Menu, BarChart2, Moon, Sun } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
+import { useSSE } from '../hooks/useSSE';
 
 const navItems = [
   { to: '/student', icon: LayoutDashboard, label: 'لوحتي', end: true },
@@ -18,6 +19,8 @@ export default function StudentLayout() {
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useSSE(!!user, user?.role || 'student');
 
   const handleLogout = () => { logout(); navigate('/login'); };
 

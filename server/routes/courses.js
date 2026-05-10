@@ -1,3 +1,4 @@
+const { sendEvent, broadcastToTeacherStudents, broadcastToCourseStudents } = require('../sse');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -102,6 +103,9 @@ router.post('/', requireRole('teacher', 'assistant'), checkManageCoursesPerm, va
          ON CONFLICT DO NOTHING`,
         [course.id, teacherId, target_stage]
       );
+      broadcastToTeacherStudents(pool, teacherId, 'new_course', { name: course.name, courseId: course.id });
+    } else {
+      broadcastToTeacherStudents(pool, teacherId, 'new_course', { name: course.name, courseId: course.id });
     }
     res.status(201).json(course);
   } catch (err) {
@@ -416,6 +420,17 @@ router.post('/student/request/:courseId', requireRole('student'), async (req, re
        RETURNING *`,
       [req.user.id, req.params.courseId, message || null]
     );
+    try {
+      const studentInfo = await pool.query('SELECT name FROM students WHERE id=$1', [req.user.id]);
+      const courseInfo = await pool.query('SELECT name FROM courses WHERE id=$1', [req.params.courseId]);
+      const studentName = studentInfo.rows[0]?.name || 'طالب';
+      const courseName = courseInfo.rows[0]?.name || '';
+      sendEvent(`teacher_${teacherId}`, 'new_request', {
+        student_name: studentName,
+        course_name: courseName,
+        courseId: req.params.courseId,
+      });
+    } catch (_) {}
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -455,6 +470,9 @@ router.put('/enrollment-requests/:id', requireRole('teacher', 'assistant'), chec
     if (!reqRes.rows.length) return res.status(404).json({ error: 'Request not found' });
     const enrReq = reqRes.rows[0];
 
+    const courseInfo = await pool.query('SELECT name FROM courses WHERE id=$1', [enrReq.course_id]);
+    const courseName = courseInfo.rows[0]?.name || '';
+
     if (action === 'approve') {
       await pool.query(
         'INSERT INTO student_course_enrollment (student_id, course_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
@@ -464,11 +482,19 @@ router.put('/enrollment-requests/:id', requireRole('teacher', 'assistant'), chec
         'UPDATE course_enrollment_requests SET status=$1, handled_at=NOW() WHERE id=$2',
         ['approved', req.params.id]
       );
+      sendEvent(`student_${enrReq.student_id}`, 'enrollment_approved', {
+        course_name: courseName,
+        courseId: enrReq.course_id,
+      });
     } else {
       await pool.query(
         'UPDATE course_enrollment_requests SET status=$1, handled_at=NOW() WHERE id=$2',
         ['rejected', req.params.id]
       );
+      sendEvent(`student_${enrReq.student_id}`, 'enrollment_rejected', {
+        course_name: courseName,
+        courseId: enrReq.course_id,
+      });
     }
     res.json({ success: true, action });
   } catch (err) {

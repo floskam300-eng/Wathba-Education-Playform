@@ -1,3 +1,4 @@
+const { sendEvent, broadcastToTeacherStudents, broadcastToCourseStudents } = require('../sse');
 const express = require('express');
 const pool = require('../db/connection');
 const { authenticate, requireRole } = require('../middleware/auth');
@@ -69,7 +70,13 @@ router.post('/', requireRole('teacher', 'assistant'), validateExam, async (req, 
       'INSERT INTO exams (title,duration_minutes,total_score,course_id,teacher_id,pass_score,badge_name,badge_color,start_date,end_date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
       [title, duration_minutes || 60, total_score || 100, course_id || null, teacherId, pass_score ?? 50, badge_name, badge_color || '#FF8C00', start_date || null, end_date || null]
     );
-    res.status(201).json(result.rows[0]);
+    const exam = result.rows[0];
+    if (course_id) {
+      broadcastToCourseStudents(pool, course_id, 'new_exam', { title, examId: exam.id });
+    } else {
+      broadcastToTeacherStudents(pool, teacherId, 'new_exam', { title, examId: exam.id });
+    }
+    res.status(201).json(exam);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -223,6 +230,21 @@ router.post('/:id/retry-request', requireRole('student'), async (req, res) => {
       'INSERT INTO exam_retry_requests (student_id, exam_id, message) VALUES ($1,$2,$3) RETURNING *',
       [studentId, examId, message || null]
     );
+    try {
+      const examInfo = await pool.query(
+        'SELECT teacher_id, title FROM exams WHERE id=$1', [examId]
+      );
+      const studentInfo = await pool.query('SELECT name FROM students WHERE id=$1', [studentId]);
+      if (examInfo.rows.length) {
+        const { teacher_id } = examInfo.rows[0];
+        const studentName = studentInfo.rows[0]?.name || 'طالب';
+        sendEvent(`teacher_${teacher_id}`, 'retry_request', {
+          student_name: studentName,
+          exam_title: examInfo.rows[0].title,
+          examId,
+        });
+      }
+    } catch (_) {}
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -271,6 +293,7 @@ router.put('/retry-requests/:reqId/approve', requireRole('teacher', 'assistant')
          VALUES ($1, $2, 'تمت الموافقة على طلب إعادة الاختبار — يمكنك الآن إعادة تأدية الاختبار', 'retry_approved')`,
         [teacherId, row.student_id]
       );
+      sendEvent(`student_${row.student_id}`, 'retry_approved', { examId: row.exam_id });
     } catch (_) {}
     res.json({ success: true });
   } catch (err) {
@@ -301,6 +324,7 @@ router.put('/retry-requests/:reqId/reject', requireRole('teacher', 'assistant'),
          VALUES ($1, $2, 'تم رفض طلب إعادة الاختبار', 'retry_rejected')`,
         [teacherId, row.student_id]
       );
+      sendEvent(`student_${row.student_id}`, 'retry_rejected', { examId: row.exam_id });
     } catch (_) {}
     res.json({ success: true });
   } catch (err) {
@@ -507,6 +531,7 @@ router.put('/results/:resultId/grade-essay', requireRole('teacher', 'assistant')
          VALUES ($1, $2, 'تم تصحيح إجاباتك المقالية وتحديث درجتك', 'essay_graded')`,
         [teacherId, row.student_id]
       );
+      sendEvent(`student_${row.student_id}`, 'essay_graded', { new_score: newScore, resultId: req.params.resultId });
     } catch (_) {}
 
     res.json({ success: true, new_score: newScore, essay_score_adjustment: totalEssayPoints });

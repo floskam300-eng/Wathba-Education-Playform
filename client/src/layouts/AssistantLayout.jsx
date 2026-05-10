@@ -4,12 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LayoutDashboard, Users, LogOut, Menu, FileText, BarChart3, BookOpen, CreditCard, Moon, Sun, MessageCircle, Inbox, PenLine } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
+import { useSSE } from '../hooks/useSSE';
 
 export default function AssistantLayout() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useSSE(!!user, 'assistant');
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
