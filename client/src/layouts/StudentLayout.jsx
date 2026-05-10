@@ -1,18 +1,208 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, BookOpen, FileText, Trophy, LogOut, Menu, BarChart2, Moon, Sun } from 'lucide-react';
+import {
+  LayoutDashboard, BookOpen, FileText, Trophy, LogOut,
+  Menu, BarChart2, Moon, Sun, Bell, CheckCheck, X,
+} from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 import { useSSE } from '../hooks/useSSE';
+import api from '../lib/api';
 
 const navItems = [
-  { to: '/student', icon: LayoutDashboard, label: 'لوحتي', end: true },
-  { to: '/student/courses', icon: BookOpen, label: 'كورساتي' },
-  { to: '/student/exams', icon: FileText, label: 'الاختبارات' },
-  { to: '/student/stats', icon: BarChart2, label: 'إحصائياتي' },
-  { to: '/student/leaderboard', icon: Trophy, label: 'المتصدرون' },
+  { to: '/student',            icon: LayoutDashboard, label: 'لوحتي',      end: true },
+  { to: '/student/courses',    icon: BookOpen,        label: 'كورساتي' },
+  { to: '/student/exams',      icon: FileText,        label: 'الاختبارات' },
+  { to: '/student/stats',      icon: BarChart2,       label: 'إحصائياتي' },
+  { to: '/student/leaderboard',icon: Trophy,          label: 'المتصدرون' },
 ];
+
+const TYPE_ICON = {
+  general:             '📢',
+  exam_result:         '📊',
+  new_exam:            '📝',
+  new_course:          '📚',
+  essay_graded:        '✅',
+  retry_approved:      '🔄',
+  enrollment_approved: '🎓',
+  reminder:            '⏰',
+  announcement:        '📣',
+  payment:             '💳',
+  badge:               '🏅',
+};
+
+const fmtDate = (d) => {
+  const diff = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'الآن';
+  if (mins < 60) return `منذ ${mins} دقيقة`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `منذ ${hrs} ساعة`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7)  return `منذ ${days} يوم`;
+  return new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+};
+
+function NotificationBell({ dark }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  const { data = { notifications: [], unread: 0 }, refetch } = useQuery({
+    queryKey: ['my-notifications'],
+    queryFn: () => api.get('/notifications/my').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const readAllMut = useMutation({
+    mutationFn: () => api.patch('/notifications/my/read-all'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-notifications'] }),
+  });
+
+  const readOneMut = useMutation({
+    mutationFn: (id) => api.patch(`/notifications/my/${id}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-notifications'] }),
+  });
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    const onPlatformNotif = () => {
+      qc.invalidateQueries({ queryKey: ['my-notifications'] });
+    };
+    window.addEventListener('wathba_platform_notification', onPlatformNotif);
+    return () => window.removeEventListener('wathba_platform_notification', onPlatformNotif);
+  }, [qc]);
+
+  const { notifications, unread } = data;
+
+  const surfaceStyle = dark
+    ? { backgroundColor: 'var(--dk-surface)', borderColor: 'var(--dk-border)', color: 'var(--dk-text)' }
+    : {};
+  const elevatedStyle = dark
+    ? { backgroundColor: 'var(--dk-elevated)', borderColor: 'var(--dk-border)' }
+    : {};
+  const textMutedStyle = dark ? { color: 'var(--dk-text-2)' } : {};
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`relative p-2 rounded-lg transition-all ${dark ? 'text-[var(--dk-text-2)] hover:bg-[var(--dk-elevated)]' : 'text-navy-600 hover:bg-gray-100'}`}
+        title="الإشعارات"
+      >
+        <Bell className="w-5 h-5" />
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -left-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 leading-none">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className={`absolute left-0 top-full mt-2 w-80 rounded-2xl border shadow-xl z-50 overflow-hidden ${dark ? '' : 'bg-white border-slate-200'}`}
+          style={dark ? { ...surfaceStyle, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' } : {}}
+        >
+          <div className={`flex items-center justify-between px-4 py-3 border-b ${dark ? 'border-[var(--dk-border)]' : 'border-slate-100'}`}>
+            <div className="flex items-center gap-2">
+              <Bell className={`w-4 h-4 ${dark ? 'text-amber-400' : 'text-indigo-500'}`} />
+              <span className={`font-black text-sm ${dark ? 'text-[var(--dk-text)]' : 'text-navy-700'}`}>
+                الإشعارات
+              </span>
+              {unread > 0 && (
+                <span className="text-xs bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded-full">
+                  {unread} جديد
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              {unread > 0 && (
+                <button
+                  onClick={() => readAllMut.mutate()}
+                  disabled={readAllMut.isPending}
+                  className={`text-xs font-bold flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${dark ? 'text-amber-400 hover:bg-[var(--dk-elevated)]' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                  title="تحديد الكل كمقروء"
+                >
+                  <CheckCheck className="w-3 h-3" /> الكل
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className={`p-1 rounded-lg transition-colors ${dark ? 'text-[var(--dk-text-2)] hover:bg-[var(--dk-elevated)]' : 'text-gray-400 hover:bg-gray-100'}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-y-auto max-h-[420px]">
+            {notifications.length === 0 ? (
+              <div className="text-center py-10">
+                <Bell className={`w-10 h-10 mx-auto mb-2 ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-300'}`} />
+                <p className={`text-sm font-medium ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-400'}`}>
+                  لا توجد إشعارات بعد
+                </p>
+              </div>
+            ) : (
+              <div className={`divide-y ${dark ? 'divide-[var(--dk-border)]' : 'divide-slate-100'}`}>
+                {notifications.map(n => (
+                  <div
+                    key={n.id}
+                    onClick={() => { if (!n.is_read) readOneMut.mutate(n.id); }}
+                    className={`px-4 py-3 cursor-pointer transition-all ${
+                      !n.is_read
+                        ? dark ? 'bg-amber-400/8 hover:bg-amber-400/12' : 'bg-indigo-50/70 hover:bg-indigo-100/60'
+                        : dark ? 'hover:bg-[var(--dk-elevated)]' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      <span className="text-xl flex-shrink-0 mt-0.5">
+                        {TYPE_ICON[n.type] || '📢'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        {n.title && (
+                          <p className={`text-xs font-black mb-0.5 ${dark ? 'text-amber-400' : 'text-indigo-600'}`}>
+                            {n.title}
+                          </p>
+                        )}
+                        <p className={`text-sm leading-snug ${dark ? 'text-[var(--dk-text)]' : 'text-navy-700'}`}>
+                          {n.message}
+                        </p>
+                        <p className={`text-xs mt-1 ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-400'}`}>
+                          {fmtDate(n.sent_at)}
+                        </p>
+                      </div>
+                      {!n.is_read && (
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 mt-2" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {notifications.length > 0 && (
+            <div className={`px-4 py-2.5 border-t text-center ${dark ? 'border-[var(--dk-border)]' : 'border-slate-100'}`}>
+              <p className={`text-xs ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-400'}`}>
+                آخر {notifications.length} إشعار
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StudentLayout() {
   const { user, logout } = useAuth();
@@ -93,12 +283,17 @@ export default function StudentLayout() {
                   onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-          <span className={`text-sm font-semibold ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-700'}`}>مرحباً {user?.name} 👋</span>
-          <button onClick={toggle}
-            className={`p-2 rounded-lg transition-all ${dark ? 'text-amber-400 hover:bg-[var(--dk-elevated)]' : 'text-navy-600 hover:bg-gray-100'}`}
-            title={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}>
-            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+          <span className={`text-sm font-semibold ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-700'}`}>
+            مرحباً {user?.name} 👋
+          </span>
+          <div className="flex items-center gap-1">
+            <NotificationBell dark={dark} />
+            <button onClick={toggle}
+              className={`p-2 rounded-lg transition-all ${dark ? 'text-amber-400 hover:bg-[var(--dk-elevated)]' : 'text-navy-600 hover:bg-gray-100'}`}
+              title={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}>
+              {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
         </header>
         <main className="flex-1 overflow-hidden"
               style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>

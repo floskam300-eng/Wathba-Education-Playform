@@ -123,6 +123,21 @@ export function useSSE(enabled, role) {
           { duration: 8000, style: { fontFamily: 'inherit', direction: 'rtl' } }
         );
       });
+
+      es.addEventListener('platform_notification', (e) => {
+        const data = JSON.parse(e.data);
+        qc.invalidateQueries({ queryKey: ['my-notifications'] });
+        window.dispatchEvent(new CustomEvent('wathba_platform_notification', { detail: data }));
+        const icon = {
+          general: '📢', exam_result: '📊', new_exam: '📝', new_course: '📚',
+          essay_graded: '✅', retry_approved: '🔄', enrollment_approved: '🎓',
+          reminder: '⏰', announcement: '📣',
+        }[data.type] || '🔔';
+        toast(
+          `${icon} ${data.title ? data.title + ' — ' : ''}${data.message}`,
+          { duration: 7000, style: { fontFamily: 'inherit', direction: 'rtl' } }
+        );
+      });
     }
 
     if (role === 'teacher' || role === 'assistant') {
