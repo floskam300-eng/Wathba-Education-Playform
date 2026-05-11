@@ -47,6 +47,90 @@ const fmtPhone = (phone) => {
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+function StudentPicker({
+  showPhone = true, search = '', setSearch, stageFilter = 'الكل', setStageFilter,
+  selectedStudents = [], setSelectedStudents, students = [], filtered = [],
+  stages = [], selectAll, selectStageAll, toggleStudent, recipientType = 'student',
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-slate-100 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-black text-navy-600 flex items-center gap-2">
+            <Users className="w-4 h-4 text-orange-500" /> اختر الطلاب
+            {selectedStudents.length > 0 && (
+              <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">
+                {selectedStudents.length} محدد
+              </span>
+            )}
+          </h2>
+          <button onClick={selectAll} className="text-xs font-bold text-orange-600 hover:underline">
+            {selectedStudents.length === filtered.length && filtered.length > 0 ? 'إلغاء الكل' : 'تحديد الكل'}
+          </button>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input-field pr-9 text-sm"
+            placeholder="بحث باسم الطالب..."
+          />
+        </div>
+
+        {stages.length > 1 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1 text-xs font-bold text-gray-500">
+              <Filter className="w-3 h-3" /> فلتر حسب المرحلة
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {stages.map(stage => {
+                const count = stage === 'الكل' ? students.length : students.filter(s => s.academic_stage === stage).length;
+                const isActive = stageFilter === stage;
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => stage !== 'الكل' ? selectStageAll(stage) : (setStageFilter('الكل'), setSelectedStudents([]))}
+                    className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-all border ${isActive ? 'bg-navy-600 text-white border-navy-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                  >
+                    {stage !== 'الكل' && <GraduationCap className="w-3 h-3" />}
+                    {stage}
+                    <span className={`text-xs rounded-full px-1 font-black ${isActive ? 'bg-white/20 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="overflow-y-auto max-h-80 divide-y divide-slate-100">
+        {filtered.length === 0 ? (
+          <p className="text-center text-gray-400 py-8 text-sm">لا توجد نتائج</p>
+        ) : filtered.map(s => {
+          const selected = selectedStudents.includes(s.id);
+          return (
+            <label key={s.id} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${selected ? 'bg-orange-50' : 'hover:bg-gray-50'}`}>
+              <input type="checkbox" checked={selected} onChange={() => toggleStudent(s.id)}
+                className="w-4 h-4 accent-orange-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-navy-700 text-sm">{s.name}</p>
+                {showPhone ? (
+                  <p className="text-xs text-gray-500">
+                    {recipientType === 'parent' ? (s.parent_phone || 'لا يوجد رقم ولي أمر') : (s.phone || 'لا يوجد رقم')}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400">{s.academic_stage}</p>
+                )}
+              </div>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Notifications() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -140,78 +224,6 @@ export default function Notifications() {
     });
   };
 
-  const StudentPicker = ({ showPhone = true }) => (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-slate-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-black text-navy-600 flex items-center gap-2">
-            <Users className="w-4 h-4 text-orange-500" /> اختر الطلاب
-            {selectedStudents.length > 0 && (
-              <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">
-                {selectedStudents.length} محدد
-              </span>
-            )}
-          </h2>
-          <button onClick={selectAll} className="text-xs font-bold text-orange-600 hover:underline">
-            {selectedStudents.length === filtered.length && filtered.length > 0 ? 'إلغاء الكل' : 'تحديد الكل'}
-          </button>
-        </div>
-
-        <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            className="input-field pr-9 text-sm" placeholder="بحث باسم الطالب..." />
-        </div>
-
-        {stages.length > 1 && (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1 text-xs font-bold text-gray-500">
-              <Filter className="w-3 h-3" /> فلتر حسب المرحلة
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {stages.map(stage => {
-                const count = stage === 'الكل' ? students.length : students.filter(s => s.academic_stage === stage).length;
-                const isActive = stageFilter === stage;
-                return (
-                  <button key={stage} onClick={() => stage !== 'الكل' ? selectStageAll(stage) : (setStageFilter('الكل'), setSelectedStudents([]))}
-                    className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-all border ${isActive ? 'bg-navy-600 text-white border-navy-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}>
-                    {stage !== 'الكل' && <GraduationCap className="w-3 h-3" />}
-                    {stage}
-                    <span className={`text-xs rounded-full px-1 font-black ${isActive ? 'bg-white/20 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="overflow-y-auto max-h-80 divide-y divide-slate-100">
-        {filtered.length === 0 ? (
-          <p className="text-center text-gray-400 py-8 text-sm">لا توجد نتائج</p>
-        ) : filtered.map(s => {
-          const selected = selectedStudents.includes(s.id);
-          return (
-            <label key={s.id} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${selected ? 'bg-orange-50' : 'hover:bg-gray-50'}`}>
-              <input type="checkbox" checked={selected} onChange={() => toggleStudent(s.id)}
-                className="w-4 h-4 accent-orange-500 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-navy-700 text-sm">{s.name}</p>
-                {showPhone && (
-                  <p className="text-xs text-gray-500">
-                    {recipientType === 'parent' ? (s.parent_phone || 'لا يوجد رقم ولي أمر') : (s.phone || 'لا يوجد رقم')}
-                  </p>
-                )}
-                {!showPhone && (
-                  <p className="text-xs text-gray-400">{s.academic_stage}</p>
-                )}
-              </div>
-            </label>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -235,7 +247,15 @@ export default function Notifications() {
 
       {tab === 'whatsapp' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <StudentPicker showPhone />
+          <StudentPicker
+            showPhone
+            search={search} setSearch={setSearch}
+            stageFilter={stageFilter} setStageFilter={setStageFilter}
+            selectedStudents={selectedStudents} setSelectedStudents={setSelectedStudents}
+            students={students} filtered={filtered} stages={stages}
+            selectAll={selectAll} selectStageAll={selectStageAll} toggleStudent={toggleStudent}
+            recipientType={recipientType}
+          />
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
             <h2 className="font-black text-navy-600 flex items-center gap-2">
@@ -296,7 +316,15 @@ export default function Notifications() {
 
       {tab === 'platform' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <StudentPicker showPhone={false} />
+          <StudentPicker
+            showPhone={false}
+            search={search} setSearch={setSearch}
+            stageFilter={stageFilter} setStageFilter={setStageFilter}
+            selectedStudents={selectedStudents} setSelectedStudents={setSelectedStudents}
+            students={students} filtered={filtered} stages={stages}
+            selectAll={selectAll} selectStageAll={selectStageAll} toggleStudent={toggleStudent}
+            recipientType={recipientType}
+          />
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
             <h2 className="font-black text-navy-600 flex items-center gap-2">
