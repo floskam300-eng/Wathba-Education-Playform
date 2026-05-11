@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart2, BookOpen, FileText, Award, Star, CreditCard,
@@ -92,14 +92,11 @@ const EXAMS_PAGE = 3;
 export default function StudentMyStats() {
   const { user }  = useAuth();
   const navigate  = useNavigate();
-  const qc        = useQueryClient();
   const [showAllExams, setShowAllExams] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['student-my-stats'],
     queryFn: () => api.get('/students/me/stats').then(r => r.data),
-    staleTime: 0,
-    refetchOnMount: true,
   });
 
   if (isLoading) {
