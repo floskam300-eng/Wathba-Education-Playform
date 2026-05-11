@@ -24,6 +24,29 @@ function FieldError({ error }) {
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
 const emptyForm = { name: '', description: '', price: '', thumbnail_url: '', target_stage: '', is_free: false };
 
+const COVER_GRADIENTS = [
+  'from-navy-600 to-indigo-700',
+  'from-orange-500 to-rose-600',
+  'from-teal-500 to-cyan-600',
+  'from-purple-600 to-pink-600',
+  'from-emerald-500 to-green-700',
+  'from-blue-500 to-sky-600',
+];
+
+function ThumbnailImg({ url, name }) {
+  const [err, setErr] = React.useState(false);
+  if (!url || err) return null;
+  return (
+    <img
+      key={url}
+      src={url}
+      alt={name}
+      onError={() => setErr(true)}
+      className="absolute inset-0 w-full h-full object-cover"
+    />
+  );
+}
+
 const STAGE_COLORS = {
   'الصف الأول الثانوي': 'bg-blue-50 text-blue-700',
   'الصف الثاني الثانوي': 'bg-indigo-50 text-indigo-700',
@@ -382,7 +405,17 @@ export default function TeacherCourses() {
 
       <div className="space-y-4">
         {isLoading ? (
-          [...Array(3)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
+                <div className="bg-gray-200 animate-pulse" style={{ paddingTop: '56.25%' }} />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-gray-200 animate-pulse rounded" />
+                  <div className="h-3 bg-gray-100 animate-pulse rounded w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : filteredCourses.length === 0 ? (
           <div className="card text-center py-16">
             <BookOpen className="w-16 h-16 mx-auto mb-3 text-gray-300" />
@@ -390,61 +423,104 @@ export default function TeacherCourses() {
               {stageFilter === 'الكل' ? 'لا توجد كورسات بعد. أضف كورسك الأول!' : `لا توجد كورسات لـ ${stageFilter}`}
             </p>
           </div>
-        ) : filteredCourses.map(c => (
-          <div key={c.id} className="card !p-0 overflow-hidden">
-            <div className="p-4 flex items-center gap-4">
-              {c.thumbnail_url ? (
-                <img src={c.thumbnail_url} alt={c.name}
-                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-gray-200"
-                  onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-              ) : null}
-              <div className={`w-14 h-14 bg-gradient-to-br from-navy-500 to-navy-600 rounded-xl flex items-center justify-center flex-shrink-0 ${c.thumbnail_url ? 'hidden' : ''}`}>
-                <BookOpen className="w-7 h-7 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-navy-600 text-lg truncate">{c.name}</h3>
-                  {c.target_stage && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${STAGE_COLORS[c.target_stage] || 'bg-gray-100 text-gray-600'}`}>
-                      <GraduationCap className="w-3 h-3 inline ml-1" />{c.target_stage}
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-600 text-sm truncate font-medium">{c.description || 'لا يوجد وصف'}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge variant="info"><Users className="w-3 h-3 ml-1" />{c.enrolled_count} طالب</Badge>
-                  <Badge variant="navy"><Video className="w-3 h-3 ml-1" />{c.video_count} فيديو</Badge>
-                  <Badge variant="warning"><FileText className="w-3 h-3 ml-1" />{c.pdf_count} ملف</Badge>
-                  <Badge variant="success">{c.price > 0 ? `${c.price} جنيه` : 'مجاني'}</Badge>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={() => openEdit(c)} className="p-2 text-navy-600 hover:bg-navy-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => setDeleteId(c.id)} className="p-2 text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                <button onClick={() => { setExpandedCourse(expandedCourse === c.id ? null : c.id); setContentTab('videos'); }}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                  {expandedCourse === c.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {expandedCourse === c.id && (
-              <div className="border-t border-gray-200 p-4 bg-gray-50">
-                <div className="flex gap-2 mb-4 flex-wrap">
-                  {[
-                    { key: 'videos', label: '🎬 الفيديوهات' },
-                    { key: 'pdfs',   label: '📄 الملفات' },
-                    { key: 'sections', label: '📂 الفصول' },
-                  ].map(tab => (
-                    <button key={tab.key} onClick={() => setContentTab(tab.key)}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${contentTab === tab.key ? 'bg-navy-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`}>
-                      {tab.label}
-                      {tab.key === 'sections' && content?.sections?.length > 0 && (
-                        <span className="mr-1.5 text-xs bg-white/20 rounded-full px-1.5">{content.sections.length}</span>
+        ) : (
+          <>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCourses.map(c => {
+              const grad = COVER_GRADIENTS[(c.id || 0) % COVER_GRADIENTS.length];
+              const isExpanded = expandedCourse === c.id;
+              return (
+                <div key={c.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all duration-200 ${isExpanded ? 'border-orange-400 ring-2 ring-orange-200 shadow-lg' : 'border-gray-100 hover:shadow-md hover:border-orange-200'}`}>
+                  {/* Thumbnail */}
+                  <div className={`relative w-full bg-gradient-to-br ${grad} overflow-hidden group`} style={{ paddingTop: '56.25%' }}>
+                    <ThumbnailImg url={c.thumbnail_url} name={c.name} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    {/* Action buttons overlay */}
+                    <div className="absolute top-2 left-2 flex gap-1">
+                      <button onClick={() => openEdit(c)}
+                        className="w-7 h-7 bg-white/90 hover:bg-white rounded-lg flex items-center justify-center shadow transition-all"
+                        title="تعديل">
+                        <Pencil className="w-3.5 h-3.5 text-navy-600" />
+                      </button>
+                      <button onClick={() => setDeleteId(c.id)}
+                        className="w-7 h-7 bg-white/90 hover:bg-red-50 rounded-lg flex items-center justify-center shadow transition-all"
+                        title="حذف">
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </div>
+                    {/* Badges */}
+                    <div className="absolute top-2 right-2 flex flex-col gap-1">
+                      {c.is_free || !c.price || parseFloat(c.price) === 0 ? (
+                        <span className="text-[9px] font-black bg-green-500 text-white px-1.5 py-0.5 rounded-full shadow">مجاني</span>
+                      ) : (
+                        <span className="text-[9px] font-black bg-orange-500 text-white px-1.5 py-0.5 rounded-full shadow">{parseFloat(c.price).toLocaleString()} ج</span>
                       )}
+                    </div>
+                    {c.target_stage && (
+                      <div className="absolute bottom-2 right-2">
+                        <span className="text-[9px] font-bold bg-black/50 text-white px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                          {c.target_stage}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Details */}
+                  <div className="p-3 flex-1 flex flex-col">
+                    <h3 className="font-black text-navy-700 text-sm leading-snug line-clamp-2 mb-1.5">{c.name}</h3>
+                    {c.description && (
+                      <p className="text-gray-400 text-[11px] line-clamp-1 mb-2">{c.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">
+                        <Users className="w-2.5 h-2.5" />{c.enrolled_count} طالب
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-navy-50 text-navy-700 px-1.5 py-0.5 rounded-full">
+                        <Video className="w-2.5 h-2.5" />{c.video_count} فيديو
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded-full">
+                        <FileText className="w-2.5 h-2.5" />{c.pdf_count} ملف
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => { setExpandedCourse(isExpanded ? null : c.id); setContentTab('videos'); }}
+                      className={`mt-auto w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black transition-all ${isExpanded ? 'bg-orange-500 text-white' : 'bg-gray-100 hover:bg-navy-600 hover:text-white text-gray-700'}`}>
+                      {isExpanded ? <><ChevronUp className="w-3.5 h-3.5" /> إغلاق المحتوى</> : <><ChevronDown className="w-3.5 h-3.5" /> إدارة المحتوى</>}
                     </button>
-                  ))}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* ── Expanded Content Management ── */}
+          {expandedCourse && filteredCourses.find(c => c.id === expandedCourse) && (() => {
+            const c = filteredCourses.find(c => c.id === expandedCourse);
+            return (
+          <div className="border border-orange-200 rounded-2xl bg-gray-50 overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-orange-100">
+              <p className="font-black text-navy-700 text-sm flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-orange-500" /> إدارة محتوى: <span className="text-orange-600">{c.name}</span>
+              </p>
+              <button onClick={() => setExpandedCourse(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {[
+                  { key: 'videos', label: '🎬 الفيديوهات' },
+                  { key: 'pdfs',   label: '📄 الملفات' },
+                  { key: 'sections', label: '📂 الفصول' },
+                ].map(tab => (
+                  <button key={tab.key} onClick={() => setContentTab(tab.key)}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${contentTab === tab.key ? 'bg-navy-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`}>
+                    {tab.label}
+                    {tab.key === 'sections' && content?.sections?.length > 0 && (
+                      <span className="mr-1.5 text-xs bg-white/20 rounded-full px-1.5">{content.sections.length}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
 
                 {contentTab === 'videos' && (() => {
                   const sections = content?.sections || [];
@@ -633,10 +709,12 @@ export default function TeacherCourses() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
+            </div>
           </div>
-        ))}
+        );
+      })()}
+      </>
+      )}
       </div>
 
       <Modal open={modal} onClose={closeModal} title={editData ? 'تعديل الكورس' : 'إضافة كورس جديد'}>
