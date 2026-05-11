@@ -51,13 +51,20 @@ function CourseCard({ course, onClick, children }) {
     >
       {/* Thumbnail */}
       <div className={`relative w-full bg-gradient-to-br ${grad} overflow-hidden flex-shrink-0`} style={{ paddingTop: '56.25%' }}>
-        <img
-          key={course.thumbnail_url || 'default'}
-          src={(!imgError && course.thumbnail_url) ? course.thumbnail_url : '/default-course.svg'}
-          alt={course.name}
-          onError={() => setImgError(true)}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+        {(!imgError && course.thumbnail_url) ? (
+          <img
+            key={course.thumbnail_url}
+            src={course.thumbnail_url}
+            alt={course.name}
+            onError={() => setImgError(true)}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#0f2540] to-[#1e3a5f] gap-2">
+            <img src="/logo-wathba.png" alt="وثبة" className="w-16 h-16 object-contain opacity-90" />
+            <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">course</span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         {/* Badges */}
         <div className="absolute top-2 right-2 flex flex-col gap-1">
