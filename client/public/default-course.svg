@@ -1,42 +1,93 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 225" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 225" fill="none">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="400" y2="225" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#1e3a5f"/>
-      <stop offset="100%" stop-color="#0f2540"/>
+      <stop offset="100%" stop-color="#0d2240"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
       <stop offset="0%" stop-color="#f97316"/>
-      <stop offset="100%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
     </linearGradient>
-    <clipPath id="logoClip">
-      <circle cx="200" cy="95" r="48"/>
-    </clipPath>
+    <linearGradient id="glow" x1="200" y1="30" x2="200" y2="195" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f97316" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur1">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="blur2">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#f97316" flood-opacity="0.35"/>
+    </filter>
   </defs>
 
   <!-- Background -->
   <rect width="400" height="225" fill="url(#bg)"/>
 
-  <!-- Decorative rings -->
-  <circle cx="200" cy="95" r="68" fill="none" stroke="white" stroke-opacity="0.06" stroke-width="1.5"/>
-  <circle cx="200" cy="95" r="58" fill="none" stroke="white" stroke-opacity="0.05" stroke-width="1"/>
-  <circle cx="360" cy="20" r="70" fill="white" fill-opacity="0.03"/>
-  <circle cx="40" cy="200" r="90" fill="white" fill-opacity="0.03"/>
+  <!-- Glow blob top-right -->
+  <ellipse cx="340" cy="40" rx="90" ry="70" fill="#f97316" fill-opacity="0.07" filter="url(#blur1)"/>
+  <!-- Glow blob bottom-left -->
+  <ellipse cx="60" cy="185" rx="80" ry="60" fill="#3b82f6" fill-opacity="0.06" filter="url(#blur1)"/>
+  <!-- Center glow -->
+  <ellipse cx="200" cy="105" rx="80" ry="55" fill="url(#glow)" filter="url(#blur2)"/>
 
-  <!-- Dot grid -->
-  <g fill="white" fill-opacity="0.05">
-    <circle cx="20" cy="20" r="2"/><circle cx="60" cy="20" r="2"/><circle cx="340" cy="20" r="2"/><circle cx="380" cy="20" r="2"/>
-    <circle cx="20" cy="180" r="2"/><circle cx="60" cy="180" r="2"/><circle cx="340" cy="180" r="2"/><circle cx="380" cy="180" r="2"/>
+  <!-- Subtle grid dots -->
+  <g fill="white" fill-opacity="0.04">
+    <circle cx="30"  cy="30"  r="2.5"/>
+    <circle cx="80"  cy="30"  r="2.5"/>
+    <circle cx="130" cy="30"  r="2.5"/>
+    <circle cx="270" cy="30"  r="2.5"/>
+    <circle cx="320" cy="30"  r="2.5"/>
+    <circle cx="370" cy="30"  r="2.5"/>
+    <circle cx="30"  cy="195" r="2.5"/>
+    <circle cx="80"  cy="195" r="2.5"/>
+    <circle cx="320" cy="195" r="2.5"/>
+    <circle cx="370" cy="195" r="2.5"/>
   </g>
 
-  <!-- Logo circle background -->
-  <circle cx="200" cy="95" r="48" fill="white" fill-opacity="0.1"/>
+  <!-- Corner accent lines -->
+  <line x1="0" y1="0" x2="60" y2="0" stroke="#f97316" stroke-width="2" stroke-opacity="0.4"/>
+  <line x1="0" y1="0" x2="0" y2="45" stroke="#f97316" stroke-width="2" stroke-opacity="0.4"/>
+  <line x1="400" y1="225" x2="340" y2="225" stroke="#f97316" stroke-width="2" stroke-opacity="0.4"/>
+  <line x1="400" y1="225" x2="400" y2="180" stroke="#f97316" stroke-width="2" stroke-opacity="0.4"/>
 
-  <!-- Logo image -->
-  <image href="/wathba-logo.png" x="152" y="47" width="96" height="96" clip-path="url(#logoClip)" preserveAspectRatio="xMidYMid meet"/>
+  <!-- Book icon (open book) -->
+  <g transform="translate(200,88)" filter="url(#shadow)">
+    <!-- Book spine -->
+    <rect x="-2" y="-28" width="4" height="44" rx="2" fill="#f97316"/>
+    <!-- Left page -->
+    <path d="M-2 -26 Q-22 -30 -38 -24 L-38 16 Q-22 10 -2 14 Z" fill="white" fill-opacity="0.12"/>
+    <path d="M-2 -26 Q-22 -30 -38 -24 L-38 16 Q-22 10 -2 14 Z" fill="none" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
+    <!-- Right page -->
+    <path d="M2 -26 Q22 -30 38 -24 L38 16 Q22 10 2 14 Z" fill="white" fill-opacity="0.12"/>
+    <path d="M2 -26 Q22 -30 38 -24 L38 16 Q22 10 2 14 Z" fill="none" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
+    <!-- Left page lines -->
+    <line x1="-30" y1="-16" x2="-8" y2="-14" stroke="white" stroke-opacity="0.2" stroke-width="1.2"/>
+    <line x1="-30" y1="-8"  x2="-8" y2="-7"  stroke="white" stroke-opacity="0.2" stroke-width="1.2"/>
+    <line x1="-30" y1="0"   x2="-8" y2="0"   stroke="white" stroke-opacity="0.2" stroke-width="1.2"/>
+    <!-- Right page lines -->
+    <line x1="8"  y1="-14" x2="30" y2="-16" stroke="white" stroke-opacity="0.2" stroke-width="1.2"/>
+    <line x1="8"  y1="-7"  x2="30" y2="-8"  stroke="white" stroke-opacity="0.2" stroke-width="1.2"/>
+    <line x1="8"  y1="0"   x2="30" y2="0"   stroke="white" stroke-opacity="0.2" stroke-width="1.2"/>
+    <!-- Arrow up-right (growth symbol) -->
+    <g transform="translate(12,-32)">
+      <line x1="0" y1="16" x2="16" y2="0" stroke="#f97316" stroke-width="2.5" stroke-linecap="round"/>
+      <polyline points="8,0 16,0 16,8" fill="none" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
 
-  <!-- Bottom accent bar -->
-  <rect x="0" y="215" width="400" height="10" fill="url(#accent)" fill-opacity="0.7"/>
+  <!-- Platform name -->
+  <text x="200" y="154" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="white" letter-spacing="1">وثبة</text>
+
+  <!-- English name -->
+  <text x="200" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#f97316" letter-spacing="4">WATHBA</text>
 
   <!-- Tagline -->
-  <text x="200" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white" fill-opacity="0.45" letter-spacing="3">WATHBA · قفزة نحو التميز</text>
+  <text x="200" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" fill="white" fill-opacity="0.4" letter-spacing="2">قفزة نحو التميز</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="218" width="400" height="7" fill="url(#accent)" rx="0"/>
+  <rect x="160" y="215" width="80" height="10" fill="url(#accent)" rx="5"/>
 </svg>
