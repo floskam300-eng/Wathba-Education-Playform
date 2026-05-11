@@ -351,63 +351,11 @@ export default function StudentLayout() {
             </button>
           </div>
         </header>
-        <main className="flex-1 overflow-hidden relative"
+        <main className="flex-1 overflow-hidden"
               style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
           <Outlet />
-          <ScreenWatermark name={user?.name} code={user?.username} />
         </main>
       </div>
-    </div>
-  );
-}
-
-function ScreenWatermark({ name, code }) {
-  if (!name) return null;
-
-  const label = `${name}  |  ${code || ''}`;
-  const rows = 7;
-  const cols = 4;
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        zIndex: 9000,
-        overflow: 'hidden',
-        display: 'grid',
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-      }}
-    >
-      {Array.from({ length: rows * cols }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transform: 'rotate(-30deg)',
-            opacity: 0.09,
-            whiteSpace: 'nowrap',
-            direction: 'rtl',
-          }}
-        >
-          <span style={{
-            color: '#fff',
-            fontSize: 13,
-            fontWeight: 800,
-            fontFamily: 'monospace',
-            letterSpacing: '0.04em',
-            textShadow: '0 0 4px rgba(0,0,0,0.8)',
-          }}>
-            {label}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
