@@ -35,22 +35,15 @@ const COVER_GRADIENTS = [
 
 function ThumbnailImg({ url, name }) {
   const [err, setErr] = React.useState(false);
-  if (!err && url) {
-    return (
-      <img
-        key={url}
-        src={url}
-        alt={name}
-        onError={() => setErr(true)}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-    );
-  }
+  const src = (!err && url) ? url : '/default-course.svg';
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#0f2540] to-[#1e3a5f] gap-2">
-      <img src="/logo-wathba.png" alt="وثبة" className="w-16 h-16 object-contain opacity-90" />
-      <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">course</span>
-    </div>
+    <img
+      key={url || 'default'}
+      src={src}
+      alt={name}
+      onError={() => setErr(true)}
+      className="absolute inset-0 w-full h-full object-cover"
+    />
   );
 }
 
