@@ -93,6 +93,44 @@ function FloatingWatermark({ name, code }) {
   );
 }
 
+/* ─── YouTube URL helpers ──────────────────────────────── */
+function extractYoutubeId(url) {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const re of patterns) {
+    const m = url.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function isYoutubeUrl(url) {
+  return !!extractYoutubeId(url);
+}
+
+/* ─── YouTube Embed Player ─────────────────────────────── */
+function YoutubePlayer({ video, studentName, studentCode }) {
+  const ytId = extractYoutubeId(video.file_path_or_url);
+  const embedUrl = `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&autoplay=1`;
+
+  return (
+    <div className="relative w-full h-full bg-black">
+      <FloatingWatermark name={studentName} code={studentCode} />
+      <iframe
+        key={video.id}
+        src={embedUrl}
+        className="w-full h-full border-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        title={video.title}
+      />
+    </div>
+  );
+}
+
 /* ─── Custom Video Player ──────────────────────────────── */
 function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
   const videoRef = useRef(null);
@@ -137,7 +175,6 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
-  /* ── seek input handlers ── */
   const onSeekChange = (e) => {
     const pct = Number(e.target.value);
     setProgress(pct);
@@ -145,7 +182,6 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
       videoRef.current.currentTime = (pct / 100) * duration;
   };
 
-  /* ── volume input handlers ── */
   const onVolumeChange = (e) => {
     const v = Number(e.target.value);
     setVolume(v);
@@ -169,6 +205,11 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
       </div>
     </div>
   );
+
+  /* ── Route YouTube links to the dedicated embed player ── */
+  if (isYoutubeUrl(video.file_path_or_url)) {
+    return <YoutubePlayer video={video} studentName={studentName} studentCode={studentCode} />;
+  }
 
   const pct  = `${progress}%`;
   const vol  = `${(muted ? 0 : volume) * 100}%`;
