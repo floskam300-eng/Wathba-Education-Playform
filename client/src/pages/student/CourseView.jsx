@@ -6,6 +6,7 @@ import {
   Download, CheckCircle2, Lock, ChevronRight, AlertCircle,
   Pause, Volume2, VolumeX, Maximize2, RotateCcw
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -113,26 +114,43 @@ function isYoutubeUrl(url) {
 
 /* ─── YouTube Embed Player ─────────────────────────────── */
 function YoutubePlayer({ video, studentName, studentCode }) {
+  const containerRef = useRef(null);
   const ytId = extractYoutubeId(video.file_path_or_url);
   const embedUrl = `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&autoplay=1`;
 
+  const goFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+  };
+
   return (
-    <div className="relative w-full h-full bg-black">
+    <div ref={containerRef} className="relative w-full h-full bg-black">
       <FloatingWatermark name={studentName} code={studentCode} />
       <iframe
         key={video.id}
         src={embedUrl}
         className="w-full h-full border-0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
         title={video.title}
       />
+      {/* Custom fullscreen button so the container (with watermark) goes fullscreen */}
+      <button
+        onClick={goFullscreen}
+        className="absolute bottom-3 left-3 z-30 text-white bg-black/50 hover:bg-black/80 rounded-lg p-1.5 transition-all"
+        title="ملء الشاشة"
+      >
+        <Maximize2 className="w-4 h-4" />
+      </button>
     </div>
   );
 }
 
 /* ─── Custom Video Player ──────────────────────────────── */
 function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
+  const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [playing, setPlaying]         = useState(false);
   const [progress, setProgress]       = useState(0);   // 0–100
@@ -211,11 +229,20 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
     return <YoutubePlayer video={video} studentName={studentName} studentCode={studentCode} />;
   }
 
+  const goFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+  };
+
   const pct  = `${progress}%`;
   const vol  = `${(muted ? 0 : volume) * 100}%`;
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full h-full bg-black"
       onMouseMove={resetHideTimer}
       onMouseLeave={() => { if (!seeking.current && playing) setShowControls(false); }}
@@ -369,7 +396,7 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
 
             {/* Fullscreen */}
             <button
-              onClick={() => videoRef.current?.requestFullscreen()}
+              onClick={goFullscreen}
               className="text-white hover:text-orange-400 transition-colors flex-shrink-0"
             >
               <Maximize2 className="w-4 h-4" />
@@ -454,7 +481,7 @@ export default function CourseView() {
     }).catch(() => {});
   };
 
-  const { data: courses = [] } = useQuery({
+  const { data: courses = [], isLoading: coursesLoading } = useQuery({
     queryKey: ['student-courses'],
     queryFn: () => api.get('/courses/student/my-courses').then(r => r.data),
   });
@@ -463,6 +490,14 @@ export default function CourseView() {
     queryKey: ['course-content', courseId],
     queryFn: () => api.get(`/courses/${courseId}/content`).then(r => r.data),
     enabled: !!courseId,
+    retry: false,
+    onError: (err) => {
+      const status = err?.response?.status;
+      if (status === 403) {
+        toast.error('غير مصرح لك بالدخول لهذا الكورس');
+        navigate('/student/courses', { replace: true });
+      }
+    },
   });
 
   const { data: examResults = [] } = useQuery({
@@ -472,6 +507,18 @@ export default function CourseView() {
   });
 
   const course = courses.find(c => String(c.id) === String(courseId));
+
+  /* ── Access guard: redirect if courses loaded and this one isn't enrolled ── */
+  useEffect(() => {
+    if (!coursesLoading && courses.length >= 0 && courseId) {
+      const found = courses.find(c => String(c.id) === String(courseId));
+      if (!found && courses !== undefined) {
+        toast.error('ليس لديك صلاحية الوصول لهذا الكورس');
+        navigate('/student/courses', { replace: true });
+      }
+    }
+  }, [courses, coursesLoading, courseId, navigate]);
+
   const videos = content?.videos || [];
   const pdfs = content?.pdfs || [];
   const exams = content?.exams || [];
