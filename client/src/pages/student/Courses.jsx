@@ -47,7 +47,7 @@ function CourseCard({ course, onClick, children }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-300 overflow-hidden flex flex-col group ${onClick ? 'cursor-pointer' : ''}`}
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl hover:border-orange-300 hover:-translate-y-1 transition-all duration-300 ease-out overflow-hidden flex flex-col group ${onClick ? 'cursor-pointer' : ''}`}
     >
       {/* Thumbnail */}
       <div className={`relative w-full bg-gradient-to-br ${grad} overflow-hidden flex-shrink-0`} style={{ paddingTop: '56.25%' }}>
@@ -56,9 +56,12 @@ function CourseCard({ course, onClick, children }) {
           src={(!imgError && course.thumbnail_url) ? course.thumbnail_url : '/default-course.svg'}
           alt={course.name}
           onError={() => setImgError(true)}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Shine sweep on hover */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%)' }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
         {/* Badges */}
         <div className="absolute top-2 right-2 flex flex-col gap-1">
           {course.is_free ? (

@@ -42,7 +42,7 @@ function ThumbnailImg({ url, name }) {
       src={src}
       alt={name}
       onError={() => setErr(true)}
-      className="absolute inset-0 w-full h-full object-cover"
+      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
     />
   );
 }
@@ -430,11 +430,14 @@ export default function TeacherCourses() {
               const grad = COVER_GRADIENTS[(c.id || 0) % COVER_GRADIENTS.length];
               const isExpanded = expandedCourse === c.id;
               return (
-                <div key={c.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all duration-200 ${isExpanded ? 'border-orange-400 ring-2 ring-orange-200 shadow-lg' : 'border-gray-100 hover:shadow-md hover:border-orange-200'}`}>
+                <div key={c.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all duration-300 ease-out group ${isExpanded ? 'border-orange-400 ring-2 ring-orange-200 shadow-xl' : 'border-gray-100 hover:shadow-2xl hover:border-orange-300 hover:-translate-y-1'}`}>
                   {/* Thumbnail */}
                   <div className={`relative w-full bg-gradient-to-br ${grad} overflow-hidden`} style={{ paddingTop: '56.25%' }}>
                     <ThumbnailImg url={c.thumbnail_url} name={c.name} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    {/* Shine sweep */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                      style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.12) 50%, transparent 60%)' }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                     {/* Price badge — top start (right in RTL) */}
                     <div className="absolute top-2 right-2">
                       {c.is_free || !c.price || parseFloat(c.price) === 0 ? (
