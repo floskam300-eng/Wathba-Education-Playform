@@ -15,27 +15,36 @@ const fmt = (min) => min >= 60
   : `${min} دقيقة`;
 
 /* ─── Floating Watermark ───────────────────────────────── */
-function FloatingWatermark({ name, code }) {
-  const [pos, setPos] = useState({ x: 10, y: 15 });
+const WATERMARK_SLOTS = [
+  { x: 5,  y: 8  },
+  { x: 55, y: 12 },
+  { x: 25, y: 55 },
+  { x: 68, y: 48 },
+  { x: 10, y: 75 },
+  { x: 48, y: 30 },
+];
+
+function WatermarkBadge({ name, code, slotIndex }) {
+  const [posIdx, setPosIdx] = useState(slotIndex % WATERMARK_SLOTS.length);
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const move = () => {
-      // Fade out, relocate, fade back in
+    const interval = (slotIndex + 1) * 5000;
+    const id = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setPos({
-          x: Math.floor(Math.random() * 62) + 4,   // 4%–66% from left
-          y: Math.floor(Math.random() * 60) + 8,   // 8%–68% from top (avoid bottom controls)
+        setPosIdx(prev => {
+          let next;
+          do { next = Math.floor(Math.random() * WATERMARK_SLOTS.length); } while (next === prev);
+          return next;
         });
         setVisible(true);
-      }, 600);
-    };
-    const id = setInterval(move, 8000);
+      }, 700);
+    }, interval);
     return () => clearInterval(id);
-  }, []);
+  }, [slotIndex]);
 
-  if (!name && !code) return null;
+  const pos = WATERMARK_SLOTS[posIdx];
 
   return (
     <div
@@ -43,35 +52,44 @@ function FloatingWatermark({ name, code }) {
         position: 'absolute',
         left: `${pos.x}%`,
         top: `${pos.y}%`,
-        transition: 'opacity 0.6s ease',
-        opacity: visible ? 0.38 : 0,
+        transition: 'opacity 0.7s ease',
+        opacity: visible ? 0.45 : 0,
         pointerEvents: 'none',
         zIndex: 20,
         userSelect: 'none',
         direction: 'rtl',
       }}
     >
-      <div
-        style={{
-          background: 'rgba(0,0,0,0.45)',
-          borderRadius: '8px',
-          padding: '5px 10px',
-          backdropFilter: 'blur(2px)',
-          border: '1px solid rgba(255,255,255,0.15)',
-        }}
-      >
+      <div style={{
+        background: 'rgba(0,0,0,0.5)',
+        borderRadius: '8px',
+        padding: '4px 10px',
+        backdropFilter: 'blur(2px)',
+        border: '1px solid rgba(255,255,255,0.12)',
+      }}>
         {name && (
-          <p style={{ color: '#fff', fontSize: '13px', fontWeight: 700, margin: 0, lineHeight: 1.4, textShadow: '0 1px 3px rgba(0,0,0,0.8)', whiteSpace: 'nowrap' }}>
+          <p style={{ color: '#fff', fontSize: '12px', fontWeight: 700, margin: 0, lineHeight: 1.4, textShadow: '0 1px 3px rgba(0,0,0,0.9)', whiteSpace: 'nowrap' }}>
             {name}
           </p>
         )}
         {code && (
-          <p style={{ color: '#ffa94d', fontSize: '11px', fontWeight: 800, margin: 0, lineHeight: 1.3, fontFamily: 'monospace', letterSpacing: '0.08em', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+          <p style={{ color: '#ffa94d', fontSize: '10px', fontWeight: 800, margin: 0, lineHeight: 1.3, fontFamily: 'monospace', letterSpacing: '0.08em', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
             {code}
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+function FloatingWatermark({ name, code }) {
+  if (!name && !code) return null;
+  return (
+    <>
+      {[0, 1, 2].map(i => (
+        <WatermarkBadge key={i} name={name} code={code} slotIndex={i} />
+      ))}
+    </>
   );
 }
 
@@ -170,6 +188,10 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
         src={video.file_path_or_url}
         className="w-full h-full object-contain cursor-pointer"
         muted={muted}
+        controlsList="nodownload nofullscreen noremoteplayback"
+        disablePictureInPicture
+        disableRemotePlayback
+        onContextMenu={(e) => e.preventDefault()}
         onTimeUpdate={() => {
           if (!videoRef.current || seeking.current) return;
           const ct = videoRef.current.currentTime;
@@ -352,12 +374,24 @@ function PdfViewer({ pdf }) {
   );
 
   return (
-    <iframe
-      key={pdf.id}
-      src={pdf.file_url}
-      className="w-full h-full border-0"
-      title={pdf.title}
-    />
+    <div className="relative w-full h-full">
+      <iframe
+        key={pdf.id}
+        src={pdf.file_url}
+        className="w-full h-full border-0"
+        title={pdf.title}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 5,
+          userSelect: 'none',
+        }}
+      />
+    </div>
   );
 }
 

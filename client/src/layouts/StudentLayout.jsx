@@ -5,11 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, BookOpen, FileText, Trophy, LogOut,
-  Menu, BarChart2, Moon, Sun, Bell, CheckCheck, X,
+  Menu, BarChart2, Moon, Sun, Bell, CheckCheck, X, ShieldAlert,
 } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 import { useSSE } from '../hooks/useSSE';
 import api from '../lib/api';
+import { useAntiCapture } from '../hooks/useAntiCapture';
 
 const navItems = [
   { to: '/student',            icon: LayoutDashboard, label: 'لوحتي',      end: true },
@@ -209,10 +210,20 @@ export default function StudentLayout() {
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [captureWarning, setCaptureWarning] = useState(false);
+  const warningTimer = useRef(null);
 
   useSSE(!!user, user?.role || 'student');
 
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  const handleCaptureAttempt = () => {
+    setCaptureWarning(true);
+    clearTimeout(warningTimer.current);
+    warningTimer.current = setTimeout(() => setCaptureWarning(false), 4000);
+  };
+
+  useAntiCapture({ onAttempt: handleCaptureAttempt });
 
   const Sidebar = () => (
     <div className="flex flex-col h-full">
@@ -261,8 +272,53 @@ export default function StudentLayout() {
   );
 
   return (
-    <div className={`flex h-screen overflow-hidden ${dark ? '' : 'bg-navy-50'}`}
-         style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
+    <div
+      className={`flex h-screen overflow-hidden ${dark ? '' : 'bg-navy-50'}`}
+      style={{
+        ...(dark ? { backgroundColor: 'var(--dk-bg)' } : {}),
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      }}
+    >
+      {captureWarning && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            direction: 'rtl',
+          }}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1a0000 0%, #2d0a0a 100%)',
+              border: '2px solid rgba(239,68,68,0.6)',
+              borderRadius: '20px',
+              padding: '40px 48px',
+              maxWidth: '420px',
+              textAlign: 'center',
+              boxShadow: '0 25px 80px rgba(239,68,68,0.3)',
+            }}
+          >
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <ShieldAlert style={{ width: 36, height: 36, color: '#ef4444' }} />
+            </div>
+            <p style={{ color: '#ef4444', fontSize: 20, fontWeight: 900, margin: '0 0 10px' }}>
+              محظور!
+            </p>
+            <p style={{ color: '#fca5a5', fontSize: 15, fontWeight: 600, margin: 0, lineHeight: 1.7 }}>
+              تسجيل الشاشة والتقاط الصور ممنوع منعاً باتاً على هذه المنصة.
+              <br />
+              <span style={{ color: '#f87171', fontSize: 13 }}>سيتم الإبلاغ عن أي محاولة.</span>
+            </p>
+          </div>
+        </div>
+      )}
       <aside className={`hidden lg:flex w-64 flex-col flex-shrink-0 ${dark ? '' : 'bg-navy-500'}`}
              style={dark ? { background: 'linear-gradient(180deg, #161422 0%, #100E1A 100%)', borderLeft: '1px solid rgba(230,175,80,0.12)' } : {}}>
         <Sidebar />
