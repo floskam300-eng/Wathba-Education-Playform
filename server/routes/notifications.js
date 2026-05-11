@@ -72,20 +72,28 @@ router.post('/platform', requireRole('teacher', 'assistant'), async (req, res) =
     return res.status(400).json({ error: 'اختر طالباً على الأقل' });
 
   try {
+    // fetch names for all target students in one query
+    const namesRes = await pool.query(
+      `SELECT id, name FROM students WHERE id = ANY($1)`,
+      [student_ids]
+    );
+    const nameMap = Object.fromEntries(namesRes.rows.map(r => [r.id, r.name]));
+
     let sent = 0;
     for (const sid of student_ids) {
       const resolvedTitle = title || TYPE_TITLES[type] || 'إشعار جديد';
+      const personalMsg = message.replace(/\{name\}/g, nameMap[sid] || '');
       const result = await pool.query(
         `INSERT INTO notification_log
            (teacher_id, student_id, recipient_type, message, type, is_read, source, title)
          VALUES ($1,$2,'student',$3,$4,false,'platform',$5) RETURNING *`,
-        [teacherId, sid, message, type, resolvedTitle]
+        [teacherId, sid, personalMsg, type, resolvedTitle]
       );
       const row = result.rows[0];
       sendEvent(`student_${sid}`, 'platform_notification', {
         id:       row.id,
         title:    resolvedTitle,
-        message,
+        message:  personalMsg,
         type,
         sent_at:  row.sent_at,
       });
