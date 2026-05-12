@@ -6,7 +6,7 @@ import { useSSE } from '../hooks/useSSE';
 import {
   LayoutDashboard, Users, BookOpen, FileText, UserCog,
   BarChart3, CreditCard, Trophy, LogOut, Menu, MessageCircle,
-  Bell, Database, ClipboardList, Moon, Sun, Inbox, PenLine, BookMarked
+  Bell, Database, ClipboardList, Moon, Sun, Inbox, BookMarked
 } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 
@@ -16,7 +16,6 @@ const navItems = [
   { to: '/teacher/courses', icon: BookOpen, label: 'الكورسات' },
   { to: '/teacher/exams', icon: FileText, label: 'الاختبارات' },
   { to: '/teacher/question-banks', icon: BookMarked, label: 'بنوك الأسئلة' },
-  { to: '/teacher/essay-grading', icon: PenLine, label: 'تصحيح المقالي' },
   { to: '/teacher/requests', icon: Inbox, label: 'صفحة الطلبات' },
   { to: '/teacher/attendance', icon: ClipboardList, label: 'الحضور والغياب' },
   { to: '/teacher/assistants', icon: UserCog, label: 'المساعدون' },

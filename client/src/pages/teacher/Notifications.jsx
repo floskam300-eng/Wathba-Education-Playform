@@ -21,7 +21,6 @@ const PLATFORM_TYPES = [
   { value: 'exam_result',         label: '📊 نتيجة اختبار' },
   { value: 'new_exam',            label: '📝 اختبار جديد' },
   { value: 'new_course',          label: '📚 كورس جديد' },
-  { value: 'essay_graded',        label: '✅ تصحيح مقالي' },
   { value: 'retry_approved',      label: '🔄 قبول إعادة اختبار' },
   { value: 'enrollment_approved', label: '🎓 قبول في كورس' },
   { value: 'reminder',            label: '⏰ تذكير' },
@@ -31,7 +30,6 @@ const PLATFORM_TYPES = [
 const PLATFORM_TEMPLATES = [
   { type: 'new_exam',    title: 'اختبار جديد',         text: 'تم إضافة اختبار جديد — سجّل/ي الدخول لأداء الاختبار في أقرب وقت. 📝' },
   { type: 'exam_result', title: 'نتيجة اختبارك جاهزة', text: 'مرحباً {name}، تم تصحيح اختبارك ونتيجتك الآن متاحة. تفضل/ي بالاطلاع عليها. 📊' },
-  { type: 'essay_graded',title: 'تصحيح الأسئلة المقالية', text: 'مرحباً {name}، تم تصحيح إجاباتك المقالية وتحديث درجتك. 🎯' },
   { type: 'new_course',  title: 'كورس جديد متاح',      text: 'تم إضافة كورس جديد! تفضل/ي بالاطلاع على محتواه والتسجيل الآن. 📚' },
   { type: 'reminder',    title: 'تذكير',                text: 'تذكير: لا تنسَ/ي متابعة دروسك والاستعداد للاختبارات القادمة. ⏰' },
   { type: 'announcement',title: 'إعلان هام',            text: 'إعلان هام من المعلم — يرجى الاطلاع على أحدث التحديثات في المنصة. 📣' },

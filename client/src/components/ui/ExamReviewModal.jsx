@@ -133,8 +133,6 @@ export default function ExamReviewModal({ resultId, onClose }) {
             const studentAns = q.student_answer;
             const correctAns = q.correct_answer;
             const answered   = !!studentAns;
-            const isEssay    = q.question_type === 'essay';
-
             return (
               <div key={q.id} className={`rounded-2xl border-2 p-4 ${
                 !answered       ? 'border-gray-200 bg-gray-50/50'
@@ -155,7 +153,6 @@ export default function ExamReviewModal({ resultId, onClose }) {
                     )}
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-xs text-gray-400 font-medium">{q.points} نقطة</span>
-                      {isEssay && <span className="text-xs text-purple-600 font-bold bg-purple-100 px-2 py-0.5 rounded-full">مقالي</span>}
                       {!answered && (
                         <span className="flex items-center gap-1 text-xs text-gray-400 font-bold">
                           <Clock className="w-3 h-3" /> لم تُجَب
@@ -165,15 +162,7 @@ export default function ExamReviewModal({ resultId, onClose }) {
                   </div>
                 </div>
 
-                {/* Essay answer display */}
-                {isEssay ? (
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 text-sm text-gray-700">
-                    {studentAns || <span className="italic text-gray-400">لم يُجِب</span>}
-                  </div>
-                ) : (
-                  <>
-                    {/* MCQ / true-false Options */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {OPTS.map(opt => {
                         const text = q[`option_${opt.toLowerCase()}`];
                         if (!text || text === '-') return null;
@@ -203,8 +192,7 @@ export default function ExamReviewModal({ resultId, onClose }) {
                         </span>
                       </div>
                     )}
-                  </>
-                )}
+                </div>
               </div>
             );
           })}

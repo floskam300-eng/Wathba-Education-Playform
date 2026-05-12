@@ -19,7 +19,6 @@ import TeacherNotifications from './pages/teacher/Notifications';
 import TeacherBackup from './pages/teacher/Backup';
 import TeacherAttendance from './pages/teacher/Attendance';
 import TeacherRequests from './pages/teacher/Requests';
-import EssayGrading from './pages/teacher/EssayGrading';
 import WrongQuestionsPage from './pages/teacher/WrongQuestions';
 import QuestionBanks from './pages/teacher/QuestionBanks';
 import AssistantDashboard from './pages/assistant/Dashboard';
@@ -65,7 +64,6 @@ const AppRoutes = () => {
         <Route path="backup" element={<TeacherBackup />} />
         <Route path="attendance" element={<TeacherAttendance />} />
         <Route path="requests" element={<TeacherRequests />} />
-        <Route path="essay-grading" element={<EssayGrading />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
         <Route path="wrong-questions" element={<WrongQuestionsPage />} />
         <Route path="question-banks" element={<QuestionBanks />} />
@@ -80,7 +78,6 @@ const AppRoutes = () => {
         <Route path="analytics" element={<AssistantAnalytics />} />
         <Route path="notifications" element={<TeacherNotifications />} />
         <Route path="requests" element={<TeacherRequests />} />
-        <Route path="essay-grading" element={<EssayGrading />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
         <Route path="question-banks" element={<QuestionBanks />} />
       </Route>

@@ -25,7 +25,6 @@ const TYPE_ICON = {
   exam_result:         '📊',
   new_exam:            '📝',
   new_course:          '📚',
-  essay_graded:        '✅',
   retry_approved:      '🔄',
   enrollment_approved: '🎓',
   reminder:            '⏰',

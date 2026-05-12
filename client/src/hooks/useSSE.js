@@ -10,7 +10,6 @@ const EVENT_ICONS = {
   enrollment_rejected: '❌',
   retry_approved:      '🔄',
   retry_rejected:      '❌',
-  essay_graded:        '📊',
   new_request:         '📬',
   retry_request:       '🔄',
 };
@@ -127,24 +126,13 @@ export function useSSE(enabled, role) {
         );
       });
 
-      es.addEventListener('essay_graded', (e) => {
-        const data = JSON.parse(e.data);
-        qc.invalidateQueries({ queryKey: ['student-exams'] });
-        qc.invalidateQueries({ queryKey: ['student-dashboard'] });
-        qc.invalidateQueries({ queryKey: ['student-notifications'] });
-        toast.success(
-          `${EVENT_ICONS.essay_graded} تم تصحيح إجاباتك المقالية — درجتك الجديدة: ${data.new_score}`,
-          { duration: 8000, style: { fontFamily: 'inherit', direction: 'rtl' } }
-        );
-      });
-
       es.addEventListener('platform_notification', (e) => {
         const data = JSON.parse(e.data);
         qc.invalidateQueries({ queryKey: ['my-notifications'] });
         window.dispatchEvent(new CustomEvent('wathba_platform_notification', { detail: data }));
         const icon = {
           general: '📢', exam_result: '📊', new_exam: '📝', new_course: '📚',
-          essay_graded: '✅', retry_approved: '🔄', enrollment_approved: '🎓',
+          retry_approved: '🔄', enrollment_approved: '🎓',
           reminder: '⏰', announcement: '📣',
         }[data.type] || '🔔';
         toast(

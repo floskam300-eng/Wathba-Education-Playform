@@ -319,8 +319,8 @@ export default function StudentExams() {
                 <div key={q.id} className={`card ${answers[q.id] ? 'border-2 border-orange-400' : ''}`}>
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-xs text-gray-600 font-bold">السؤال {qi + 1}</p>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${qType === 'essay' ? 'bg-blue-100 text-blue-700' : qType === 'true_false' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {qType === 'essay' ? 'مقالي' : qType === 'true_false' ? 'صح/خطأ' : 'MCQ'}
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${qType === 'true_false' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {qType === 'true_false' ? 'صح/خطأ' : 'MCQ'}
                     </span>
                   </div>
                   <p className="font-semibold text-navy-700 mb-4 text-base leading-relaxed">{q.question_text}</p>
@@ -328,14 +328,7 @@ export default function StudentExams() {
                     <img src={q.question_image_url} alt="سؤال" className="w-full max-w-xs h-40 object-cover rounded-xl mb-4" />
                   )}
 
-                  {qType === 'essay' ? (
-                    <textarea
-                      value={answers[q.id] || ''}
-                      onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
-                      className="input-field h-28 resize-none text-sm"
-                      placeholder="اكتب إجابتك هنا..."
-                    />
-                  ) : qType === 'true_false' ? (
+                  {qType === 'true_false' ? (
                     <div className="flex gap-4">
                       {[{ opt: 'A', label: '✅ صح' }, { opt: 'B', label: '❌ خطأ' }].map(({ opt, label }) => (
                         <button key={opt} onClick={() => setAnswers({ ...answers, [q.id]: opt })}
@@ -426,9 +419,6 @@ export default function StudentExams() {
               <span className="text-red-800 font-bold">✗ خطأ: {result.result.wrong_count}</span>
             </div>
             {result.pointsEarned > 0 && <p className="mt-3 text-orange-700 font-bold">+{result.pointsEarned} نقطة! ⭐</p>}
-            {result.detailedAnswers?.some(a => a.question_type === 'essay') && (
-              <p className="mt-2 text-blue-700 text-sm font-bold bg-blue-50 rounded-lg px-3 py-2">📝 الأسئلة المقالية ستُصحَّح يدوياً من المعلم</p>
-            )}
             <button onClick={() => setResult(null)} className="btn-primary mt-4">حسناً</button>
           </div>
         )}

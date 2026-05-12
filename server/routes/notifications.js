@@ -13,7 +13,6 @@ const TYPE_TITLES = {
   exam_result:         'نتيجة اختبار',
   new_exam:            'اختبار جديد',
   new_course:          'كورس جديد',
-  essay_graded:        'تصحيح مقالي',
   retry_approved:      'قبول إعادة اختبار',
   enrollment_approved: 'قبول في كورس',
   payment:             'إشعار دفع',

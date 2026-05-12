@@ -22,12 +22,11 @@ function FieldError({ error }) {
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي'];
 
 const emptyExam = { title: '', duration_minutes: 60, total_score: 100, course_id: '', pass_score: 50, badge_name: '', badge_color: '#995400', start_date: '', end_date: '', shuffle_questions: false, shuffle_options: false, question_source: 'manual', bank_id: '', bank_question_count: 10 };
-const emptyQ = { question_text: '', question_image_url: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer_letter: 'A', points: 1, question_type: 'mcq', essay_answer_key: '' };
+const emptyQ = { question_text: '', question_image_url: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer_letter: 'A', points: 1, question_type: 'mcq' };
 
 const QUESTION_TYPES = [
   { value: 'mcq', label: '🔘 اختيار متعدد (MCQ)' },
   { value: 'true_false', label: '✅ صح / خطأ' },
-  { value: 'essay', label: '📝 مقالي' },
 ];
 
 const fmtDateLocal = (iso) => {
@@ -262,7 +261,7 @@ export default function TeacherExams() {
     return null;
   };
 
-  const qTypeLabel = (t) => ({ mcq: 'MCQ', true_false: 'صح/خطأ', essay: 'مقالي' })[t] || 'MCQ';
+  const qTypeLabel = (t) => ({ mcq: 'MCQ', true_false: 'صح/خطأ' })[t] || 'MCQ';
 
   return (
     <div className="space-y-5">
@@ -496,7 +495,7 @@ export default function TeacherExams() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${q.question_type === 'essay' ? 'bg-blue-100 text-blue-700' : q.question_type === 'true_false' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${q.question_type === 'true_false' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
                               {qTypeLabel(q.question_type)}
                             </span>
                             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
@@ -505,19 +504,13 @@ export default function TeacherExams() {
                           </div>
                           <p className="font-semibold text-navy-600 text-sm mb-2">س{qi + 1}: {q.question_text}</p>
                           {q.question_image_url && <img src={q.question_image_url} alt="question" className="w-40 h-24 object-cover rounded-lg mb-2" />}
-                          {q.question_type === 'essay' ? (
-                            <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700">
-                              <span className="font-bold">نموذج الإجابة: </span>{q.essay_answer_key || '(لم يُحدد)'}
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-2 gap-1 text-xs">
+                          <div className="grid grid-cols-2 gap-1 text-xs">
                               {(q.question_type === 'true_false' ? ['A', 'B'] : ['A', 'B', 'C', 'D']).map(opt => q[`option_${opt.toLowerCase()}`] && q[`option_${opt.toLowerCase()}`] !== '-' && (
                                 <div key={opt} className={`p-1.5 rounded-lg font-semibold ${q.correct_answer_letter === opt ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                                   {opt}. {q[`option_${opt.toLowerCase()}`]}
                                 </div>
                               ))}
                             </div>
-                          )}
                         </div>
                         <div className="flex gap-1">
                           <button onClick={() => {
@@ -641,14 +634,6 @@ export default function TeacherExams() {
                               {i === 0 ? '✅ صح' : '❌ خطأ'}
                             </button>
                           ))}
-                        </div>
-                      )}
-
-                      {qForm.question_type === 'essay' && (
-                        <div>
-                          <label className="block text-xs font-bold text-navy-700 mb-1">نموذج الإجابة (للمراجعة)</label>
-                          <textarea value={qForm.essay_answer_key || ''} onChange={e => setQForm({ ...qForm, essay_answer_key: e.target.value })}
-                            className="input-field h-16 resize-none text-sm" placeholder="اكتب نموذج الإجابة المتوقعة هنا..." />
                         </div>
                       )}
 

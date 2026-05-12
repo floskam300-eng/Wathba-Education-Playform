@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowRight, CheckCircle, XCircle, Minus, Clock,
-  FileText, Award, BarChart2, Edit3, Save, AlertCircle
+  Award
 } from 'lucide-react';
 import api from '../lib/api';
-import toast from 'react-hot-toast';
 
 const OPTS = ['A', 'B', 'C', 'D'];
 const optLabel = { A: 'أ', B: 'ب', C: 'ج', D: 'د' };
@@ -51,25 +50,10 @@ export default function ExamReviewPage() {
   const { resultId } = useParams();
   const navigate     = useNavigate();
   const { user }     = useAuth();
-  const qc           = useQueryClient();
-
-  const [essayScores, setEssayScores] = useState({});
-  const [gradingMode, setGradingMode] = useState(false);
-
   const { data, isLoading, isError } = useQuery({
     queryKey: ['exam-review', resultId],
     queryFn: () => api.get(`/exams/results/${resultId}/review`).then(r => r.data),
     enabled: !!resultId,
-  });
-
-  const gradeMut = useMutation({
-    mutationFn: (scores) => api.put(`/exams/results/${resultId}/grade-essay`, { essay_scores: scores }),
-    onSuccess: (res) => {
-      qc.invalidateQueries(['exam-review', resultId]);
-      toast.success(`تم تصحيح الأسئلة المقالية — الدرجة الجديدة: ${res.data.new_score}`);
-      setGradingMode(false);
-    },
-    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
   });
 
   const { result, questions = [] } = data || {};
@@ -85,17 +69,13 @@ export default function ExamReviewPage() {
     ? questions.filter(q => q.is_correct).length
     : (result?.correct_count ?? 0);
   const wrongCount = hasDetailedAnswers
-    ? questions.filter(q => !q.is_correct && q.student_answer && q.question_type !== 'essay').length
+    ? questions.filter(q => !q.is_correct && q.student_answer).length
     : (result?.wrong_count ?? 0);
   const skippedCount = hasDetailedAnswers
-    ? questions.filter(q => !q.student_answer && q.question_type !== 'essay').length
+    ? questions.filter(q => !q.student_answer).length
     : (result?.unanswered_count ?? 0);
 
-  const essayQuestions = questions.filter(q => q.question_type === 'essay');
-
   const isTeacher = user?.role === 'teacher' || user?.role === 'assistant';
-  const hasEssay  = result?.has_essay || essayQuestions.length > 0;
-  const isGraded  = result?.essay_graded;
 
   const goBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -120,19 +100,6 @@ export default function ExamReviewPage() {
               <h1 className={`font-black text-lg leading-tight ${passed ? 'text-green-800' : 'text-red-800'}`}>
                 {result.exam_title}
               </h1>
-              {/* Essay grading status badge */}
-              {hasEssay && (
-                isGraded ? (
-                  <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                    <CheckCircle className="w-3 h-3" /> تم التصحيح المقالي
-                    {result.essay_score_adjustment > 0 && <span>(+{result.essay_score_adjustment} درجة)</span>}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                    <Clock className="w-3 h-3" /> بانتظار التصحيح المقالي
-                  </span>
-                )
-              )}
             </div>
             <div className="text-center flex-shrink-0">
               <div className={`text-3xl font-black ${passed ? 'text-green-700' : 'text-red-600'}`}>
@@ -211,75 +178,6 @@ export default function ExamReviewPage() {
               </div>
             </div>
 
-            {/* ── Teacher: essay grading panel ── */}
-            {isTeacher && hasEssay && !isGraded && (
-              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-black text-yellow-800 flex items-center gap-2">
-                    <Edit3 className="w-5 h-5" /> تصحيح الأسئلة المقالية
-                  </h2>
-                  {!gradingMode ? (
-                    <button onClick={() => setGradingMode(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-bold rounded-xl transition-colors">
-                      <Edit3 className="w-4 h-4" /> ابدأ التصحيح
-                    </button>
-                  ) : (
-                    <button onClick={() => gradeMut.mutate(essayScores)}
-                      disabled={gradeMut.isPending}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors">
-                      <Save className="w-4 h-4" /> حفظ الدرجات
-                    </button>
-                  )}
-                </div>
-                {gradingMode && (
-                  <div className="space-y-3">
-                    {essayQuestions.map((q, i) => (
-                      <div key={q.id} className="bg-white rounded-xl p-4 border border-yellow-200">
-                        <p className="font-bold text-navy-700 text-sm mb-2">س{i + 1}: {q.question_text} <span className="text-gray-400 font-normal">({q.points} درجة)</span></p>
-                        <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm text-gray-700 border border-gray-200">
-                          <p className="text-xs text-gray-400 font-bold mb-1">إجابة الطالب:</p>
-                          {q.student_answer || <span className="italic text-gray-400">لم يُجِب</span>}
-                        </div>
-                        {q.correct_answer && (
-                          <div className="bg-green-50 rounded-lg p-3 mb-3 text-sm text-green-800 border border-green-200">
-                            <p className="text-xs text-green-600 font-bold mb-1">الإجابة النموذجية:</p>
-                            {q.correct_answer}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3">
-                          <label className="text-sm font-bold text-gray-700">الدرجة (من {q.points}):</label>
-                          <input
-                            type="number" min="0" max={q.points}
-                            value={essayScores[q.id] ?? ''}
-                            onChange={e => setEssayScores(prev => ({ ...prev, [q.id]: e.target.value }))}
-                            className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus:border-orange-400"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {!gradingMode && (
-                  <p className="text-sm text-yellow-700 font-medium">
-                    يوجد {essayQuestions.length} سؤال مقالي يحتاج تصحيحاً يدوياً
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* ── Teacher: already graded ── */}
-            {isTeacher && hasEssay && isGraded && (
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                <div>
-                  <p className="font-bold text-blue-800 text-sm">تم تصحيح الأسئلة المقالية</p>
-                  {result.essay_score_adjustment > 0 && (
-                    <p className="text-blue-600 text-xs font-medium">تم إضافة {result.essay_score_adjustment} درجة إضافية</p>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* ── Legend ── */}
             <div className="flex flex-wrap gap-3 text-xs font-semibold">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-800 rounded-full">
@@ -291,66 +189,14 @@ export default function ExamReviewPage() {
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-full">
                 <Minus className="w-3.5 h-3.5 text-gray-400" /> لم تُجَب
               </span>
-              {hasEssay && (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-800 rounded-full">
-                  <FileText className="w-3.5 h-3.5 text-purple-500" /> سؤال مقالي
-                </span>
-              )}
             </div>
 
             {/* ── Questions ── */}
             <div className="space-y-5">
               {questions.map((q, qi) => {
-                const isEssay     = q.question_type === 'essay';
                 const studentAns  = q.student_answer;
                 const correctAns  = q.correct_answer;
                 const answered    = !!studentAns;
-
-                if (isEssay) {
-                  return (
-                    <div key={q.id} className="bg-white rounded-2xl border-2 border-purple-200 shadow-sm overflow-hidden">
-                      <div className="px-5 py-3 flex items-center gap-3 border-b bg-purple-50 border-purple-100">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black text-white shadow-sm bg-purple-500">
-                          {qi + 1}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs font-bold">
-                          <span className="text-gray-500">{q.points} نقطة</span>
-                          <span className="flex items-center gap-1 text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                            <FileText className="w-3 h-3" /> مقالي
-                          </span>
-                          {!isGraded && (
-                            <span className="flex items-center gap-1 text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">
-                              <Clock className="w-3 h-3" /> بانتظار التصحيح
-                            </span>
-                          )}
-                          {isGraded && (
-                            <span className="flex items-center gap-1 text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                              <CheckCircle className="w-3 h-3" /> تم التصحيح
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-5 py-4">
-                        <p className="font-bold text-navy-700 text-base leading-relaxed mb-3">{q.question_text}</p>
-                        {q.question_image_url && (
-                          <img src={q.question_image_url} alt="" className="mt-2 mb-3 max-w-sm rounded-xl border border-gray-200" />
-                        )}
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <p className="text-xs font-bold text-gray-500 mb-2">إجابة الطالب:</p>
-                          <p className="text-sm text-gray-700 font-medium leading-relaxed">
-                            {studentAns || <span className="italic text-gray-400">لم يُجِب على هذا السؤال</span>}
-                          </p>
-                        </div>
-                        {isTeacher && correctAns && (
-                          <div className="mt-3 bg-green-50 rounded-xl p-4 border border-green-200">
-                            <p className="text-xs font-bold text-green-600 mb-2">الإجابة النموذجية:</p>
-                            <p className="text-sm text-green-800 font-medium leading-relaxed">{correctAns}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
 
                 return (
                   <div key={q.id} className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${

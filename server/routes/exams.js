@@ -235,7 +235,7 @@ router.get('/:id/questions', requireRole('teacher', 'assistant'), async (req, re
 // ── Add question ──
 router.post('/:id/questions', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
-  const { question_text, question_image_url, option_a, option_b, option_c, option_d, correct_answer_letter, points, question_type, essay_answer_key } = req.body;
+  const { question_text, question_image_url, option_a, option_b, option_c, option_d, correct_answer_letter, points, question_type } = req.body;
   try {
     if (!(await verifyExamOwnership(req.params.id, teacherId))) {
       return res.status(403).json({ error: 'Access denied: exam not yours' });
@@ -246,13 +246,11 @@ router.post('/:id/questions', requireRole('teacher', 'assistant'), async (req, r
     if (qType === 'true_false') {
       optA = 'صح'; optB = 'خطأ';
       correctLetter = correct_answer_letter || 'A';
-    } else if (qType === 'essay') {
-      optA = '-'; optB = '-'; correctLetter = 'A';
     }
 
     const result = await pool.query(
-      'INSERT INTO questions (question_text,question_image_url,option_a,option_b,option_c,option_d,correct_answer_letter,points,exam_id,question_type,essay_answer_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
-      [question_text, question_image_url, optA, optB, option_c, option_d, correctLetter.toUpperCase(), points || 1, req.params.id, qType, essay_answer_key || null]
+      'INSERT INTO questions (question_text,question_image_url,option_a,option_b,option_c,option_d,correct_answer_letter,points,exam_id,question_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+      [question_text, question_image_url, optA, optB, option_c, option_d, correctLetter.toUpperCase(), points || 1, req.params.id, qType]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -263,7 +261,7 @@ router.post('/:id/questions', requireRole('teacher', 'assistant'), async (req, r
 // ── Update question ──
 router.put('/questions/:qid', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
-  const { question_text, question_image_url, option_a, option_b, option_c, option_d, correct_answer_letter, points, question_type, essay_answer_key } = req.body;
+  const { question_text, question_image_url, option_a, option_b, option_c, option_d, correct_answer_letter, points, question_type } = req.body;
   try {
     if (!(await verifyQuestionOwnership(req.params.qid, teacherId))) {
       return res.status(403).json({ error: 'Access denied: question not yours' });
@@ -271,11 +269,10 @@ router.put('/questions/:qid', requireRole('teacher', 'assistant'), async (req, r
     const qType = question_type || 'mcq';
     let optA = option_a, optB = option_b, correctLetter = correct_answer_letter;
     if (qType === 'true_false') { optA = 'صح'; optB = 'خطأ'; }
-    else if (qType === 'essay') { optA = '-'; optB = '-'; correctLetter = 'A'; }
 
     const result = await pool.query(
-      'UPDATE questions SET question_text=$1,question_image_url=$2,option_a=$3,option_b=$4,option_c=$5,option_d=$6,correct_answer_letter=$7,points=$8,question_type=$9,essay_answer_key=$10 WHERE id=$11 RETURNING *',
-      [question_text, question_image_url, optA, optB, option_c, option_d, correctLetter.toUpperCase(), points || 1, qType, essay_answer_key || null, req.params.qid]
+      'UPDATE questions SET question_text=$1,question_image_url=$2,option_a=$3,option_b=$4,option_c=$5,option_d=$6,correct_answer_letter=$7,points=$8,question_type=$9 WHERE id=$10 RETURNING *',
+      [question_text, question_image_url, optA, optB, option_c, option_d, correctLetter.toUpperCase(), points || 1, qType, req.params.qid]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -600,16 +597,6 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
       const correctLetter = q.correct_answer_letter ? q.correct_answer_letter.toUpperCase() : null;
       const qType = q.question_type || 'mcq';
 
-      if (qType === 'essay') {
-        return {
-          question_id: q.id,
-          student_answer: rawAnswer || '',
-          correct_answer: q.essay_answer_key || '',
-          is_correct: null,
-          question_type: 'essay'
-        };
-      }
-
       let isCorrect = false;
       if (!studentAnswer) {
         unanswered++;
@@ -623,8 +610,7 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
       return { question_id: q.id, student_answer: studentAnswer, correct_answer: correctLetter, is_correct: isCorrect, question_type: qType };
     });
 
-    const gradableQuestions = questions.filter(q => (q.question_type || 'mcq') !== 'essay');
-    const totalPoints = gradableQuestions.reduce((s, q) => s + q.points, 0);
+    const totalPoints = questions.reduce((s, q) => s + q.points, 0);
     const normalizedScore = totalPoints > 0 ? Math.round((score / totalPoints) * exam.total_score) : 0;
     const pointsEarned = normalizedScore;
 
@@ -650,58 +636,12 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
   }
 });
 
-// ── Teacher: grade essay questions in a result ──
-router.put('/results/:resultId/grade-essay', requireRole('teacher', 'assistant'), async (req, res) => {
-  const teacherId = getTeacherId(req);
-  const { essay_scores } = req.body; // { [question_id]: points_awarded }
-  try {
-    const resultRes = await pool.query(
-      `SELECT er.*, e.total_score, e.teacher_id, e.id as exam_id_val
-       FROM exam_results er
-       JOIN exams e ON er.exam_id = e.id
-       WHERE er.id = $1 AND e.teacher_id = $2`,
-      [req.params.resultId, teacherId]
-    );
-    if (!resultRes.rows.length) return res.status(404).json({ error: 'Result not found' });
-    const row = resultRes.rows[0];
-
-    const totalEssayPoints = Object.values(essay_scores || {}).reduce((s, v) => s + (parseInt(v) || 0), 0);
-    const newScore = Math.min(row.score + totalEssayPoints, row.total_score);
-
-    await pool.query(
-      'UPDATE exam_results SET essay_graded=true, essay_score_adjustment=$1, score=$2 WHERE id=$3',
-      [totalEssayPoints, newScore, req.params.resultId]
-    );
-
-    if (totalEssayPoints > 0) {
-      await pool.query(
-        'UPDATE students SET points = points + $1 WHERE id = $2',
-        [totalEssayPoints, row.student_id]
-      );
-    }
-
-    try {
-      await pool.query(
-        `INSERT INTO notification_log (teacher_id, student_id, message, type)
-         VALUES ($1, $2, 'تم تصحيح إجاباتك المقالية وتحديث درجتك', 'essay_graded')`,
-        [teacherId, row.student_id]
-      );
-      sendEvent(`student_${row.student_id}`, 'essay_graded', { new_score: newScore, resultId: req.params.resultId });
-    } catch (_) {}
-
-    res.json({ success: true, new_score: newScore, essay_score_adjustment: totalEssayPoints });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // ── Student: get exam results for a specific course ──
 router.get('/student/course-results/:courseId', requireRole('student'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT er.id, er.score, er.correct_count, er.wrong_count, er.unanswered_count,
-              er.points_earned, er.essay_graded, er.essay_score_adjustment, er.created_at,
+              er.points_earned, er.created_at,
               e.title as exam_title, e.total_score, e.pass_score, e.id as exam_id
        FROM exam_results er
        JOIN exams e ON er.exam_id = e.id
@@ -751,7 +691,7 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
     const resultRes = await pool.query(
       `SELECT er.id, er.student_id, er.exam_id, er.score, er.correct_count, er.wrong_count,
               er.unanswered_count, er.points_earned, er.start_time, er.end_time, er.created_at,
-              er.answers, er.essay_graded, er.essay_score_adjustment,
+              er.answers,
               s.name  AS student_name,
               e.title AS exam_title, e.total_score, e.pass_score, e.teacher_id AS exam_teacher_id,
               e.question_source, e.bank_id
@@ -833,14 +773,10 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
       const rawStudentAnswer = stored?.student_answer ?? null;
       const studentAnswer    = rawStudentAnswer ? String(rawStudentAnswer).toUpperCase() : null;
       const correctLetter    = q.correct_answer_letter ? q.correct_answer_letter.toUpperCase() : null;
-      const correctAnswer    = qType === 'essay'
-        ? (q.essay_answer_key || null)
-        : correctLetter;
+      const correctAnswer = correctLetter;
 
       let isCorrect;
-      if (qType === 'essay') {
-        isCorrect = stored ? (stored.is_correct ?? null) : null;
-      } else if (!studentAnswer) {
+      if (!studentAnswer) {
         isCorrect = false;
       } else {
         isCorrect = studentAnswer === correctLetter;
@@ -856,77 +792,9 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
     });
 
     const { answers, exam_teacher_id, ...resultClean } = row;
-    const hasEssay = questions.some(q => q.question_type === 'essay');
-    res.json({ result: { ...resultClean, has_essay: hasEssay }, questions });
+    res.json({ result: resultClean, questions });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// ── Teacher: list all exam results with pending essay questions ──
-router.get('/essay-pending', requireRole('teacher', 'assistant'), async (req, res) => {
-  const teacherId = getTeacherId(req);
-  try {
-    const result = await pool.query(
-      `SELECT er.id, er.student_id, er.exam_id, er.score, er.created_at,
-              er.essay_graded, er.essay_score_adjustment, er.answers,
-              s.name  AS student_name, s.username AS student_username,
-              e.title AS exam_title, e.total_score, e.pass_score
-       FROM exam_results er
-       JOIN students s ON er.student_id = s.id
-       JOIN exams   e ON er.exam_id    = e.id
-       WHERE e.teacher_id = $1
-         AND er.essay_graded = false
-         AND EXISTS (
-           SELECT 1 FROM questions q
-           WHERE q.exam_id = e.id AND q.question_type = 'essay'
-         )
-       ORDER BY er.created_at DESC`,
-      [teacherId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// ── Teacher: get essay questions + student answers for a result ──
-router.get('/results/:resultId/essay-detail', requireRole('teacher', 'assistant'), async (req, res) => {
-  const teacherId = getTeacherId(req);
-  try {
-    const resultRes = await pool.query(
-      `SELECT er.*, e.teacher_id AS exam_teacher_id, e.total_score, e.title AS exam_title, e.pass_score
-       FROM exam_results er
-       JOIN exams e ON er.exam_id = e.id
-       WHERE er.id = $1 AND e.teacher_id = $2`,
-      [req.params.resultId, teacherId]
-    );
-    if (!resultRes.rows.length) return res.status(403).json({ error: 'Access denied' });
-    const row = resultRes.rows[0];
-
-    const questionsRes = await pool.query(
-      `SELECT * FROM questions WHERE exam_id = $1 AND question_type = 'essay' ORDER BY id`,
-      [row.exam_id]
-    );
-
-    let answers = [];
-    try {
-      const raw = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
-      if (Array.isArray(raw)) answers = raw;
-    } catch (_) {}
-
-    const answerMap = {};
-    answers.forEach(a => { if (a.question_id) answerMap[String(a.question_id)] = a; });
-
-    const essayQuestions = questionsRes.rows.map(q => ({
-      ...q,
-      student_answer: answerMap[String(q.id)]?.student_answer ?? null,
-    }));
-
-    const { exam_teacher_id, answers: _ans, ...safeResult } = row;
-    res.json({ result: safeResult, essay_questions: essayQuestions });
-  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });

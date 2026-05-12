@@ -388,11 +388,11 @@ router.post('/import', requireRole('teacher'), async (req, res) => {
       try {
         await pool.query(
           `INSERT INTO questions (question_text,question_image_url,option_a,option_b,option_c,option_d,
-             correct_answer_letter,points,exam_id,question_type,essay_answer_key)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+             correct_answer_letter,points,exam_id,question_type)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
           [q.question_text, q.question_image_url || null, q.option_a || '-', q.option_b || '-',
            q.option_c || null, q.option_d || null, q.correct_answer_letter || 'A',
-           q.points || 1, newExamId, q.question_type || 'mcq', q.essay_answer_key || null]
+           q.points || 1, newExamId, q.question_type || 'mcq']
         );
         stats.questions++;
       } catch (e) { /* silent */ }

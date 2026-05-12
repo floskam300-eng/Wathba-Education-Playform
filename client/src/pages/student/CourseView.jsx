@@ -1014,7 +1014,6 @@ export default function CourseView() {
                         {myResult ? (
                           <p className={`text-xs mt-0.5 font-bold ${passed ? 'text-green-400' : 'text-red-400'}`}>
                             {myResult.score}/{ex.total_score} · {passed ? '✓ ناجح' : '✗ راسب'}
-                            {myResult.essay_graded === false && myResult.has_essay && <span className="mr-1 text-yellow-400">· بانتظار التصحيح المقالي</span>}
                           </p>
                         ) : (
                           <p className="text-xs text-gray-600 mt-0.5">{ex.total_score} درجة · {ex.duration_minutes} دقيقة</p>
@@ -1171,14 +1170,6 @@ export default function CourseView() {
                             <span className="text-green-400 font-bold">✓ صحيح: {myResult.correct_count}</span>
                             <span className="text-red-400 font-bold">✗ خاطئ: {myResult.wrong_count}</span>
                             <span className="text-gray-500 font-bold">— متروك: {myResult.unanswered_count}</span>
-                            {myResult.essay_graded === false && (
-                              <span className="text-yellow-400 font-bold flex items-center gap-1 mr-auto">
-                                <CheckCircle2 className="w-3 h-3" /> بانتظار تصحيح المقالي
-                              </span>
-                            )}
-                            {myResult.essay_graded === true && myResult.essay_score_adjustment > 0 && (
-                              <span className="text-blue-400 font-bold mr-auto">+{myResult.essay_score_adjustment} مقالي</span>
-                            )}
                           </div>
                           <div className="flex gap-2 mt-3">
                             <button
