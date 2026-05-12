@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BookOpen, Plus, Pencil, Trash2, Video, FileText, Users,
   ChevronDown, ChevronUp, GraduationCap, Filter,
-  X, Play, FolderOpen, FolderPlus, Check, AlertCircle, Link, ExternalLink
+  X, Play, FolderOpen, FolderPlus, Check, AlertCircle, Link, ExternalLink,
+  Globe, EyeOff
 } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -294,6 +295,16 @@ export default function TeacherCourses() {
     enabled: !!expandedCourse,
   });
 
+  const publishMut = useMutation({
+    mutationFn: (id) => api.put(`/courses/${id}/publish`),
+    onSuccess: (res, id) => {
+      qc.invalidateQueries(['courses']);
+      const published = res.data.is_published;
+      toast.success(published ? 'تم نشر الكورس للطلاب ✅' : 'تم إلغاء نشر الكورس 🔒');
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
+  });
+
   const createMut = useMutation({
     mutationFn: (data) => api.post('/courses', data),
     onSuccess: () => { qc.invalidateQueries(['courses']); toast.success('تم إنشاء الكورس'); closeModal(); },
@@ -471,6 +482,19 @@ export default function TeacherCourses() {
                         <FileText className="w-2.5 h-2.5" />{c.pdf_count} ملف
                       </span>
                     </div>
+                    {/* Publish/Unpublish button */}
+                    <button
+                      onClick={() => publishMut.mutate(c.id)}
+                      disabled={publishMut.isPending}
+                      className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-black transition-all mb-1.5 ${
+                        c.is_published
+                          ? 'bg-green-50 hover:bg-red-50 text-green-700 hover:text-red-600 border border-green-200 hover:border-red-200'
+                          : 'bg-gray-100 hover:bg-green-600 text-gray-600 hover:text-white border border-gray-200 hover:border-green-600'
+                      }`}>
+                      {c.is_published
+                        ? <><EyeOff className="w-3 h-3" /> منشور — اضغط لإلغاء النشر</>
+                        : <><Globe className="w-3 h-3" /> نشر للطلاب</>}
+                    </button>
                     {/* Action buttons row */}
                     <div className="flex gap-1.5 pt-2 border-t border-gray-100 mb-1.5">
                       <button
@@ -764,7 +788,7 @@ export default function TeacherCourses() {
             </div>
             {form.is_free && form.target_stage && (
               <p className="text-xs text-green-700 font-bold mt-2 bg-green-50 rounded-lg px-3 py-2">
-                ✅ سيُضاف تلقائياً لجميع طلاب {form.target_stage}
+                ✅ عند نشر الكورس سيُضاف تلقائياً لجميع طلاب {form.target_stage} بدون طلب انضمام
               </p>
             )}
           </div>

@@ -97,6 +97,59 @@ router.get('/analytics', requireRole('teacher'), async (req, res) => {
   }
 });
 
+router.get('/analytics/wrong-questions', requireRole('teacher', 'assistant'), async (req, res) => {
+  const teacherId = req.user.role === 'teacher' ? req.user.id : req.user.teacher_id;
+  try {
+    const result = await pool.query(`
+      SELECT
+        e.id   AS exam_id,
+        e.title AS exam_title,
+        q.id   AS question_id,
+        q.question_text,
+        q.option_a, q.option_b, q.option_c, q.option_d,
+        q.correct_answer_letter,
+        COUNT(*)::int AS total_attempts,
+        COUNT(*) FILTER (
+          WHERE (ans->>'is_correct')::boolean = false
+            AND ans->>'student_answer' IS NOT NULL
+            AND ans->>'student_answer' != 'null'
+        )::int AS wrong_count,
+        ROUND(
+          COUNT(*) FILTER (
+            WHERE (ans->>'is_correct')::boolean = false
+              AND ans->>'student_answer' IS NOT NULL
+              AND ans->>'student_answer' != 'null'
+          )::numeric / NULLIF(COUNT(*),0) * 100, 1
+        ) AS wrong_pct
+      FROM exam_results er
+      JOIN exams e ON er.exam_id = e.id
+      JOIN LATERAL jsonb_array_elements(er.answers) AS ans ON true
+      JOIN questions q ON q.id = (ans->>'question_id')::integer
+      WHERE e.teacher_id = $1
+        AND (ans->>'question_type' = 'mcq' OR ans->>'question_type' IS NULL OR ans->>'question_type' = '')
+        AND ans->>'is_correct' IS NOT NULL
+      GROUP BY e.id, e.title, q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer_letter
+      HAVING COUNT(*) > 0
+      ORDER BY e.id, wrong_pct DESC, wrong_count DESC
+    `, [teacherId]);
+
+    // Group by exam, keep top 5 per exam
+    const byExam = {};
+    for (const row of result.rows) {
+      if (!byExam[row.exam_id]) {
+        byExam[row.exam_id] = { exam_id: row.exam_id, exam_title: row.exam_title, questions: [] };
+      }
+      if (byExam[row.exam_id].questions.length < 5) {
+        byExam[row.exam_id].questions.push(row);
+      }
+    }
+    res.json(Object.values(byExam));
+  } catch (err) {
+    console.error('wrong-questions error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/analytics/trend', requireRole('teacher'), async (req, res) => {
   const teacherId = req.user.id;
   const months = parseInt(req.query.months) || 6;

@@ -92,21 +92,10 @@ router.post('/', requireRole('teacher', 'assistant'), checkManageCoursesPerm, va
   const isFree = is_free === true || is_free === 'true';
   try {
     const result = await pool.query(
-      'INSERT INTO courses (name,description,price,thumbnail_url,teacher_id,target_stage,is_free) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+      'INSERT INTO courses (name,description,price,thumbnail_url,teacher_id,target_stage,is_free,is_published) VALUES($1,$2,$3,$4,$5,$6,$7,false) RETURNING *',
       [name, description, isFree ? 0 : (price || 0), thumbnail_url, teacherId, target_stage || null, isFree]
     );
     const course = result.rows[0];
-    if (isFree && target_stage) {
-      await pool.query(
-        `INSERT INTO student_course_enrollment (student_id, course_id)
-         SELECT id, $1 FROM students WHERE teacher_id=$2 AND academic_stage=$3 AND deleted_at IS NULL
-         ON CONFLICT DO NOTHING`,
-        [course.id, teacherId, target_stage]
-      );
-      broadcastToTeacherStudents(pool, teacherId, 'new_course', { name: course.name, courseId: course.id });
-    } else {
-      broadcastToTeacherStudents(pool, teacherId, 'new_course', { name: course.name, courseId: course.id });
-    }
     res.status(201).json(course);
   } catch (err) {
     console.error(err);
@@ -124,16 +113,42 @@ router.put('/:id', requireRole('teacher', 'assistant'), checkManageCoursesPerm, 
       [name, description, isFree ? 0 : (price || 0), thumbnail_url, target_stage || null, isFree, req.params.id, teacherId]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Course not found' });
-    const course = result.rows[0];
-    if (isFree && target_stage) {
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Publish / Unpublish a course ──────────────────────────────────────────
+router.put('/:id/publish', requireRole('teacher', 'assistant'), checkManageCoursesPerm, async (req, res) => {
+  const teacherId = getTeacherId(req);
+  try {
+    const courseRes = await pool.query(
+      'SELECT * FROM courses WHERE id=$1 AND teacher_id=$2',
+      [req.params.id, teacherId]
+    );
+    if (!courseRes.rows.length) return res.status(404).json({ error: 'Course not found' });
+    const course = courseRes.rows[0];
+    const newPublished = !course.is_published;
+
+    await pool.query(
+      'UPDATE courses SET is_published=$1 WHERE id=$2 AND teacher_id=$3',
+      [newPublished, req.params.id, teacherId]
+    );
+
+    // When publishing a free course, auto-enroll all matching students
+    if (newPublished && course.is_free && course.target_stage) {
       await pool.query(
         `INSERT INTO student_course_enrollment (student_id, course_id)
          SELECT id, $1 FROM students WHERE teacher_id=$2 AND academic_stage=$3 AND deleted_at IS NULL
          ON CONFLICT DO NOTHING`,
-        [course.id, teacherId, target_stage]
+        [course.id, teacherId, course.target_stage]
       );
+      broadcastToTeacherStudents(pool, teacherId, 'new_course', { name: course.name, courseId: course.id });
     }
-    res.json(course);
+
+    res.json({ is_published: newPublished });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -408,6 +423,7 @@ router.get('/student/available-all', requireRole('student'), async (req, res) =>
        LEFT JOIN student_course_enrollment sce ON c.id = sce.course_id AND sce.student_id = $1
        LEFT JOIN course_enrollment_requests cer ON c.id = cer.course_id AND cer.student_id = $1
        WHERE c.teacher_id = $2
+         AND c.is_published = true
          AND (c.target_stage = $3 OR c.target_stage IS NULL OR c.target_stage = '')
        GROUP BY c.id, sce.student_id, cer.status, cer.id
        ORDER BY c.created_at DESC`,
@@ -427,12 +443,24 @@ router.post('/student/request/:courseId', requireRole('student'), async (req, re
     if (!teacherRes.rows.length) return res.status(404).json({ error: 'Student not found' });
     const teacherId = teacherRes.rows[0].teacher_id;
 
-    const courseCheck = await pool.query('SELECT id, price, is_free, name FROM courses WHERE id=$1 AND teacher_id=$2', [req.params.courseId, teacherId]);
+    const courseCheck = await pool.query('SELECT id, price, is_free, name, is_published FROM courses WHERE id=$1 AND teacher_id=$2', [req.params.courseId, teacherId]);
     if (!courseCheck.rows.length) return res.status(403).json({ error: 'Course not available' });
     const course = courseCheck.rows[0];
 
+    if (!course.is_published) return res.status(403).json({ error: 'Course is not published' });
+
     const enrolled = await pool.query('SELECT id FROM student_course_enrollment WHERE student_id=$1 AND course_id=$2', [req.user.id, req.params.courseId]);
     if (enrolled.rows.length) return res.status(409).json({ error: 'Already enrolled' });
+
+    // Free course: auto-enroll directly without needing teacher approval
+    if (course.is_free) {
+      await pool.query(
+        'INSERT INTO student_course_enrollment (student_id, course_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+        [req.user.id, req.params.courseId]
+      );
+      sendEvent(`student_${req.user.id}`, 'enrollment_approved', { course_name: course.name, courseId: req.params.courseId });
+      return res.status(201).json({ enrolled: true, message: 'تم التسجيل تلقائياً في الكورس المجاني' });
+    }
 
     const result = await pool.query(
       `INSERT INTO course_enrollment_requests (student_id, course_id, message)
@@ -442,7 +470,7 @@ router.post('/student/request/:courseId', requireRole('student'), async (req, re
       [req.user.id, req.params.courseId, message || null]
     );
 
-    if (!course.is_free && parseFloat(course.price) > 0) {
+    if (parseFloat(course.price) > 0) {
       await pool.query(
         `INSERT INTO payments (student_id, course_id, amount, method, status)
          VALUES ($1, $2, $3, '', 'pending')

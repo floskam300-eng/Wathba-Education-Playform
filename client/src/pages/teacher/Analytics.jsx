@@ -5,7 +5,7 @@ import {
   BarChart3, TrendingUp, Users, Award, Target, GraduationCap,
   CheckCircle2, XCircle, Clock, Star, ChevronUp, ChevronDown,
   Minus, Eye, Search, Filter, X as XIcon, Download, Calendar,
-  Activity, Zap, Trophy
+  Activity, Zap, Trophy, AlertTriangle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -182,6 +182,12 @@ export default function TeacherAnalytics() {
     queryFn: () => api.get(`/teachers/analytics/trend?months=${trendMonths}`).then(r => r.data),
     keepPreviousData: true,
   });
+
+  const { data: wrongQData = [] } = useQuery({
+    queryKey: ['teacher-wrong-questions'],
+    queryFn: () => api.get('/teachers/analytics/wrong-questions').then(r => r.data),
+  });
+  const [wrongQExamIdx, setWrongQExamIdx] = useState(0);
 
   const examChartData = (data?.examResults || []).map(e => ({
     name: e.title?.length > 14 ? e.title.substring(0, 14) + '…' : e.title,
@@ -711,6 +717,103 @@ export default function TeacherAnalytics() {
           )}
         </div>
       </ChartCard>
+
+      {/* Wrong Questions Section */}
+      {wrongQData.length > 0 && (() => {
+        const currentExam = wrongQData[wrongQExamIdx];
+        const letterColors = { A: '#6366f1', B: '#f59e0b', C: '#10b981', D: '#f43f5e' };
+        return (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400" />
+            <div className="p-5 border-b border-gray-50">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                  </div>
+                  <div>
+                    <h2 className="font-black text-gray-800 text-sm">أكثر الأسئلة خطأً</h2>
+                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">الأسئلة التي أخطأ فيها الطلاب بأعلى نسبة — أعلى 5 لكل امتحان</p>
+                  </div>
+                </div>
+                {wrongQData.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setWrongQExamIdx(i => Math.max(0, i - 1))} disabled={wrongQExamIdx === 0}
+                      className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 disabled:opacity-30 transition-all">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-bold text-gray-500">
+                      {wrongQExamIdx + 1} / {wrongQData.length}
+                    </span>
+                    <button onClick={() => setWrongQExamIdx(i => Math.min(wrongQData.length - 1, i + 1))} disabled={wrongQExamIdx === wrongQData.length - 1}
+                      className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 disabled:opacity-30 transition-all">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 px-3 py-2 bg-orange-50 rounded-xl border border-orange-100">
+                <p className="text-xs font-black text-orange-700">📝 {currentExam.exam_title}</p>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {currentExam.questions.map((q, idx) => {
+                const pct = parseFloat(q.wrong_pct) || 0;
+                const barColor = pct >= 70 ? '#f43f5e' : pct >= 40 ? '#f59e0b' : '#10b981';
+                const optionLetters = ['A', 'B', 'C', 'D'];
+                const optionTexts = [q.option_a, q.option_b, q.option_c, q.option_d];
+                return (
+                  <div key={q.question_id} className="p-4 hover:bg-gray-50/60 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+                        <span className="text-[10px] font-black text-red-500">{idx + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 leading-relaxed mb-2">
+                          {q.question_text}
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5 mb-3">
+                          {optionLetters.map((letter, li) => (
+                            optionTexts[li] ? (
+                              <div key={letter}
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                  letter === q.correct_answer_letter?.toUpperCase()
+                                    ? 'bg-green-50 border-green-200 text-green-700'
+                                    : 'bg-gray-50 border-gray-100 text-gray-600'
+                                }`}>
+                                <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
+                                  style={{ background: letterColors[letter] || '#94a3b8', color: '#fff' }}>
+                                  {letter}
+                                </span>
+                                <span className="truncate">{optionTexts[li]}</span>
+                                {letter === q.correct_answer_letter?.toUpperCase() && (
+                                  <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0 mr-auto" />
+                                )}
+                              </div>
+                            ) : null
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${pct}%`, background: barColor }} />
+                          </div>
+                          <span className="text-xs font-black flex-shrink-0" style={{ color: barColor }}>
+                            {pct}% خطأ
+                          </span>
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">
+                            ({q.wrong_count}/{q.total_attempts})
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Search + Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">

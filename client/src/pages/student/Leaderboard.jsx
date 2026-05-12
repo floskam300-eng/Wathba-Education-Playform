@@ -174,6 +174,7 @@ export default function StudentLeaderboard() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
             <Trophy className="w-7 h-7 text-orange-500" /> لوحة المتصدرين
+            <span className="text-xs font-semibold text-orange-500 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">أعلى 10</span>
           </h1>
           {tracker && <CountdownBadge nextResetAt={tracker.next_reset_at} />}
         </div>

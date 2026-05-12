@@ -248,7 +248,7 @@ router.get('/leaderboard', requireRole('teacher', 'assistant', 'student'), async
        LEFT JOIN exam_results er ON s.id=er.student_id
        LEFT JOIN badges b ON s.id=b.student_id
        WHERE s.teacher_id=$1 AND s.deleted_at IS NULL
-       GROUP BY s.id ORDER BY s.points DESC LIMIT 50`,
+       GROUP BY s.id ORDER BY s.points DESC LIMIT 10`,
       [teacherId]
     );
 
