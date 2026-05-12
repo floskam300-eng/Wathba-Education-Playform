@@ -128,17 +128,21 @@ export default function StudentCourses() {
   const { data: allCourses = [], isLoading: loadingAll } = useQuery({
     queryKey: ['student-courses-all'],
     queryFn: () => api.get('/courses/student/available-all').then(r => r.data),
-    enabled: tab === 'browse',
     staleTime: 0,
-    refetchInterval: 20000,
+    refetchInterval: 30000,
     refetchOnWindowFocus: true,
   });
 
   const requestMut = useMutation({
     mutationFn: ({ courseId, message }) => api.post(`/courses/student/request/${courseId}`, { message }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries(['student-courses-all']);
-      toast.success('تم إرسال طلب الانضمام للمعلم');
+      qc.invalidateQueries(['student-courses']);
+      if (res.data?.enrolled) {
+        toast.success('🎁 تم تسجيلك تلقائياً في الكورس المجاني');
+      } else {
+        toast.success('تم إرسال طلب الانضمام للمعلم');
+      }
     },
     onError: (e) => toast.error(e.response?.data?.error || 'حدث خطأ'),
   });
@@ -167,6 +171,24 @@ export default function StudentCourses() {
           )}
         </div>
 
+        {/* Banner: new courses available */}
+        {tab === 'enrolled' && notEnrolled.length > 0 && (
+          <button
+            onClick={() => setTab('browse')}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-l from-orange-50 to-amber-50 border border-orange-200 rounded-2xl hover:border-orange-400 transition-all group text-right">
+            <span className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <Bell className="w-4 h-4 text-white" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-orange-700">
+                {notEnrolled.length === 1 ? 'كورس جديد متاح!' : `${notEnrolled.length} كورسات جديدة متاحة!`}
+              </p>
+              <p className="text-xs text-orange-500 font-medium">اضغط هنا لاستعراض الكورسات المتاحة والانضمام إليها</p>
+            </div>
+            <ArrowLeft className="w-4 h-4 text-orange-400 group-hover:text-orange-600 flex-shrink-0" />
+          </button>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
           <button onClick={() => setTab('enrolled')}
@@ -176,6 +198,11 @@ export default function StudentCourses() {
           <button onClick={() => setTab('browse')}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${tab === 'browse' ? 'bg-white text-navy-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <Search className="w-3.5 h-3.5" /> استعرض الكورسات
+            {notEnrolled.length > 0 && (
+              <span className="bg-orange-500 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                {notEnrolled.length}
+              </span>
+            )}
           </button>
         </div>
 

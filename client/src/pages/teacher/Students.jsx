@@ -398,6 +398,7 @@ export default function TeacherStudents() {
                 <th className="table-header">اسم المستخدم</th>
                 <th className="table-header">كلمة المرور</th>
                 <th className="table-header">الهاتف</th>
+                <th className="table-header">رقم ولي الأمر</th>
                 <th className="table-header">المرحلة</th>
                 <th className="table-header">النقاط</th>
                 <th className="table-header">الكورسات</th>
@@ -407,10 +408,10 @@ export default function TeacherStudents() {
             <tbody>
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
-                  <tr key={i}><td colSpan={8} className="table-cell"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>
+                  <tr key={i}><td colSpan={9} className="table-cell"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="table-cell text-center py-14">
+                <tr><td colSpan={9} className="table-cell text-center py-14">
                   <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                   <p className="font-medium text-gray-500">
                     {search || stageFilter !== 'الكل' ? 'لا توجد نتائج مطابقة' : 'لا يوجد طلاب بعد'}
@@ -429,6 +430,7 @@ export default function TeacherStudents() {
                     )}
                   </td>
                   <td className="table-cell text-gray-700">{s.phone || '—'}</td>
+                  <td className="table-cell text-gray-700">{s.parent_phone || '—'}</td>
                   <td className="table-cell">
                     <span className="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-1 rounded-full">
                       {s.academic_stage || '—'}

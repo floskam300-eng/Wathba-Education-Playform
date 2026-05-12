@@ -137,15 +137,55 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), checkManageCours
       [newPublished, req.params.id, teacherId]
     );
 
-    // When publishing a free course, auto-enroll all matching students
-    if (newPublished && course.is_free && course.target_stage) {
-      await pool.query(
-        `INSERT INTO student_course_enrollment (student_id, course_id)
-         SELECT id, $1 FROM students WHERE teacher_id=$2 AND academic_stage=$3 AND deleted_at IS NULL
-         ON CONFLICT DO NOTHING`,
-        [course.id, teacherId, course.target_stage]
+    if (newPublished) {
+      // Determine which students to notify
+      const stageClause = (course.target_stage && course.target_stage.trim())
+        ? `AND academic_stage = '${course.target_stage.replace(/'/g, "''")}'`
+        : '';
+      const eligibleStudents = await pool.query(
+        `SELECT id FROM students WHERE teacher_id=$1 AND deleted_at IS NULL ${stageClause}`,
+        [teacherId]
       );
-      broadcastToTeacherStudents(pool, teacherId, 'new_course', { name: course.name, courseId: course.id });
+
+      if (course.is_free) {
+        // Auto-enroll all eligible students
+        if (course.target_stage && course.target_stage.trim()) {
+          await pool.query(
+            `INSERT INTO student_course_enrollment (student_id, course_id)
+             SELECT id, $1 FROM students WHERE teacher_id=$2 AND academic_stage=$3 AND deleted_at IS NULL
+             ON CONFLICT DO NOTHING`,
+            [course.id, teacherId, course.target_stage]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO student_course_enrollment (student_id, course_id)
+             SELECT id, $1 FROM students WHERE teacher_id=$2 AND deleted_at IS NULL
+             ON CONFLICT DO NOTHING`,
+            [course.id, teacherId]
+          );
+        }
+      }
+
+      // Notify all eligible students via notification_log + SSE
+      const msgText = course.is_free
+        ? `🎁 تم تسجيلك تلقائياً في الكورس المجاني: "${course.name}"`
+        : `📚 كورس جديد متاح للتسجيل: "${course.name}"`;
+      const notifTitle = course.is_free ? 'تسجيل تلقائي في كورس مجاني' : 'كورس جديد';
+      const notifType  = 'new_course';
+
+      for (const { id: sid } of eligibleStudents.rows) {
+        await pool.query(
+          `INSERT INTO notification_log (teacher_id, student_id, recipient_type, message, type, is_read, source, title)
+           VALUES ($1,$2,'student',$3,$4,false,'platform',$5)`,
+          [teacherId, sid, msgText, notifType, notifTitle]
+        );
+        sendEvent(`student_${sid}`, 'platform_notification', {
+          title:   notifTitle,
+          message: msgText,
+          type:    notifType,
+          courseId: course.id,
+        });
+      }
     }
 
     res.json({ is_published: newPublished });
