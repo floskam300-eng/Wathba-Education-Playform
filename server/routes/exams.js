@@ -137,7 +137,6 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), async (req, res)
     const exam = result.rows[0];
 
     if (exam.is_published) {
-      // Get all affected student IDs
       let studentIds = [];
       if (exam.course_id) {
         const sRes = await pool.query(
@@ -175,22 +174,12 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), async (req, res)
         }
       }
 
-      if (hasStartDate) {
-        const delay = startDate - now;
-        setTimeout(async () => {
-          const startMsg = `⏰ بدأ وقت اختبار: "${exam.title}" — يمكنك الدخول الآن`;
-          for (const sid of studentIds) {
-            try {
-              await pool.query(
-                `INSERT INTO notification_log (teacher_id, student_id, recipient_type, message, type, is_read, source, title)
-                 VALUES ($1,$2,'student',$3,'new_exam',false,'platform',$4)`,
-                [teacherId, sid, startMsg, 'بدأ وقت الاختبار']
-              );
-            } catch (_) {}
-            sendEvent(`student_${sid}`, 'new_exam', { title: exam.title, examId: exam.id });
-          }
-        }, delay);
-      }
+      // For scheduled exams: mark start_notified=false so the scheduler picks it up.
+      // For immediate exams: mark start_notified=true (already notified above).
+      await pool.query(
+        'UPDATE exams SET start_notified = $1 WHERE id = $2',
+        [!hasStartDate, exam.id]
+      );
     }
 
     res.json({ id: exam.id, is_published: exam.is_published });

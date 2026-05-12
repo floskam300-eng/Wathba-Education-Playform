@@ -6,6 +6,7 @@ const pool = require('./db/connection');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const { addClient, removeClient } = require('./sse');
+const { startScheduler } = require('./scheduler');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -91,5 +92,6 @@ const initDB = async () => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', async () => {
   await initDB();
+  startScheduler(pool);
   console.log(`WATHBA Server running on port ${PORT}`);
 });

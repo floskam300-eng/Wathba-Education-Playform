@@ -14,6 +14,25 @@ const getExamScheduleStatus = (ex) => {
   return 'open';
 };
 
+function useCountdownTick() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return null;
+  const totalSecs = Math.floor(ms / 1000);
+  const days  = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins  = Math.floor((totalSecs % 3600) / 60);
+  const secs  = totalSecs % 60;
+  if (days > 0) return `${days} يوم ${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  return `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+}
+
 export default function StudentExams() {
   const qc = useQueryClient();
   const [taking, setTaking] = useState(null);
@@ -27,6 +46,8 @@ export default function StudentExams() {
   const [retryModal, setRetryModal] = useState(null);
   const [retryMessage, setRetryMessage] = useState('');
 
+  useCountdownTick();
+
   const answersRef = useRef({});
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
@@ -34,6 +55,34 @@ export default function StudentExams() {
     queryKey: ['student-exams'],
     queryFn: () => api.get('/exams/student/available').then(r => r.data),
   });
+
+  // Auto-refresh when upcoming exams hit their start time (client-side fallback)
+  useEffect(() => {
+    if (!exams.length) return;
+    const upcomingDates = exams
+      .filter(ex => ex.start_date && new Date(ex.start_date) > new Date())
+      .map(ex => new Date(ex.start_date).getTime());
+    if (!upcomingDates.length) return;
+
+    const timers = upcomingDates.map(ts => {
+      const delay = ts - Date.now();
+      if (delay <= 0) return null;
+      return setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ['student-exams'] });
+      }, delay + 500);
+    }).filter(Boolean);
+
+    return () => timers.forEach(t => clearTimeout(t));
+  }, [exams, qc]);
+
+  // Listen for SSE exam_started event to also force-refresh
+  useEffect(() => {
+    const handler = () => {
+      qc.invalidateQueries({ queryKey: ['student-exams'] });
+    };
+    window.addEventListener('wathba_exam_started', handler);
+    return () => window.removeEventListener('wathba_exam_started', handler);
+  }, [qc]);
 
   const { data: retryRequests = [] } = useQuery({
     queryKey: ['student-retry-requests'],
@@ -401,11 +450,24 @@ export default function StudentExams() {
                     </div>
                   )}
 
-                  {isUpcoming && ex.start_date && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-xs text-yellow-800 font-bold mb-3">
-                      يبدأ في: {new Date(ex.start_date).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
-                    </div>
-                  )}
+                  {isUpcoming && ex.start_date && (() => {
+                    const msLeft = new Date(ex.start_date).getTime() - Date.now();
+                    const cd = formatCountdown(msLeft);
+                    return (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 mb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-yellow-800 font-bold">
+                            يبدأ في: {new Date(ex.start_date).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </span>
+                          {cd && (
+                            <span className="text-xs font-black text-orange-700 bg-orange-100 rounded-lg px-2 py-0.5 tabular-nums tracking-wider">
+                              ⏳ {cd}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {ex.already_taken ? (() => {
                     const passed = ex.score >= ex.pass_score;

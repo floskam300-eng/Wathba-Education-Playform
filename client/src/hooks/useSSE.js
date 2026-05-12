@@ -58,8 +58,20 @@ export function useSSE(enabled, role) {
         qc.invalidateQueries({ queryKey: ['my-notifications'] });
         window.dispatchEvent(new CustomEvent('wathba_platform_notification', { detail: data }));
         toast.success(
-          `${EVENT_ICONS.new_exam} اختبار جديد: ${data.title}`,
+          `${EVENT_ICONS.new_exam} اختبار جديد متاح الآن: ${data.title}`,
           { duration: 6000, style: { fontFamily: 'inherit', direction: 'rtl' } }
+        );
+      });
+
+      es.addEventListener('exam_started', (e) => {
+        const data = JSON.parse(e.data);
+        qc.invalidateQueries({ queryKey: ['student-exams'] });
+        qc.invalidateQueries({ queryKey: ['student-dashboard'] });
+        qc.invalidateQueries({ queryKey: ['my-notifications'] });
+        window.dispatchEvent(new CustomEvent('wathba_exam_started', { detail: data }));
+        toast.success(
+          `⏰ بدأ وقت اختبار: ${data.title} — يمكنك الدخول الآن!`,
+          { duration: 8000, style: { fontFamily: 'inherit', direction: 'rtl', background: '#16a34a', color: '#fff' } }
         );
       });
 
