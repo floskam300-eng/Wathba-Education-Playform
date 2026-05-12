@@ -224,8 +224,20 @@ router.get('/:id/content', authenticate, async (req, res) => {
       }
     }
 
+    const isStudent = req.user.role === 'student';
     const [videos, pdfs, exams, sections] = await Promise.all([
-      pool.query('SELECT * FROM videos WHERE course_id=$1 ORDER BY sort_order, id', [courseId]),
+      isStudent
+        ? pool.query(
+            `SELECT v.*, vp.progress_percentage as saved_progress, vp.last_position as saved_position,
+                    vp.watched_minutes as saved_watched_minutes, vp.actual_watched_seconds as saved_watched_seconds,
+                    vp.watch_count as saved_watch_count
+             FROM videos v
+             LEFT JOIN video_progress vp ON vp.video_id = v.id AND vp.student_id = $2
+             WHERE v.course_id = $1
+             ORDER BY v.sort_order, v.id`,
+            [courseId, req.user.id]
+          )
+        : pool.query('SELECT * FROM videos WHERE course_id=$1 ORDER BY sort_order, id', [courseId]),
       pool.query('SELECT * FROM pdf_files WHERE course_id=$1 ORDER BY id', [courseId]),
       pool.query('SELECT id,title,duration_minutes,total_score,pass_score FROM exams WHERE course_id=$1', [courseId]),
       pool.query('SELECT * FROM sections WHERE course_id=$1 ORDER BY sort_order, id', [courseId]),

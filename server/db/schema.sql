@@ -121,8 +121,12 @@ CREATE TABLE IF NOT EXISTS video_progress (
   watched_minutes INTEGER DEFAULT 0,
   progress_percentage DECIMAL(5,2) DEFAULT 0,
   last_watched_at TIMESTAMP DEFAULT NOW(),
+  last_position DECIMAL(10,2) DEFAULT 0,
+  actual_watched_seconds INTEGER DEFAULT 0,
   UNIQUE(student_id, video_id)
 );
+ALTER TABLE video_progress ADD COLUMN IF NOT EXISTS last_position DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE video_progress ADD COLUMN IF NOT EXISTS actual_watched_seconds INTEGER DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS payments (
   id SERIAL PRIMARY KEY,

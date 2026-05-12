@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ArrowRight, Play, FileText, BookOpen, Video, Clock,
   Download, CheckCircle2, Lock, ChevronRight, AlertCircle,
-  Pause, Volume2, VolumeX, Maximize2, Minimize2, RotateCcw
+  Pause, Volume2, VolumeX, Maximize2, Minimize2, RotateCcw,
+  Settings, Gauge
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
@@ -14,6 +15,16 @@ import { useAuth } from '../../context/AuthContext';
 const fmt = (min) => min >= 60
   ? `${Math.floor(min / 60)}س ${min % 60}د`
   : `${min} دقيقة`;
+
+/* ─── Player settings persistence (localStorage) ─────── */
+const STORAGE_VOLUME = 'wathba_player_volume';
+const STORAGE_SPEED  = 'wathba_player_speed';
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+const loadVolume = () => { try { const v = localStorage.getItem(STORAGE_VOLUME); return v !== null ? parseFloat(v) : 80; } catch { return 80; } };
+const loadSpeed  = () => { try { const s = localStorage.getItem(STORAGE_SPEED);  return s !== null ? parseFloat(s) : 1;  } catch { return 1;  } };
+const saveVolume = (v) => { try { localStorage.setItem(STORAGE_VOLUME, String(v)); } catch {} };
+const saveSpeed  = (s) => { try { localStorage.setItem(STORAGE_SPEED,  String(s)); } catch {} };
 
 /* ─── Floating Watermark ───────────────────────────────── */
 const WATERMARK_SLOTS = [
@@ -134,7 +145,7 @@ function ensureYTApi(cb) {
 }
 
 /* ─── Custom YouTube Player (IFrame API) ───────────────── */
-function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
+function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode, initialPosition = 0 }) {
   const containerRef  = useRef(null);
   const playerRef     = useRef(null);
   const playerDivId   = useRef(`yt-${Math.random().toString(36).slice(2)}`).current;
@@ -143,16 +154,20 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
   const hideTimer     = useRef(null);
   const seeking       = useRef(false);
   const maxPct        = useRef(0);
+  const actualWatched = useRef(0);
+  const playStart     = useRef(null);
 
   const [playing,      setPlaying]      = useState(false);
   const [buffering,    setBuffering]    = useState(true);
   const [progress,     setProgress]     = useState(0);
   const [duration,     setDuration]     = useState(0);
   const [currentTime,  setCurrentTime]  = useState(0);
-  const [volume,       setVolume]       = useState(80);
+  const [volume,       setVolume]       = useState(() => loadVolume());
   const [muted,        setMuted]        = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [speed,        setSpeed]        = useState(() => loadSpeed());
+  const [showSpeed,    setShowSpeed]    = useState(false);
 
   const ytId = extractYoutubeId(video.file_path_or_url);
 
@@ -163,6 +178,8 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
     setProgress(0);
     setCurrentTime(0);
     maxPct.current = 0;
+    actualWatched.current = 0;
+    playStart.current = null;
   }, [video?.id]);
 
   /* ── fullscreen change listener ── */
@@ -184,6 +201,9 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
   useEffect(() => {
     if (!ytId) return;
 
+    const savedVol   = loadVolume();
+    const savedSpeed = loadSpeed();
+
     const init = () => {
       if (playerRef.current) {
         try { playerRef.current.destroy(); } catch (_) {}
@@ -203,43 +223,53 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
           iv_load_policy: 3,
           playsinline: 1,
           cc_load_policy: 0,
+          start: initialPosition > 5 ? Math.floor(initialPosition) : 0,
         },
         events: {
           onReady: (e) => {
             setBuffering(false);
             const d = e.target.getDuration();
             if (d > 0) setDuration(d);
-            e.target.setVolume(80);
+            e.target.setVolume(savedVol);
+            try { e.target.setPlaybackRate(savedSpeed); } catch (_) {}
+            if (initialPosition > 5) {
+              try { e.target.seekTo(initialPosition, true); } catch (_) {}
+            }
           },
           onStateChange: (e) => {
             const S = window.YT.PlayerState;
             if (e.data === S.PLAYING) {
               setPlaying(true);
               setBuffering(false);
+              playStart.current = Date.now();
               const d = e.target.getDuration();
               if (d > 0) setDuration(d);
+              try { e.target.setPlaybackRate(loadSpeed()); } catch (_) {}
               clearInterval(progressTimer.current);
               progressTimer.current = setInterval(() => {
                 if (seeking.current || !playerRef.current) return;
                 try {
                   const ct = playerRef.current.getCurrentTime();
-                  const d  = playerRef.current.getDuration();
+                  const dur = playerRef.current.getDuration();
                   setCurrentTime(ct);
-                  if (d > 0) {
-                    const pct = (ct / d) * 100;
+                  if (dur > 0) {
+                    const pct = (ct / dur) * 100;
                     setProgress(pct);
                     if (pct > maxPct.current) maxPct.current = pct;
                   }
                 } catch (_) {}
               }, 500);
-              /* periodic progress save every 30s */
               clearInterval(saveTimer.current);
               saveTimer.current = setInterval(() => {
                 if (!playerRef.current || !onProgressUpdate || !video?.id) return;
                 try {
-                  const d = playerRef.current.getDuration() || 0;
-                  const watchedMin = d > 0 ? (maxPct.current / 100) * (d / 60) : 0;
-                  onProgressUpdate(video.id, watchedMin, maxPct.current, false);
+                  const dur = playerRef.current.getDuration() || 0;
+                  const ct  = playerRef.current.getCurrentTime() || 0;
+                  const watchedMin = dur > 0 ? (maxPct.current / 100) * (dur / 60) : 0;
+                  const elapsedSec = playStart.current ? Math.round((Date.now() - playStart.current) / 1000) : 0;
+                  actualWatched.current += elapsedSec;
+                  playStart.current = Date.now();
+                  onProgressUpdate(video.id, watchedMin, maxPct.current, false, ct, actualWatched.current);
                 } catch (_) {}
               }, 30000);
             } else if (e.data === S.BUFFERING) {
@@ -249,19 +279,23 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
               setBuffering(false);
               clearInterval(progressTimer.current);
               clearInterval(saveTimer.current);
+              if (playStart.current) {
+                actualWatched.current += Math.round((Date.now() - playStart.current) / 1000);
+                playStart.current = null;
+              }
               if (e.data === S.ENDED) {
                 setProgress(100);
                 if (onProgressUpdate && video?.id) {
-                  const d = playerRef.current?.getDuration() || 0;
-                  onProgressUpdate(video.id, d / 60, 100, true);
+                  const dur = playerRef.current?.getDuration() || 0;
+                  onProgressUpdate(video.id, dur / 60, 100, true, dur, actualWatched.current);
                 }
               } else if (e.data === S.PAUSED) {
-                /* save on pause too */
                 if (onProgressUpdate && video?.id) {
                   try {
-                    const d = playerRef.current?.getDuration() || 0;
-                    const watchedMin = d > 0 ? (maxPct.current / 100) * (d / 60) : 0;
-                    onProgressUpdate(video.id, watchedMin, maxPct.current, false);
+                    const dur = playerRef.current?.getDuration() || 0;
+                    const ct  = playerRef.current?.getCurrentTime() || 0;
+                    const watchedMin = dur > 0 ? (maxPct.current / 100) * (dur / 60) : 0;
+                    onProgressUpdate(video.id, watchedMin, maxPct.current, false, ct, actualWatched.current);
                   } catch (_) {}
                 }
               }
@@ -301,6 +335,7 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
     const v = Number(e.target.value);
     setVolume(v);
     setMuted(v === 0);
+    saveVolume(v);
     try {
       playerRef.current?.setVolume(v);
       v === 0 ? playerRef.current?.mute() : playerRef.current?.unMute();
@@ -320,6 +355,13 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
       playerRef.current?.seekTo(t, true);
       setCurrentTime(t);
     } catch (_) {}
+  };
+
+  const changeSpeed = (s) => {
+    setSpeed(s);
+    saveSpeed(s);
+    setShowSpeed(false);
+    try { playerRef.current?.setPlaybackRate(s); } catch (_) {}
   };
 
   const toggleFullscreen = () => {
@@ -356,91 +398,68 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
       onMouseLeave={() => { if (!seeking.current && playing) setShowControls(false); }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ── Watermark — highest layer, always visible ── */}
       <FloatingWatermark name={studentName} code={studentCode} />
-
-      {/* ── YouTube IFrame target ── */}
       <div id={playerDivId} className="absolute inset-0 w-full h-full" />
+      <div className="absolute inset-0" style={{ zIndex: 10 }} onClick={toggle} onContextMenu={(e) => e.preventDefault()} />
 
-      {/* ── Transparent overlay — blocks iframe mouse capture ── */}
-      <div
-        className="absolute inset-0"
-        style={{ zIndex: 10 }}
-        onClick={toggle}
-        onContextMenu={(e) => e.preventDefault()}
-      />
-
-      {/* ── Big play button ── */}
       {!playing && !buffering && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 20, pointerEvents: 'none' }}>
-          <div
-            className="w-20 h-20 rounded-full bg-orange-500/90 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform cursor-pointer"
-            style={{ pointerEvents: 'auto' }}
-            onClick={(e) => { e.stopPropagation(); toggle(); }}
-          >
+          <div className="w-20 h-20 rounded-full bg-orange-500/90 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform cursor-pointer" style={{ pointerEvents: 'auto' }} onClick={(e) => { e.stopPropagation(); toggle(); }}>
             <Play className="w-8 h-8 text-white fill-white mr-[-2px]" />
           </div>
         </div>
       )}
-
-      {/* ── Buffering spinner ── */}
       {buffering && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 20, pointerEvents: 'none' }}>
           <div className="w-12 h-12 border-4 border-white/20 border-t-orange-500 rounded-full animate-spin" />
         </div>
       )}
 
-      {/* ── Controls bar ── */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${
-          showControls || !playing ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        style={{ zIndex: 30 }}
-      >
-        <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 pt-10 pb-3">
+      {/* Speed picker popup */}
+      {showSpeed && (
+        <div className="absolute bottom-20 left-4 bg-gray-900/95 border border-white/10 rounded-xl overflow-hidden shadow-2xl" style={{ zIndex: 40 }}>
+          <p className="text-[10px] font-bold text-gray-400 px-3 pt-2 pb-1 border-b border-white/10">سرعة التشغيل</p>
+          {SPEEDS.map(s => (
+            <button key={s} onClick={() => changeSpeed(s)}
+              className={`w-full text-center px-5 py-1.5 text-sm font-bold transition-colors ${speed === s ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-white/10'}`}>
+              {s === 1 ? 'عادي' : `${s}x`}
+            </button>
+          ))}
+        </div>
+      )}
 
-          {/* Seek bar */}
+      <div className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: 30 }}>
+        <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 pt-10 pb-3">
           <div className="mb-3">
-            <input
-              type="range" min="0" max="100" step="0.1" value={progress} dir="ltr"
-              className="player-range player-range-progress"
-              style={{ '--pct': pct }}
+            <input type="range" min="0" max="100" step="0.1" value={progress} dir="ltr"
+              className="player-range player-range-progress" style={{ '--pct': pct }}
               onMouseDown={() => { seeking.current = true; }}
               onMouseUp={() => { seeking.current = false; resetHide(); }}
-              onChange={onSeekChange}
-            />
+              onChange={onSeekChange} />
           </div>
-
-          {/* Buttons row */}
           <div className="flex items-center gap-3">
             <button onClick={toggle} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               {playing ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}
             </button>
-
             <button onClick={rewind10} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               <RotateCcw className="w-4 h-4" />
             </button>
-
-            <span className="text-white/70 text-xs font-mono flex-shrink-0">
-              {fmtSec(currentTime)} / {fmtSec(duration)}
-            </span>
-
+            <span className="text-white/70 text-xs font-mono flex-shrink-0">{fmtSec(currentTime)} / {fmtSec(duration)}</span>
             <div className="flex-1" />
-
+            {/* Speed button */}
+            <button onClick={() => setShowSpeed(p => !p)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-colors flex-shrink-0 ${speed !== 1 ? 'text-orange-400 bg-orange-400/10' : 'text-white/70 hover:text-white'}`}>
+              <Gauge className="w-3.5 h-3.5" />
+              {speed === 1 ? '1x' : `${speed}x`}
+            </button>
             <button onClick={toggleMute} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
-
             <div className="w-20 flex-shrink-0">
-              <input
-                type="range" min="0" max="100" step="1"
-                value={muted ? 0 : volume} dir="ltr"
-                className="player-range player-range-volume"
-                style={{ '--vol': vol }}
-                onChange={onVolumeChange}
-              />
+              <input type="range" min="0" max="100" step="1" value={muted ? 0 : volume} dir="ltr"
+                className="player-range player-range-volume" style={{ '--vol': vol }}
+                onChange={onVolumeChange} />
             </div>
-
             <button onClick={toggleFullscreen} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
@@ -452,36 +471,39 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode }) {
 }
 
 /* ─── Custom Video Player ──────────────────────────────── */
-function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
-  const containerRef = useRef(null);
-  const videoRef = useRef(null);
-  const [playing, setPlaying]         = useState(false);
-  const [progress, setProgress]       = useState(0);   // 0–100
-  const [duration, setDuration]       = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume]           = useState(1);   // 0–1
-  const [muted, setMuted]             = useState(false);
+function VideoPlayer({ video, onProgressUpdate, studentName, studentCode, initialPosition = 0 }) {
+  const containerRef  = useRef(null);
+  const videoRef      = useRef(null);
+  const hideTimer     = useRef(null);
+  const seeking       = useRef(false);
+  const saveTimer     = useRef(null);
+  const actualWatched = useRef(0);
+  const playStart     = useRef(null);
+  const maxProgress   = useRef(0);
+
+  const [playing,      setPlaying]      = useState(false);
+  const [progress,     setProgress]     = useState(0);
+  const [duration,     setDuration]     = useState(0);
+  const [currentTime,  setCurrentTime]  = useState(0);
+  const [volume,       setVolume]       = useState(() => loadVolume() / 100);
+  const [muted,        setMuted]        = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const hideTimer    = useRef(null);
-  const seeking      = useRef(false);
-  const saveTimer    = useRef(null);
-  const watchStart   = useRef(null);
-  const maxProgress  = useRef(0);
+  const [speed,        setSpeed]        = useState(() => loadSpeed());
+  const [showSpeed,    setShowSpeed]    = useState(false);
 
   useEffect(() => {
     setPlaying(false);
     setProgress(0);
     setCurrentTime(0);
-    maxProgress.current = 0;
-    watchStart.current = null;
+    maxProgress.current  = 0;
+    actualWatched.current = 0;
+    playStart.current    = null;
   }, [video?.id]);
 
   /* ── fullscreen change listener ── */
   useEffect(() => {
-    const onFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
     document.addEventListener('mozfullscreenchange', onFsChange);
@@ -495,9 +517,7 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
   const resetHideTimer = () => {
     setShowControls(true);
     clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => {
-      if (!seeking.current) setShowControls(false);
-    }, 3000);
+    hideTimer.current = setTimeout(() => { if (!seeking.current) setShowControls(false); }, 3000);
   };
 
   const toggle = () => {
@@ -507,9 +527,8 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
   };
 
   const fmtSec = (s) => {
-    const m   = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+    const m = Math.floor(s / 60);
+    return `${m}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
   };
 
   const onSeekChange = (e) => {
@@ -523,30 +542,22 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
     const v = Number(e.target.value);
     setVolume(v);
     setMuted(v === 0);
-    if (videoRef.current) {
-      videoRef.current.volume = v;
-      videoRef.current.muted  = v === 0;
-    }
+    saveVolume(Math.round(v * 100));
+    if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0; }
   };
+
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
     if (videoRef.current) videoRef.current.muted = next;
   };
 
-  if (!video) return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-900">
-      <div className="text-center text-gray-500">
-        <Video className="w-20 h-20 mx-auto mb-4 opacity-20" />
-        <p className="text-gray-400 font-semibold text-lg">اختر محاضرة للمشاهدة</p>
-      </div>
-    </div>
-  );
-
-  /* ── Route YouTube links to the dedicated embed player ── */
-  if (isYoutubeUrl(video.file_path_or_url)) {
-    return <YoutubePlayer video={video} onProgressUpdate={onProgressUpdate} studentName={studentName} studentCode={studentCode} />;
-  }
+  const changeSpeed = (s) => {
+    setSpeed(s);
+    saveSpeed(s);
+    setShowSpeed(false);
+    if (videoRef.current) videoRef.current.playbackRate = s;
+  };
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -558,8 +569,21 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
     }
   };
 
-  const pct  = `${progress}%`;
-  const vol  = `${(muted ? 0 : volume) * 100}%`;
+  if (!video) return (
+    <div className="w-full h-full flex items-center justify-center bg-gray-900">
+      <div className="text-center text-gray-500">
+        <Video className="w-20 h-20 mx-auto mb-4 opacity-20" />
+        <p className="text-gray-400 font-semibold text-lg">اختر محاضرة للمشاهدة</p>
+      </div>
+    </div>
+  );
+
+  if (isYoutubeUrl(video.file_path_or_url)) {
+    return <YoutubePlayer video={video} onProgressUpdate={onProgressUpdate} studentName={studentName} studentCode={studentCode} initialPosition={initialPosition} />;
+  }
+
+  const pct = `${progress}%`;
+  const vol = `${(muted ? 0 : volume) * 100}%`;
 
   return (
     <div
@@ -568,7 +592,6 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
       onMouseMove={resetHideTimer}
       onMouseLeave={() => { if (!seeking.current && playing) setShowControls(false); }}
     >
-      {/* ── Floating student watermark (anti-leak) ── */}
       <FloatingWatermark name={studentName} code={studentCode} />
 
       <video
@@ -586,140 +609,111 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode }) {
           const ct = videoRef.current.currentTime;
           const d  = duration || 1;
           setCurrentTime(ct);
-          const pct = ct / d * 100;
-          setProgress(pct);
-          if (pct > maxProgress.current) maxProgress.current = pct;
+          const p = ct / d * 100;
+          setProgress(p);
+          if (p > maxProgress.current) maxProgress.current = p;
         }}
-        onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+        onLoadedMetadata={() => {
+          const d = videoRef.current?.duration || 0;
+          setDuration(d);
+          if (videoRef.current) {
+            videoRef.current.volume       = loadVolume() / 100;
+            videoRef.current.playbackRate = loadSpeed();
+            if (initialPosition > 5) videoRef.current.currentTime = initialPosition;
+          }
+        }}
         onEnded={() => {
           setPlaying(false);
+          clearInterval(saveTimer.current);
+          if (playStart.current) { actualWatched.current += Math.round((Date.now() - playStart.current) / 1000); playStart.current = null; }
           if (onProgressUpdate && video?.id) {
             const d = videoRef.current?.duration || 0;
-            onProgressUpdate(video.id, d / 60, 100, true);
+            onProgressUpdate(video.id, d / 60, 100, true, d, actualWatched.current);
           }
         }}
         onPlay={() => {
           setPlaying(true);
-          watchStart.current = Date.now();
+          playStart.current = Date.now();
+          if (videoRef.current) videoRef.current.playbackRate = loadSpeed();
           saveTimer.current = setInterval(() => {
             if (!videoRef.current) return;
-            const d = videoRef.current.duration || 0;
+            const d   = videoRef.current.duration || 0;
+            const ct  = videoRef.current.currentTime || 0;
             const watchedMin = d > 0 ? (maxProgress.current / 100) * (d / 60) : 0;
-            if (onProgressUpdate && video?.id) {
-              onProgressUpdate(video.id, watchedMin, maxProgress.current, false);
-            }
+            const elapsed = playStart.current ? Math.round((Date.now() - playStart.current) / 1000) : 0;
+            actualWatched.current += elapsed;
+            playStart.current = Date.now();
+            if (onProgressUpdate && video?.id) onProgressUpdate(video.id, watchedMin, maxProgress.current, false, ct, actualWatched.current);
           }, 30000);
         }}
         onPause={() => {
           setPlaying(false);
           clearInterval(saveTimer.current);
+          if (playStart.current) { actualWatched.current += Math.round((Date.now() - playStart.current) / 1000); playStart.current = null; }
           if (onProgressUpdate && video?.id && videoRef.current) {
-            const d = videoRef.current.duration || 0;
+            const d  = videoRef.current.duration || 0;
+            const ct = videoRef.current.currentTime || 0;
             const watchedMin = d > 0 ? (maxProgress.current / 100) * (d / 60) : 0;
-            onProgressUpdate(video.id, watchedMin, maxProgress.current, false);
+            onProgressUpdate(video.id, watchedMin, maxProgress.current, false, ct, actualWatched.current);
           }
         }}
         onClick={toggle}
       />
 
-      {/* Big play overlay */}
       {!playing && (
-        <button
-          onClick={toggle}
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ pointerEvents: 'none' }}
-        >
-          <div
-            className="w-20 h-20 rounded-full bg-orange-500/90 flex items-center justify-center shadow-2xl hover:bg-orange-500 hover:scale-110 transition-all duration-200"
-            style={{ pointerEvents: 'auto' }}
-            onClick={(e) => { e.stopPropagation(); toggle(); }}
-          >
+        <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: 'none' }}>
+          <div className="w-20 h-20 rounded-full bg-orange-500/90 flex items-center justify-center shadow-2xl hover:scale-110 transition-all" style={{ pointerEvents: 'auto' }} onClick={(e) => { e.stopPropagation(); toggle(); }}>
             <Play className="w-8 h-8 text-white fill-white mr-[-2px]" />
           </div>
-        </button>
+        </div>
       )}
 
-      {/* Controls bar */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${
-          showControls || !playing ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 pt-10 pb-3">
-
-          {/* ── Seek bar ── */}
-          <div className="mb-3">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="0.1"
-              value={progress}
-              dir="ltr"
-              className="player-range player-range-progress"
-              style={{ '--pct': pct }}
-              onMouseDown={() => { seeking.current = true; }}
-              onMouseUp={() => {
-                seeking.current = false;
-                resetHideTimer();
-              }}
-              onChange={onSeekChange}
-            />
-          </div>
-
-          {/* ── Bottom controls ── */}
-          <div className="flex items-center gap-3">
-            {/* Play / Pause */}
-            <button onClick={toggle} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
-              {playing
-                ? <Pause className="w-5 h-5 fill-white" />
-                : <Play  className="w-5 h-5 fill-white" />
-              }
+      {/* Speed picker popup */}
+      {showSpeed && (
+        <div className="absolute bottom-20 left-4 bg-gray-900/95 border border-white/10 rounded-xl overflow-hidden shadow-2xl" style={{ zIndex: 40 }}>
+          <p className="text-[10px] font-bold text-gray-400 px-3 pt-2 pb-1 border-b border-white/10">سرعة التشغيل</p>
+          {SPEEDS.map(s => (
+            <button key={s} onClick={() => changeSpeed(s)}
+              className={`w-full text-center px-5 py-1.5 text-sm font-bold transition-colors ${speed === s ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-white/10'}`}>
+              {s === 1 ? 'عادي' : `${s}x`}
             </button>
+          ))}
+        </div>
+      )}
 
-            {/* Rewind 10s */}
-            <button
-              onClick={() => { if (videoRef.current) videoRef.current.currentTime -= 10; }}
-              className="text-white hover:text-orange-400 transition-colors flex-shrink-0"
-            >
+      <div className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 pt-10 pb-3">
+          <div className="mb-3">
+            <input type="range" min="0" max="100" step="0.1" value={progress} dir="ltr"
+              className="player-range player-range-progress" style={{ '--pct': pct }}
+              onMouseDown={() => { seeking.current = true; }}
+              onMouseUp={() => { seeking.current = false; resetHideTimer(); }}
+              onChange={onSeekChange} />
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={toggle} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
+              {playing ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}
+            </button>
+            <button onClick={() => { if (videoRef.current) videoRef.current.currentTime -= 10; }} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               <RotateCcw className="w-4 h-4" />
             </button>
-
-            {/* Time */}
-            <span className="text-white/70 text-xs font-mono flex-shrink-0">
-              {fmtSec(currentTime)} / {fmtSec(duration)}
-            </span>
-
+            <span className="text-white/70 text-xs font-mono flex-shrink-0">{fmtSec(currentTime)} / {fmtSec(duration)}</span>
             <div className="flex-1" />
-
-            {/* Volume icon (mute toggle) */}
-            <button onClick={toggleMute} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
-              {muted || volume === 0
-                ? <VolumeX className="w-5 h-5" />
-                : <Volume2 className="w-5 h-5" />
-              }
+            {/* Speed button */}
+            <button onClick={() => setShowSpeed(p => !p)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-colors flex-shrink-0 ${speed !== 1 ? 'text-orange-400 bg-orange-400/10' : 'text-white/70 hover:text-white'}`}>
+              <Gauge className="w-3.5 h-3.5" />
+              {speed === 1 ? '1x' : `${speed}x`}
             </button>
-
-            {/* Volume slider */}
+            <button onClick={toggleMute} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
+              {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+            </button>
             <div className="w-20 flex-shrink-0">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={muted ? 0 : volume}
-                dir="ltr"
-                className="player-range player-range-volume"
-                style={{ '--vol': vol }}
-                onChange={onVolumeChange}
-              />
+              <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume} dir="ltr"
+                className="player-range player-range-volume" style={{ '--vol': vol }}
+                onChange={onVolumeChange} />
             </div>
-
-            {/* Fullscreen */}
-            <button
-              onClick={toggleFullscreen}
-              className="text-white hover:text-orange-400 transition-colors flex-shrink-0"
-            >
+            <button onClick={toggleFullscreen} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
           </div>
@@ -793,12 +787,14 @@ export default function CourseView() {
   const [activePdf, setActivePdf] = useState(null);
   const [activeTab, setActiveTab] = useState('videos');
 
-  const handleProgressUpdate = (videoId, watchedMinutes, progressPct, completed) => {
+  const handleProgressUpdate = (videoId, watchedMinutes, progressPct, completed, lastPosition = 0, actualWatchedSec = 0) => {
     api.post('/students/me/video-progress', {
       video_id: videoId,
       watched_minutes: Math.round(watchedMinutes),
       progress_percentage: Math.min(100, Math.round(progressPct)),
       watch_count_increment: completed ? 1 : 0,
+      last_position: Math.round(lastPosition || 0),
+      actual_watched_seconds: Math.round(actualWatchedSec || 0),
     }).catch(() => {});
   };
 
@@ -952,12 +948,30 @@ export default function CourseView() {
                         <p className={`font-bold text-sm truncate ${isActive ? 'text-white' : 'text-gray-300'}`}>
                           {v.title}
                         </p>
-                        {v.duration_minutes > 0 && (
-                          <p className={`text-xs mt-0.5 flex items-center gap-1 ${isActive ? 'text-white/60' : 'text-gray-600'}`}>
-                            <Clock className="w-3 h-3" /> {fmt(v.duration_minutes)}
-                          </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {v.duration_minutes > 0 && (
+                            <p className={`text-xs flex items-center gap-1 ${isActive ? 'text-white/60' : 'text-gray-600'}`}>
+                              <Clock className="w-3 h-3" /> {fmt(v.duration_minutes)}
+                            </p>
+                          )}
+                          {v.saved_progress > 0 && (
+                            <span className={`text-[10px] font-bold ${isActive ? 'text-white/70' : 'text-orange-400'}`}>
+                              {Math.round(v.saved_progress)}%
+                            </span>
+                          )}
+                        </div>
+                        {v.saved_progress > 0 && !isActive && (
+                          <div className="mt-1.5 h-0.5 w-full rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-orange-500/70"
+                              style={{ width: `${Math.min(100, v.saved_progress)}%` }}
+                            />
+                          </div>
                         )}
                       </div>
+                      {v.saved_progress >= 95 && (
+                        <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white/70' : 'text-green-400'}`} />
+                      )}
                     </button>
                   );
                 })}
@@ -1039,6 +1053,7 @@ export default function CourseView() {
                   onProgressUpdate={handleProgressUpdate}
                   studentName={user?.name}
                   studentCode={user?.username}
+                  initialPosition={parseFloat(currentVideo?.saved_position) || 0}
                 />
               </div>
 

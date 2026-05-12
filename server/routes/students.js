@@ -449,18 +449,20 @@ router.post('/bulk', requireRole('teacher', 'assistant'), (req, res, next) => ch
 // ── Save video progress ──
 router.post('/me/video-progress', requireRole('student'), async (req, res) => {
   const studentId = req.user.id;
-  const { video_id, watched_minutes, progress_percentage, watch_count_increment } = req.body;
+  const { video_id, watched_minutes, progress_percentage, watch_count_increment, last_position, actual_watched_seconds } = req.body;
   if (!video_id) return res.status(400).json({ error: 'video_id required' });
   try {
     await pool.query(
-      `INSERT INTO video_progress (student_id, video_id, watch_count, watched_minutes, progress_percentage, last_watched_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO video_progress (student_id, video_id, watch_count, watched_minutes, progress_percentage, last_watched_at, last_position, actual_watched_seconds)
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)
        ON CONFLICT (student_id, video_id) DO UPDATE SET
          watch_count = CASE WHEN $3 > 0 THEN video_progress.watch_count + $3 ELSE video_progress.watch_count END,
          watched_minutes = GREATEST(video_progress.watched_minutes, $4),
          progress_percentage = GREATEST(video_progress.progress_percentage, $5),
-         last_watched_at = NOW()`,
-      [studentId, video_id, watch_count_increment || 0, watched_minutes || 0, progress_percentage || 0]
+         last_watched_at = NOW(),
+         last_position = $6,
+         actual_watched_seconds = video_progress.actual_watched_seconds + $7`,
+      [studentId, video_id, watch_count_increment || 0, watched_minutes || 0, progress_percentage || 0, last_position || 0, actual_watched_seconds || 0]
     );
     res.json({ ok: true });
   } catch (err) {
