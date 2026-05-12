@@ -139,11 +139,42 @@ router.put('/:id', requireRole('teacher', 'assistant'), validateExam, async (req
 router.put('/:id/publish', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
   try {
+    // Get current exam state before toggling
+    const current = await pool.query(
+      'SELECT * FROM exams WHERE id=$1 AND teacher_id=$2',
+      [req.params.id, teacherId]
+    );
+    if (!current.rows.length) return res.status(404).json({ error: 'Exam not found' });
+    const currentExam = current.rows[0];
+    const isPublishing = !currentExam.is_published; // about to publish
+
+    // Validate dates before publishing
+    if (isPublishing) {
+      const now = new Date();
+      if (currentExam.end_date && new Date(currentExam.end_date) < now) {
+        return res.status(400).json({
+          error: 'انتهى تاريخ الاختبار — يرجى تحديث تاريخ النهاية أولاً قبل النشر',
+          field: 'end_date'
+        });
+      }
+      // If republishing (exam was taken before), clear previous results to allow re-attempt
+      const existingResults = await pool.query(
+        'SELECT id FROM exam_results WHERE exam_id=$1 LIMIT 1',
+        [req.params.id]
+      );
+      if (existingResults.rows.length > 0) {
+        await pool.query('DELETE FROM exam_results WHERE exam_id=$1', [req.params.id]);
+        await pool.query(
+          "UPDATE exam_retry_requests SET status='used', handled_at=NOW() WHERE exam_id=$1 AND status='pending'",
+          [req.params.id]
+        );
+      }
+    }
+
     const result = await pool.query(
       'UPDATE exams SET is_published = NOT is_published WHERE id=$1 AND teacher_id=$2 RETURNING id, is_published, title, course_id, start_date',
       [req.params.id, teacherId]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'Exam not found' });
     const exam = result.rows[0];
 
     if (exam.is_published) {
@@ -184,8 +215,6 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), async (req, res)
         }
       }
 
-      // For scheduled exams: mark start_notified=false so the scheduler picks it up.
-      // For immediate exams: mark start_notified=true (already notified above).
       await pool.query(
         'UPDATE exams SET start_notified = $1 WHERE id = $2',
         [!hasStartDate, exam.id]

@@ -136,6 +136,7 @@ export default function StudentExams() {
     mutationFn: ({ id, data }) => api.post(`/exams/${id}/submit`, data),
     onSuccess: (res, variables) => {
       localStorage.removeItem(`exam_start_${variables.id}`);
+      localStorage.removeItem(`exam_answers_${variables.id}`);
       setResult(res.data);
       setTaking(null);
       qc.invalidateQueries(['student-exams']);
@@ -156,7 +157,13 @@ export default function StudentExams() {
     submitMut.mutate({ id: taking.id, data: { answers: answersRef.current, start_time: startTime } });
   }, [taking, examData, startTime]);
 
-  // ── Auto-submit when student closes tab / navigates away ──
+  // ── Save answers to localStorage whenever they change ──
+  useEffect(() => {
+    if (!taking) return;
+    try { localStorage.setItem(`exam_answers_${taking.id}`, JSON.stringify(answers)); } catch (_) {}
+  }, [answers, taking]);
+
+  // ── Auto-submit only when browser/tab is CLOSED (not just hidden) ──
   useEffect(() => {
     const sendBeaconSubmit = (examId) => {
       const token = localStorage.getItem('wathba_token');
@@ -167,12 +174,7 @@ export default function StudentExams() {
         new Blob([payload], { type: 'application/json' })
       );
       localStorage.removeItem(`exam_start_${examId}`);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && takingRef.current && examDataRef.current) {
-        sendBeaconSubmit(takingRef.current.id);
-      }
+      localStorage.removeItem(`exam_answers_${examId}`);
     };
 
     const handleBeforeUnload = (e) => {
@@ -182,10 +184,8 @@ export default function StudentExams() {
       e.returnValue = '';
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
@@ -194,7 +194,14 @@ export default function StudentExams() {
     if (!examData || !taking) return;
     const examId = taking.id;
     const storageKey = `exam_start_${examId}`;
+    const answersKey = `exam_answers_${examId}`;
     const durationSecs = examData.exam.duration_minutes * 60;
+
+    // Restore saved answers if returning to the exam
+    try {
+      const saved = localStorage.getItem(answersKey);
+      if (saved) setAnswers(JSON.parse(saved));
+    } catch (_) {}
 
     let startTs = parseInt(localStorage.getItem(storageKey) || '0', 10);
     if (!startTs) {
@@ -358,7 +365,7 @@ export default function StudentExams() {
           </div>
 
           <div className="flex gap-4">
-            <button onClick={() => { localStorage.removeItem(`exam_start_${taking?.id}`); setTaking(null); }} className="btn-secondary flex-1">إلغاء</button>
+            <button onClick={() => { localStorage.removeItem(`exam_start_${taking?.id}`); localStorage.removeItem(`exam_answers_${taking?.id}`); setTaking(null); }} className="btn-secondary flex-1">إلغاء</button>
             <button onClick={() => setShowSubmitConfirm(true)} disabled={submitMut.isPending}
               className="btn-primary flex-1 py-3 text-base">
               {submitMut.isPending ? 'جاري الإرسال...' : `تسليم الاختبار (${answered}/${questions.length})`}

@@ -53,6 +53,7 @@ export default function TeacherExams() {
   const [imagePreview, setImagePreview] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const imageFileRef = useRef(null);
+  const [publishConfirm, setPublishConfirm] = useState(null);
 
   const { data: exams = [], isLoading } = useQuery({
     queryKey: ['exams'],
@@ -118,14 +119,27 @@ export default function TeacherExams() {
     mutationFn: (id) => api.put(`/exams/${id}/publish`),
     onSuccess: (res) => {
       qc.invalidateQueries(['exams']);
+      setPublishConfirm(null);
       if (res.data.is_published) {
         toast.success('تم نشر الاختبار وإشعار الطلاب 📢');
       } else {
         toast('تم إلغاء نشر الاختبار', { icon: '🔕' });
       }
     },
-    onError: () => toast.error('حدث خطأ'),
+    onError: (e) => {
+      setPublishConfirm(null);
+      toast.error(e.response?.data?.error || 'حدث خطأ');
+    },
   });
+
+  const handlePublishClick = (ex) => {
+    if (ex.is_published) {
+      publishMut.mutate(ex.id);
+      return;
+    }
+    // Show confirmation before publishing
+    setPublishConfirm(ex);
+  };
 
   const addQMut = useMutation({
     mutationFn: ({ id, data }) => api.post(`/exams/${id}/questions`, data),
@@ -397,7 +411,7 @@ export default function TeacherExams() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => publishMut.mutate(ex.id)}
+                    onClick={() => handlePublishClick(ex)}
                     disabled={publishMut.isPending}
                     title={ex.is_published ? 'إلغاء النشر' : 'نشر للطلاب'}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${ex.is_published ? 'bg-green-50 border-green-300 text-green-700 hover:bg-red-50 hover:border-red-300 hover:text-red-600' : 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-green-50 hover:border-green-300 hover:text-green-700'}`}>
@@ -863,6 +877,73 @@ export default function TeacherExams() {
       <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)}
         onConfirm={() => { deleteMut.mutate(deleteId); setDeleteId(null); }}
         title="حذف الاختبار" message="هل أنت متأكد من حذف هذا الاختبار وجميع أسئلته؟" danger />
+
+      {/* ── Publish Confirmation Dialog ── */}
+      {publishConfirm && (() => {
+        const now = new Date();
+        const endDate = publishConfirm.end_date ? new Date(publishConfirm.end_date) : null;
+        const startDate = publishConfirm.start_date ? new Date(publishConfirm.start_date) : null;
+        const isExpired = endDate && endDate < now;
+        const hasResults = publishConfirm.attempt_count > 0;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setPublishConfirm(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <Globe className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900 text-lg">تأكيد نشر الاختبار</h3>
+                  <p className="text-gray-500 text-sm">{publishConfirm.title}</p>
+                </div>
+              </div>
+
+              {isExpired && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-700 text-sm font-bold">تاريخ انتهاء الاختبار مر بالفعل! يرجى تعديل تاريخ النهاية أولاً قبل النشر.</p>
+                </div>
+              )}
+
+              {hasResults && !isExpired && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-amber-700 text-sm font-bold">سيتم مسح نتائج الطلاب السابقة ({publishConfirm.attempt_count} محاولة) حتى يتمكنوا من إعادة الاختبار.</p>
+                </div>
+              )}
+
+              <div className="bg-gray-50 rounded-xl p-3 space-y-2 text-sm">
+                {startDate && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">تاريخ البداية</span>
+                    <span className="font-bold text-gray-700">{startDate.toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  </div>
+                )}
+                {endDate && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">تاريخ النهاية</span>
+                    <span className={`font-bold ${isExpired ? 'text-red-600' : 'text-gray-700'}`}>{endDate.toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  </div>
+                )}
+                {!startDate && !endDate && (
+                  <p className="text-gray-500 text-center">الاختبار بدون تاريخ محدد — متاح دائماً للطلاب</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setPublishConfirm(null)} className="flex-1 btn-secondary">إلغاء</button>
+                <button
+                  onClick={() => { if (!isExpired) publishMut.mutate(publishConfirm.id); }}
+                  disabled={isExpired || publishMut.isPending}
+                  className={`flex-1 font-bold py-2.5 rounded-xl transition-all ${isExpired ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white active:scale-95'}`}
+                >
+                  {publishMut.isPending ? 'جاري النشر...' : 'نشر الاختبار'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

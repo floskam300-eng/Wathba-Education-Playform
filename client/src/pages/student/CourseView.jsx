@@ -734,46 +734,49 @@ function PdfViewer({ pdf }) {
     </div>
   );
 
-  const isLocal = pdf.file_url?.startsWith('/uploads/');
-
-  if (!isLocal) return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-50">
-      <div className="text-center p-8 max-w-sm">
-        <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-5">
-          <FileText className="w-10 h-10 text-orange-500" />
+  return (
+    <div className="flex flex-col w-full h-full bg-gray-100">
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <FileText className="w-4 h-4 text-orange-500 flex-shrink-0" />
+          <span className="font-bold text-sm text-gray-800 truncate">{pdf.title}</span>
         </div>
-        <p className="font-black text-gray-800 text-xl mb-2">{pdf.title}</p>
-        <p className="text-gray-400 text-sm mb-6">الملف متاح للتحميل</p>
         <a
           href={pdf.file_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-xl transition-all hover:shadow-lg active:scale-95"
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-lg transition-colors"
         >
-          <Download className="w-4 h-4" /> تحميل الملف
+          <Download className="w-3.5 h-3.5" /> فتح في تاب جديد
         </a>
       </div>
-    </div>
-  );
-
-  return (
-    <div className="relative w-full h-full">
-      <iframe
-        key={pdf.id}
-        src={pdf.file_url}
-        className="w-full h-full border-0"
-        title={pdf.title}
-        onContextMenu={(e) => e.preventDefault()}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: 5,
-          userSelect: 'none',
-        }}
-      />
+      <div className="flex-1 overflow-hidden">
+        <object
+          key={pdf.id}
+          data={pdf.file_url}
+          type="application/pdf"
+          className="w-full h-full"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="w-full h-full flex items-center justify-center bg-gray-50">
+            <div className="text-center p-8 max-w-sm">
+              <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-5">
+                <FileText className="w-10 h-10 text-orange-500" />
+              </div>
+              <p className="font-black text-gray-800 text-xl mb-2">{pdf.title}</p>
+              <p className="text-gray-400 text-sm mb-6">اضغط الزر أدناه لفتح الملف</p>
+              <a
+                href={pdf.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-xl transition-all hover:shadow-lg active:scale-95"
+              >
+                <Download className="w-4 h-4" /> فتح الملف
+              </a>
+            </div>
+          </div>
+        </object>
+      </div>
     </div>
   );
 }
