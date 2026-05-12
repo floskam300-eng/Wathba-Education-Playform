@@ -331,7 +331,7 @@ export default function QuestionBanks() {
         </div>
       )}
 
-      <Modal isOpen={bankModal} onClose={closeBankModal} title={editBank ? 'تعديل بنك الأسئلة' : 'إضافة بنك أسئلة جديد'}>
+      <Modal open={bankModal} onClose={closeBankModal} title={editBank ? 'تعديل بنك الأسئلة' : 'إضافة بنك أسئلة جديد'}>
         <form onSubmit={handleBankSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-navy-700 mb-1">اسم البنك *</label>
@@ -350,17 +350,17 @@ export default function QuestionBanks() {
         </form>
       </Modal>
 
-      <ConfirmDialog isOpen={!!deleteBankId} onClose={() => setDeleteBankId(null)}
+      <ConfirmDialog open={!!deleteBankId} onClose={() => setDeleteBankId(null)}
         onConfirm={() => deleteBankMut.mutate(deleteBankId)}
         title="حذف بنك الأسئلة"
         message="سيتم حذف البنك وجميع أسئلته نهائياً. هل أنت متأكد؟"
-        confirmLabel="حذف" confirmClass="btn-danger" />
+        confirmLabel="حذف" danger />
 
-      <ConfirmDialog isOpen={!!deleteQId} onClose={() => setDeleteQId(null)}
+      <ConfirmDialog open={!!deleteQId} onClose={() => setDeleteQId(null)}
         onConfirm={() => deleteQMut.mutate(deleteQId)}
         title="حذف السؤال"
         message="سيتم حذف هذا السؤال من البنك نهائياً. هل أنت متأكد؟"
-        confirmLabel="حذف" confirmClass="btn-danger" />
+        confirmLabel="حذف" danger />
     </div>
   );
 }
