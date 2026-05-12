@@ -21,7 +21,7 @@ function FieldError({ error }) {
 
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي', 'جامعي'];
 
-const emptyExam = { title: '', duration_minutes: 60, total_score: 100, course_id: '', pass_score: 50, badge_name: '', badge_color: '#995400', start_date: '', end_date: '', shuffle_questions: false, shuffle_options: false };
+const emptyExam = { title: '', duration_minutes: 60, total_score: 100, course_id: '', pass_score: 50, badge_name: '', badge_color: '#995400', start_date: '', end_date: '', shuffle_questions: false, shuffle_options: false, question_source: 'manual', bank_id: '', bank_question_count: 10 };
 const emptyQ = { question_text: '', question_image_url: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer_letter: 'A', points: 1, question_type: 'mcq', essay_answer_key: '' };
 
 const QUESTION_TYPES = [
@@ -74,6 +74,11 @@ export default function TeacherExams() {
   const { data: students = [] } = useQuery({
     queryKey: ['students'],
     queryFn: () => api.get('/students').then(r => r.data),
+  });
+
+  const { data: questionBanks = [] } = useQuery({
+    queryKey: ['question-banks'],
+    queryFn: () => api.get('/question-banks').then(r => r.data),
   });
 
   const { data: studentResults = [] } = useQuery({
@@ -167,6 +172,9 @@ export default function TeacherExams() {
       badge_name: e.badge_name || '', badge_color: e.badge_color || '#995400',
       start_date: fmtDateLocal(e.start_date), end_date: fmtDateLocal(e.end_date),
       shuffle_questions: !!e.shuffle_questions, shuffle_options: !!e.shuffle_options,
+      question_source: e.question_source || 'manual',
+      bank_id: e.bank_id || '',
+      bank_question_count: e.bank_question_count || 10,
     });
     setFormErrors({});
     setModal(true);
@@ -445,6 +453,27 @@ export default function TeacherExams() {
 
               {expandedExam === ex.id && (
                 <div className="border-t border-gray-200 p-4 bg-gray-50 space-y-4">
+                  {ex.question_source === 'bank' ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
+                      <h4 className="font-black text-blue-800 flex items-center gap-2 text-sm">
+                        🏦 هذا الاختبار يسحب أسئلته من بنك الأسئلة
+                      </h4>
+                      {(() => {
+                        const bank = questionBanks.find(b => String(b.id) === String(ex.bank_id));
+                        return bank ? (
+                          <div className="text-sm text-blue-700 space-y-1">
+                            <p><span className="font-bold">البنك:</span> {bank.name}{bank.subject ? ` (${bank.subject})` : ''}</p>
+                            <p><span className="font-bold">عدد الأسئلة في البنك:</span> {bank.question_count} سؤال</p>
+                            <p><span className="font-bold">عدد الأسئلة لكل طالب:</span> {ex.bank_question_count} سؤال عشوائي</p>
+                            <p className="text-xs text-blue-500 mt-2">💡 كل طالب يحصل على مجموعة مختلفة من الأسئلة بشكل تلقائي وعشوائي</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-red-600 font-semibold">⚠️ البنك المرتبط لم يُعثر عليه — قد يكون محذوفاً، يُرجى تعديل الاختبار وإعادة ربطه ببنك</p>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                  <>
                   <h4 className="font-bold text-navy-600 flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 text-orange-500" /> بنك الأسئلة ({questions.length})
                   </h4>
@@ -646,6 +675,8 @@ export default function TeacherExams() {
                       </div>
                     </form>
                   </div>
+                  </>
+                  )}
                 </div>
               )}
             </div>
@@ -688,6 +719,63 @@ export default function TeacherExams() {
                 className={`input-field ${formErrors.pass_score ? 'border-red-400 focus:ring-red-300' : ''}`} min="0" />
               <FieldError error={formErrors.pass_score} />
             </div>
+          </div>
+
+          {/* Question source */}
+          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 space-y-3">
+            <p className="text-sm font-black text-blue-800 flex items-center gap-1.5">📚 مصدر الأسئلة</p>
+            <div className="flex flex-col gap-2">
+              <button type="button" onClick={() => setForm({ ...form, question_source: 'manual' })}
+                className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all ${form.question_source !== 'bank' ? 'border-blue-500 bg-blue-100 text-blue-800' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}>
+                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${form.question_source !== 'bank' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}`}>
+                  {form.question_source !== 'bank' && <span className="w-2.5 h-2.5 rounded-full bg-white block" />}
+                </span>
+                <div className="text-right flex-1">
+                  <p className="font-bold">✍️ إضافة أسئلة يدوياً</p>
+                  <p className="text-xs font-normal text-gray-500 mt-0.5">أنت تضيف الأسئلة بنفسك داخل الاختبار</p>
+                </div>
+              </button>
+              <button type="button" onClick={() => setForm({ ...form, question_source: 'bank' })}
+                className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all ${form.question_source === 'bank' ? 'border-blue-500 bg-blue-100 text-blue-800' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}>
+                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${form.question_source === 'bank' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}`}>
+                  {form.question_source === 'bank' && <span className="w-2.5 h-2.5 rounded-full bg-white block" />}
+                </span>
+                <div className="text-right flex-1">
+                  <p className="font-bold">🏦 سحب عشوائي من بنك أسئلة</p>
+                  <p className="text-xs font-normal text-gray-500 mt-0.5">كل طالب يحصل على أسئلة مختلفة من البنك تلقائياً</p>
+                </div>
+              </button>
+            </div>
+            {form.question_source === 'bank' && (
+              <div className="space-y-3 pt-2 border-t border-blue-200">
+                <div>
+                  <label className="block text-xs font-bold text-blue-800 mb-1">اختر بنك الأسئلة *</label>
+                  {questionBanks.length === 0 ? (
+                    <p className="text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-3 py-2">لا توجد بنوك أسئلة بعد — اذهب إلى صفحة "بنوك الأسئلة" أولاً لإنشاء بنك</p>
+                  ) : (
+                    <select value={form.bank_id} onChange={e => setForm({ ...form, bank_id: e.target.value })} className="input-field text-sm">
+                      <option value="">— اختر بنكاً —</option>
+                      {questionBanks.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}{b.subject ? ` (${b.subject})` : ''} — {b.question_count} سؤال</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-blue-800 mb-1">عدد الأسئلة المسحوبة لكل طالب *</label>
+                  <input type="number" min="1" max="200" value={form.bank_question_count}
+                    onChange={e => setForm({ ...form, bank_question_count: parseInt(e.target.value) || 10 })}
+                    className="input-field text-sm w-28" />
+                  {form.bank_id && (() => {
+                    const bank = questionBanks.find(b => String(b.id) === String(form.bank_id));
+                    if (bank && form.bank_question_count > bank.question_count) {
+                      return <p className="text-xs text-amber-600 font-semibold mt-1">⚠️ البنك يحتوي على {bank.question_count} سؤال فقط — سيتم سحب الكل</p>;
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Scheduling */}

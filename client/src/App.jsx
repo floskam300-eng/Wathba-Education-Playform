@@ -21,6 +21,7 @@ import TeacherAttendance from './pages/teacher/Attendance';
 import TeacherRequests from './pages/teacher/Requests';
 import EssayGrading from './pages/teacher/EssayGrading';
 import WrongQuestionsPage from './pages/teacher/WrongQuestions';
+import QuestionBanks from './pages/teacher/QuestionBanks';
 import AssistantDashboard from './pages/assistant/Dashboard';
 import AssistantStudents from './pages/assistant/Students';
 import AssistantExams from './pages/teacher/Exams';
@@ -67,6 +68,7 @@ const AppRoutes = () => {
         <Route path="essay-grading" element={<EssayGrading />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
         <Route path="wrong-questions" element={<WrongQuestionsPage />} />
+        <Route path="question-banks" element={<QuestionBanks />} />
       </Route>
 
       <Route path="/assistant" element={<ProtectedRoute allowedRoles={['assistant']}><AssistantLayout /></ProtectedRoute>}>
@@ -80,6 +82,7 @@ const AppRoutes = () => {
         <Route path="requests" element={<TeacherRequests />} />
         <Route path="essay-grading" element={<EssayGrading />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
+        <Route path="question-banks" element={<QuestionBanks />} />
       </Route>
 
       <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}><StudentLayout /></ProtectedRoute>}>

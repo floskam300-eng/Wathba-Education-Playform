@@ -241,6 +241,33 @@ ALTER TABLE teachers ALTER COLUMN photo_url TYPE TEXT;
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS shuffle_questions BOOLEAN DEFAULT false;
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS shuffle_options  BOOLEAN DEFAULT false;
 
+CREATE TABLE IF NOT EXISTS question_banks (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(300) NOT NULL,
+  subject VARCHAR(200),
+  teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS bank_questions (
+  id SERIAL PRIMARY KEY,
+  bank_id INTEGER REFERENCES question_banks(id) ON DELETE CASCADE,
+  question_text TEXT,
+  question_image_url TEXT,
+  option_a TEXT NOT NULL,
+  option_b TEXT NOT NULL,
+  option_c TEXT,
+  option_d TEXT,
+  correct_answer_letter CHAR(1) NOT NULL,
+  points INTEGER DEFAULT 1,
+  question_type VARCHAR(20) DEFAULT 'mcq',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS question_source VARCHAR(20) DEFAULT 'manual';
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS bank_id INTEGER REFERENCES question_banks(id) ON DELETE SET NULL;
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS bank_question_count INTEGER DEFAULT 10;
+
 CREATE TABLE IF NOT EXISTS leaderboard_history (
   id SERIAL PRIMARY KEY,
   teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,

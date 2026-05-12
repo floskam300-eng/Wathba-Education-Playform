@@ -478,7 +478,8 @@ router.get('/:id/take', requireRole('student'), async (req, res) => {
     const now = new Date();
     const eligibilityCheck = await pool.query(
       `SELECT e.id, e.title, e.duration_minutes, e.total_score, e.pass_score,
-              e.start_date, e.end_date, e.shuffle_questions, e.shuffle_options
+              e.start_date, e.end_date, e.shuffle_questions, e.shuffle_options,
+              e.question_source, e.bank_id, e.bank_question_count
        FROM exams e
        LEFT JOIN student_course_enrollment sce ON e.course_id = sce.course_id AND sce.student_id = $1
        WHERE e.id = $2
@@ -496,17 +497,33 @@ router.get('/:id/take', requireRole('student'), async (req, res) => {
     if (exam.end_date && new Date(exam.end_date) < now) {
       return res.status(403).json({ error: 'انتهى وقت الاختبار', end_date: exam.end_date });
     }
-    const questionsRes = await pool.query(
-      'SELECT id,question_text,question_image_url,option_a,option_b,option_c,option_d,points,question_type FROM questions WHERE exam_id=$1 ORDER BY id',
-      [req.params.id]
-    );
-    if (questionsRes.rows.length === 0) {
-      return res.status(400).json({ error: 'هذا الاختبار لا يحتوي على أسئلة بعد' });
-    }
-    let questions = questionsRes.rows;
-    if (exam.shuffle_questions) {
-      const seed = (studentId * 31 + parseInt(req.params.id) * 17) >>> 0;
-      questions = seededShuffle(questions, seed);
+
+    let questions;
+    if (exam.question_source === 'bank' && exam.bank_id) {
+      const bankQRes = await pool.query(
+        'SELECT id,question_text,question_image_url,option_a,option_b,option_c,option_d,points,question_type FROM bank_questions WHERE bank_id=$1',
+        [exam.bank_id]
+      );
+      if (bankQRes.rows.length === 0) {
+        return res.status(400).json({ error: 'بنك الأسئلة فارغ' });
+      }
+      const seed = (studentId * 999983 + parseInt(req.params.id) * 999979) >>> 0;
+      const shuffled = seededShuffle(bankQRes.rows, seed);
+      const count = Math.min(exam.bank_question_count || 10, shuffled.length);
+      questions = shuffled.slice(0, count);
+    } else {
+      const questionsRes = await pool.query(
+        'SELECT id,question_text,question_image_url,option_a,option_b,option_c,option_d,points,question_type FROM questions WHERE exam_id=$1 ORDER BY id',
+        [req.params.id]
+      );
+      if (questionsRes.rows.length === 0) {
+        return res.status(400).json({ error: 'هذا الاختبار لا يحتوي على أسئلة بعد' });
+      }
+      questions = questionsRes.rows;
+      if (exam.shuffle_questions) {
+        const seed = (studentId * 31 + parseInt(req.params.id) * 17) >>> 0;
+        questions = seededShuffle(questions, seed);
+      }
     }
     res.json({ exam, questions });
   } catch (err) {
@@ -554,8 +571,17 @@ router.post('/:id/submit', requireRole('student'), async (req, res) => {
     }
 
     const exam = eligibilityCheck.rows[0];
-    const questionsRes = await pool.query('SELECT * FROM questions WHERE exam_id=$1', [examId]);
-    const questions = questionsRes.rows;
+
+    let questions;
+    if (exam.question_source === 'bank' && exam.bank_id) {
+      const questionIds = Object.keys(answers || {}).map(Number).filter(id => id > 0);
+      if (questionIds.length === 0) return res.status(400).json({ error: 'لم يتم إرسال أي إجابات' });
+      const bankQRes = await pool.query('SELECT * FROM bank_questions WHERE id = ANY($1) AND bank_id = $2', [questionIds, exam.bank_id]);
+      questions = bankQRes.rows;
+    } else {
+      const questionsRes = await pool.query('SELECT * FROM questions WHERE exam_id=$1', [examId]);
+      questions = questionsRes.rows;
+    }
 
     let score = 0, correct = 0, wrong = 0, unanswered = 0;
     const detailedAnswers = questions.map(q => {
@@ -717,7 +743,8 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
               er.unanswered_count, er.points_earned, er.start_time, er.end_time, er.created_at,
               er.answers, er.essay_graded, er.essay_score_adjustment,
               s.name  AS student_name,
-              e.title AS exam_title, e.total_score, e.pass_score, e.teacher_id AS exam_teacher_id
+              e.title AS exam_title, e.total_score, e.pass_score, e.teacher_id AS exam_teacher_id,
+              e.question_source, e.bank_id
        FROM exam_results er
        JOIN students s ON er.student_id = s.id
        JOIN exams e    ON er.exam_id    = e.id
@@ -738,7 +765,22 @@ router.get('/results/:resultId/review', authenticate, async (req, res) => {
       }
     }
 
-    const questionsRes = await pool.query('SELECT * FROM questions WHERE exam_id=$1 ORDER BY id', [row.exam_id]);
+    const isBank = row.question_source === 'bank' && row.bank_id;
+    let questionsRes;
+    if (isBank) {
+      let answeredIds = [];
+      try {
+        const raw = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
+        if (Array.isArray(raw)) answeredIds = raw.map(a => a.question_id).filter(Boolean);
+      } catch (_) {}
+      if (answeredIds.length > 0) {
+        questionsRes = await pool.query('SELECT * FROM bank_questions WHERE id = ANY($1) ORDER BY id', [answeredIds]);
+      } else {
+        questionsRes = { rows: [] };
+      }
+    } else {
+      questionsRes = await pool.query('SELECT * FROM questions WHERE exam_id=$1 ORDER BY id', [row.exam_id]);
+    }
 
     // ── Parse stored answers — handles two formats: ──────────────────────────
     // 1. New format (array): [{question_id, student_answer, correct_answer, is_correct}]

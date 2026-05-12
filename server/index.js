@@ -60,6 +60,7 @@ app.use('/api/exams', require('./routes/exams'));
 app.use('/api/assistants', require('./routes/assistants'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/question-banks', require('./routes/questionBanks'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
