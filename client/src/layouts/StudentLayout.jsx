@@ -46,12 +46,15 @@ const fmtDate = (d) => {
   return new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
 };
 
+const BELL_LIMIT = 5;
+
 function NotificationBell({ dark }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const { data = { notifications: [], unread: 0 }, refetch } = useQuery({
+  const { data = { notifications: [], unread: 0 } } = useQuery({
     queryKey: ['my-notifications'],
     queryFn: () => api.get('/notifications/my').then(r => r.data),
     refetchInterval: 60000,
@@ -84,14 +87,12 @@ function NotificationBell({ dark }) {
   }, [qc]);
 
   const { notifications, unread } = data;
+  const preview = notifications.slice(0, BELL_LIMIT);
+  const hasMore = notifications.length > BELL_LIMIT;
 
   const surfaceStyle = dark
     ? { backgroundColor: 'var(--dk-surface)', borderColor: 'var(--dk-border)', color: 'var(--dk-text)' }
     : {};
-  const elevatedStyle = dark
-    ? { backgroundColor: 'var(--dk-elevated)', borderColor: 'var(--dk-border)' }
-    : {};
-  const textMutedStyle = dark ? { color: 'var(--dk-text-2)' } : {};
 
   return (
     <div className="relative" ref={ref}>
@@ -113,6 +114,7 @@ function NotificationBell({ dark }) {
           className={`absolute left-0 top-full mt-2 w-80 rounded-2xl border shadow-xl z-50 overflow-hidden ${dark ? '' : 'bg-white border-slate-200'}`}
           style={dark ? { ...surfaceStyle, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' } : {}}
         >
+          {/* Header */}
           <div className={`flex items-center justify-between px-4 py-3 border-b ${dark ? 'border-[var(--dk-border)]' : 'border-slate-100'}`}>
             <div className="flex items-center gap-2">
               <Bell className={`w-4 h-4 ${dark ? 'text-amber-400' : 'text-indigo-500'}`} />
@@ -145,8 +147,9 @@ function NotificationBell({ dark }) {
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[420px]">
-            {notifications.length === 0 ? (
+          {/* Body — max 5 items */}
+          <div>
+            {preview.length === 0 ? (
               <div className="text-center py-10">
                 <Bell className={`w-10 h-10 mx-auto mb-2 ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-300'}`} />
                 <p className={`text-sm font-medium ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-400'}`}>
@@ -155,7 +158,7 @@ function NotificationBell({ dark }) {
               </div>
             ) : (
               <div className={`divide-y ${dark ? 'divide-[var(--dk-border)]' : 'divide-slate-100'}`}>
-                {notifications.map(n => (
+                {preview.map(n => (
                   <div
                     key={n.id}
                     onClick={() => { if (!n.is_read) readOneMut.mutate(n.id); }}
@@ -192,11 +195,19 @@ function NotificationBell({ dark }) {
             )}
           </div>
 
-          {notifications.length > 0 && (
-            <div className={`px-4 py-2.5 border-t text-center ${dark ? 'border-[var(--dk-border)]' : 'border-slate-100'}`}>
-              <p className={`text-xs ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-400'}`}>
-                آخر {notifications.length} إشعار
-              </p>
+          {/* Footer — "عرض المزيد" if more than 5 */}
+          {(hasMore || notifications.length > 0) && (
+            <div className={`border-t ${dark ? 'border-[var(--dk-border)]' : 'border-slate-100'}`}>
+              <button
+                onClick={() => { setOpen(false); navigate('/student/notifications'); }}
+                className={`w-full py-2.5 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
+                  dark
+                    ? 'text-amber-400 hover:bg-[var(--dk-elevated)]'
+                    : 'text-indigo-600 hover:bg-indigo-50'
+                }`}
+              >
+                {hasMore ? `عرض المزيد (${notifications.length - BELL_LIMIT} إشعار آخر)` : 'عرض كل الإشعارات'}
+              </button>
             </div>
           )}
         </div>

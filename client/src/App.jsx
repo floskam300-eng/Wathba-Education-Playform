@@ -32,6 +32,7 @@ import StudentCourseView from './pages/student/CourseView';
 import StudentExams from './pages/student/Exams';
 import StudentLeaderboard from './pages/student/Leaderboard';
 import StudentMyStats from './pages/student/MyStats';
+import StudentNotifications from './pages/student/Notifications';
 import ExamReviewPage from './pages/ExamReviewPage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -85,6 +86,7 @@ const AppRoutes = () => {
         <Route path="courses/:courseId" element={<StudentCourseView />} />
         <Route path="exams" element={<StudentExams />} />
         <Route path="stats" element={<StudentMyStats />} />
+        <Route path="notifications" element={<StudentNotifications />} />
         <Route path="leaderboard" element={<StudentLeaderboard />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
       </Route>

@@ -4,10 +4,277 @@ import { useNavigate } from 'react-router-dom';
 import {
   BarChart2, BookOpen, FileText, Award, Star, CreditCard,
   CheckCircle, XCircle, Clock, Play, TrendingUp, Trophy,
-  Calendar, Video, Target, Wallet, AlertCircle, ChevronDown, ChevronUp, Eye
+  Calendar, Video, Target, Wallet, AlertCircle, ChevronDown, ChevronUp, Eye, Printer
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+
+function printStatsPDF({ student, summary, examResults, courses, badges, payments }) {
+  const fmtN = (n) => new Intl.NumberFormat('ar-EG').format(n ?? 0);
+  const fmtD = (d) => d ? new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  const fmtM = (m) => m >= 60 ? `${Math.floor(m / 60)}س ${m % 60}د` : `${m ?? 0} دقيقة`;
+  const passRate = summary.totalExams > 0 ? Math.round((summary.passCount / summary.totalExams) * 100) : 0;
+  const now = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const ring = (pct, color, label, sub) => {
+    const r = 42, cx = 52, cy = 52, stroke = 8;
+    const circ = 2 * Math.PI * r;
+    const dash = Math.min(pct / 100, 1) * circ;
+    return `
+      <div class="ring-box">
+        <svg width="104" height="104" style="transform:rotate(-90deg)">
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="${stroke}"/>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}"
+            stroke-width="${stroke}" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+        </svg>
+        <div class="ring-label">
+          <span class="ring-val" style="color:${color}">${label}</span>
+          <span class="ring-sub">${sub}</span>
+        </div>
+      </div>`;
+  };
+
+  const bar = (pct, color) =>
+    `<div style="background:#e5e7eb;border-radius:4px;height:6px;width:100%;overflow:hidden">
+       <div style="width:${pct}%;height:6px;background:${color};border-radius:4px"></div>
+     </div>`;
+
+  const examRows = examResults.map((r, i) => {
+    const passed = r.score >= r.pass_score;
+    const pct = Math.round((r.score / r.total_score) * 100);
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td style="text-align:right">${r.exam_title}</td>
+        <td>${r.course_name || '—'}</td>
+        <td><b style="color:${passed ? '#16a34a' : '#dc2626'}">${r.score}/${r.total_score}</b></td>
+        <td>${pct}%</td>
+        <td style="color:${passed ? '#16a34a' : '#dc2626'};font-weight:700">${passed ? '✓ ناجح' : '✗ راسب'}</td>
+        <td>${r.correct_count}</td>
+        <td>${r.wrong_count}</td>
+        <td>${r.points_earned > 0 ? '+' + r.points_earned + ' ⭐' : '—'}</td>
+        <td>${fmtD(r.created_at)}</td>
+      </tr>`;
+  }).join('');
+
+  const courseRows = courses.map((c, i) => {
+    const prog = c.total_videos > 0 ? Math.round((c.watched_videos / c.total_videos) * 100) : 0;
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td style="text-align:right">${c.name}</td>
+        <td>${c.watched_videos}/${c.total_videos}</td>
+        <td>${fmtM(c.total_watched_minutes)}</td>
+        <td>${c.total_pdfs}</td>
+        <td>
+          ${bar(prog, '#6366f1')}
+          <span style="font-size:11px;color:#6366f1;font-weight:700">${prog}%</span>
+        </td>
+      </tr>`;
+  }).join('');
+
+  const badgesHtml = badges.length > 0
+    ? badges.map(b => `<span class="badge-chip" style="background:${b.badge_color||'#f97316'};color:#fff">🏅 ${b.badge_name} — ${b.exam_title}</span>`).join('')
+    : '<p style="color:#9ca3af;font-size:13px">لا توجد شارات</p>';
+
+  const payRows = payments.map((p, i) => {
+    const methodLabel = { instapay: 'إنستاباي', vodafone_cash: 'فودافون كاش', cash: 'كاش', bank_transfer: 'تحويل بنكي' };
+    const statusLabel = { completed: 'مدفوع', verified: 'موثّق', pending: 'في الانتظار', rejected: 'مرفوض' };
+    return `<tr>
+      <td>${i + 1}</td>
+      <td style="text-align:right">${p.course_name || '—'}</td>
+      <td>${fmtN(p.amount)} ج.م</td>
+      <td>${methodLabel[p.method] || p.method || '—'}</td>
+      <td>${statusLabel[p.status] || p.status}</td>
+      <td>${fmtD(p.payment_date)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>تقرير إحصائيات — ${student?.name}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, Tahoma, sans-serif; direction:rtl; color:#1e293b; background:#fff; font-size:13px; }
+  .page { max-width:960px; margin:0 auto; padding:28px 24px; }
+
+  .header { display:flex; align-items:center; gap:16px; border-bottom:3px solid #1e3a5f; padding-bottom:16px; margin-bottom:20px; }
+  .avatar { width:56px;height:56px;border-radius:14px;background:#f97316;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:900;flex-shrink:0; }
+  .header-info h1 { font-size:20px;font-weight:900;color:#1e3a5f; }
+  .header-info p { font-size:12px;color:#64748b;margin-top:3px; }
+  .report-date { margin-right:auto; font-size:11px; color:#94a3b8; text-align:left; }
+
+  .section { margin-bottom:24px; }
+  .section-title { font-size:14px;font-weight:900;color:#1e3a5f;border-right:4px solid #f97316;padding-right:10px;margin-bottom:12px; }
+
+  .stats-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px; }
+  .stat-card { background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center; }
+  .stat-val { font-size:22px;font-weight:900;color:#1e3a5f; }
+  .stat-label { font-size:10px;color:#64748b;font-weight:700;margin-top:2px; }
+
+  .rings { display:flex;gap:20px;justify-content:center;margin-bottom:20px; }
+  .ring-box { position:relative;display:flex;flex-direction:column;align-items:center;gap:4px; }
+  .ring-label { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;display:flex;flex-direction:column;align-items:center; }
+  .ring-val { font-size:16px;font-weight:900; }
+  .ring-sub { font-size:9px;color:#64748b;font-weight:600;margin-top:1px; }
+  .ring-caption { font-size:10px;color:#64748b;font-weight:700;margin-top:4px; }
+
+  table { width:100%;border-collapse:collapse;font-size:12px; }
+  th { background:#1e3a5f;color:#fff;padding:8px 10px;text-align:center;font-weight:700;font-size:11px; }
+  td { padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;vertical-align:middle; }
+  tr:nth-child(even) td { background:#f8fafc; }
+
+  .badge-chip { display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;margin:4px; }
+
+  .summary-bar { display:flex;gap:16px;background:#f1f5f9;border-radius:10px;padding:12px 16px;margin-bottom:16px; }
+  .sum-item { display:flex;flex-direction:column;align-items:center;flex:1; }
+  .sum-val { font-size:18px;font-weight:900;color:#1e3a5f; }
+  .sum-label { font-size:10px;color:#64748b;font-weight:600; }
+
+  .no-print { text-align:center;padding:20px; }
+  .print-btn { padding:10px 28px;background:#f97316;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;margin-left:10px; }
+  .close-btn  { padding:10px 28px;background:#64748b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700; }
+  @media print {
+    .no-print { display:none; }
+    body { padding:0; }
+    .page { padding:16px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="avatar">${student?.name?.charAt(0) || 'ط'}</div>
+    <div class="header-info">
+      <h1>${student?.name || ''}</h1>
+      <p>${student?.academic_stage || ''} &nbsp;·&nbsp; منضم منذ ${fmtD(student?.created_at)}</p>
+    </div>
+    <div class="report-date">
+      <div style="font-size:14px;font-weight:900;color:#f97316">منصة وثبة</div>
+      <div>تقرير إحصائيات شامل</div>
+      <div>${now}</div>
+    </div>
+  </div>
+
+  <!-- Summary Bar -->
+  <div class="summary-bar">
+    <div class="sum-item"><span class="sum-val">⭐ ${fmtN(student?.points)}</span><span class="sum-label">نقاط</span></div>
+    <div class="sum-item"><span class="sum-val">${summary.totalCourses ?? 0}</span><span class="sum-label">كورسات</span></div>
+    <div class="sum-item"><span class="sum-val">${summary.totalExams ?? 0}</span><span class="sum-label">امتحانات</span></div>
+    <div class="sum-item"><span class="sum-val">${summary.passCount ?? 0}</span><span class="sum-label">ناجح</span></div>
+    <div class="sum-item"><span class="sum-val">${summary.failCount ?? 0}</span><span class="sum-label">راسب</span></div>
+    <div class="sum-item"><span class="sum-val">${summary.avgScore ?? 0}%</span><span class="sum-label">متوسط</span></div>
+    <div class="sum-item"><span class="sum-val">#${summary.rank ?? '—'}</span><span class="sum-label">الترتيب</span></div>
+    <div class="sum-item"><span class="sum-val">${fmtM(summary.totalWatchedMinutes)}</span><span class="sum-label">مشاهدة</span></div>
+  </div>
+
+  <!-- Performance Rings -->
+  <div class="section">
+    <div class="section-title">مؤشرات الأداء</div>
+    <div class="rings">
+      <div style="text-align:center">
+        ${ring(passRate, passRate >= 50 ? '#22c55e' : '#ef4444', passRate + '%', 'نجاح')}
+        <div class="ring-caption">نسبة النجاح</div>
+      </div>
+      <div style="text-align:center">
+        ${ring(summary.avgScore ?? 0, '#6366f1', (summary.avgScore ?? 0) + '%', 'أداء')}
+        <div class="ring-caption">متوسط الأداء</div>
+      </div>
+      <div style="text-align:center">
+        ${ring(
+          summary.totalStudents ? Math.round(((summary.totalStudents - (summary.rank ?? summary.totalStudents) + 1) / summary.totalStudents) * 100) : 0,
+          '#f59e0b', '#' + (summary.rank ?? '—'), 'ترتيب'
+        )}
+        <div class="ring-caption">ترتيبي من ${summary.totalStudents ?? 0}</div>
+      </div>
+      <div style="text-align:center">
+        ${ring(
+          summary.totalBadges > 0 ? 100 : 0,
+          '#f97316', summary.totalBadges ?? 0, 'شارة'
+        )}
+        <div class="ring-caption">الشارات</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exam Results -->
+  <div class="section">
+    <div class="section-title">نتائج الامتحانات (${examResults.length})</div>
+    ${examResults.length === 0 ? '<p style="color:#9ca3af;font-size:13px">لم تؤدِ أي امتحانات بعد</p>' : `
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>الامتحان</th><th>الكورس</th><th>الدرجة</th><th>%</th>
+          <th>النتيجة</th><th>صواب</th><th>خطأ</th><th>النقاط</th><th>التاريخ</th>
+        </tr>
+      </thead>
+      <tbody>${examRows}</tbody>
+    </table>`}
+  </div>
+
+  <!-- Courses Progress -->
+  <div class="section">
+    <div class="section-title">الكورسات والتقدم (${courses.length})</div>
+    ${courses.length === 0 ? '<p style="color:#9ca3af;font-size:13px">لم تنضم لأي كورس بعد</p>' : `
+    <table>
+      <thead>
+        <tr><th>#</th><th>الكورس</th><th>الفيديوهات</th><th>وقت المشاهدة</th><th>PDF</th><th>الإنجاز</th></tr>
+      </thead>
+      <tbody>${courseRows}</tbody>
+    </table>`}
+  </div>
+
+  <!-- Badges -->
+  <div class="section">
+    <div class="section-title">الشارات المكتسبة (${badges.length})</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0">${badgesHtml}</div>
+  </div>
+
+  <!-- Payments -->
+  ${payments.length > 0 ? `
+  <div class="section">
+    <div class="section-title">سجل المدفوعات (${payments.length})</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>الكورس</th><th>المبلغ</th><th>الطريقة</th><th>الحالة</th><th>التاريخ</th></tr>
+      </thead>
+      <tbody>${payRows}</tbody>
+    </table>
+    <div style="margin-top:10px;display:flex;gap:16px">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;text-align:center">
+        <div style="font-size:18px;font-weight:900;color:#16a34a">${fmtN(summary.totalPaid)} ج.م</div>
+        <div style="font-size:10px;color:#16a34a;font-weight:700">إجمالي المدفوع</div>
+      </div>
+      <div style="background:#fefce8;border:1px solid #fef08a;border-radius:8px;padding:10px 16px;text-align:center">
+        <div style="font-size:18px;font-weight:900;color:#ca8a04">${fmtN(summary.totalPending)} ج.م</div>
+        <div style="font-size:10px;color:#ca8a04;font-weight:700">في الانتظار</div>
+      </div>
+    </div>
+  </div>` : ''}
+
+  <!-- Footer -->
+  <div style="text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px">
+    تقرير صادر من منصة وثبة التعليمية — ${now}
+  </div>
+
+  <div class="no-print" style="margin-top:24px">
+    <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+    <button class="close-btn" onclick="window.close()">إغلاق</button>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('يرجى السماح بالنوافذ المنبثقة لاستخدام ميزة الطباعة'); return; }
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.focus(), 300);
+}
 
 const fmt = (n) => new Intl.NumberFormat('ar-EG').format(n);
 const fmtDate = (d) => new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -119,7 +386,7 @@ export default function StudentMyStats() {
 
         {/* ── Hero ── */}
         <div className="card bg-gradient-to-l from-navy-700 to-navy-500 text-white !p-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-start gap-4">
             <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg flex-shrink-0">
               {user?.name?.charAt(0)}
             </div>
@@ -140,6 +407,14 @@ export default function StudentMyStats() {
                 </span>
               </div>
             </div>
+            <button
+              onClick={() => printStatsPDF({ student, summary, examResults, courses, badges, payments })}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-white text-sm font-bold transition-colors shadow-md flex-shrink-0 mt-1"
+              title="طباعة تقرير PDF"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">تقرير PDF</span>
+            </button>
           </div>
         </div>
 
