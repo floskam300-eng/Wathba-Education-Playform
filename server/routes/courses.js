@@ -436,6 +436,7 @@ router.get('/student/my-courses', requireRole('student'), async (req, res) => {
        LEFT JOIN videos v ON c.id = v.course_id
        LEFT JOIN pdf_files p ON c.id = p.course_id
        WHERE sce.student_id = $1
+         AND c.is_published = true
        GROUP BY c.id, sce.enrollment_date, sce.status
        ORDER BY c.created_at DESC`,
       [req.user.id]
