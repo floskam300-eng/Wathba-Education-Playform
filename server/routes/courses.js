@@ -324,12 +324,12 @@ router.post('/:id/videos/url', requireRole('teacher', 'assistant'), checkManageC
     if (!(await verifyCoursOwnership(req.params.id, teacherId))) {
       return res.status(403).json({ error: 'Access denied: course not yours' });
     }
-    const { title, url, duration_minutes, sort_order, section_id } = req.body;
+    const { title, url, duration_minutes, sort_order, section_id, url_480, url_720, url_1080 } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'عنوان الفيديو مطلوب' });
     if (!url?.trim()) return res.status(400).json({ error: 'رابط الفيديو مطلوب' });
     const result = await pool.query(
-      'INSERT INTO videos (title,file_path_or_url,duration_minutes,course_id,sort_order,section_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
-      [title.trim(), url.trim(), parseInt(duration_minutes) || 0, req.params.id, parseInt(sort_order) || 0, section_id || null]
+      'INSERT INTO videos (title,file_path_or_url,duration_minutes,course_id,sort_order,section_id,url_480,url_720,url_1080) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+      [title.trim(), url.trim(), parseInt(duration_minutes) || 0, req.params.id, parseInt(sort_order) || 0, section_id || null, url_480?.trim() || null, url_720?.trim() || null, url_1080?.trim() || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
