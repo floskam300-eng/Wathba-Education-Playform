@@ -5,16 +5,27 @@ import toast from 'react-hot-toast';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
+function isInIframe() {
+  try { return window.self !== window.top; } catch (_) { return true; }
+}
+
 export function useFCM(enabled) {
   const setupDone = useRef(false);
   const unsubscribeRef = useRef(null);
 
   useEffect(() => {
     if (!enabled || setupDone.current) return;
-    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-      console.warn('[FCM] Service workers or Notifications not supported');
+
+    if (isInIframe()) {
+      console.info('[FCM] Running inside iframe — push permission unavailable in this context. Will work on the deployed domain.');
       return;
     }
+
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+      console.warn('[FCM] Service workers or Notifications not supported by this browser');
+      return;
+    }
+
     if (!VAPID_KEY) {
       console.warn('[FCM] VITE_FIREBASE_VAPID_KEY not set — push notifications disabled');
       return;
@@ -28,10 +39,7 @@ export function useFCM(enabled) {
           return;
         }
 
-        // Register the service worker first
         await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-
-        // Wait for an active service worker before getting token
         const swReg = await navigator.serviceWorker.ready;
 
         const token = await getToken(messaging, {
@@ -40,15 +48,14 @@ export function useFCM(enabled) {
         });
 
         if (!token) {
-          console.warn('[FCM] No token received — check VAPID key and Firebase Console settings');
+          console.warn('[FCM] No registration token received — check VAPID key');
           return;
         }
 
         await api.post('/notifications/fcm-token', { token });
         setupDone.current = true;
-        console.log('[FCM] Push notifications enabled successfully');
+        console.info('[FCM] Push notifications enabled successfully');
 
-        // Handle foreground messages (app is open)
         unsubscribeRef.current = onMessage(messaging, (payload) => {
           const title = payload.notification?.title || '';
           const body  = payload.notification?.body  || '';
