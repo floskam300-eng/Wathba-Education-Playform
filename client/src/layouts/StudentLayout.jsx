@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, BookOpen, FileText, Trophy, LogOut,
-  Menu, BarChart2, Moon, Sun, Bell, CheckCheck, X, ShieldAlert,
+  Menu, BarChart2, Moon, Sun, Bell, CheckCheck, X, ShieldAlert, Radio,
 } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 import { useSSE } from '../hooks/useSSE';
@@ -19,6 +19,7 @@ const navItems = [
   { to: '/student/exams',      icon: FileText,        label: 'الاختبارات' },
   { to: '/student/stats',      icon: BarChart2,       label: 'إحصائياتي' },
   { to: '/student/leaderboard',icon: Trophy,          label: 'المتصدرون' },
+  { to: '/student/live',       icon: Radio,           label: 'بث مباشر' },
 ];
 
 const TYPE_ICON = {

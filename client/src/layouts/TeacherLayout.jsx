@@ -6,7 +6,7 @@ import { useSSE } from '../hooks/useSSE';
 import {
   LayoutDashboard, Users, BookOpen, FileText, UserCog,
   BarChart3, CreditCard, Trophy, LogOut, Menu, MessageCircle,
-  Bell, Database, ClipboardList, Moon, Sun, Inbox, BookMarked
+  Bell, Database, ClipboardList, Moon, Sun, Inbox, BookMarked, Radio
 } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 
@@ -24,6 +24,7 @@ const navItems = [
   { to: '/teacher/leaderboard', icon: Trophy, label: 'المتصدرون' },
   { to: '/teacher/notifications', icon: Bell, label: 'الإشعارات' },
   { to: '/teacher/backup', icon: Database, label: 'النسخ الاحتياطي' },
+  { to: '/teacher/livestream', icon: Radio, label: 'البث المباشر' },
 ];
 
 export default function TeacherLayout() {

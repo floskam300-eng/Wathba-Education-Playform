@@ -21,6 +21,8 @@ import TeacherAttendance from './pages/teacher/Attendance';
 import TeacherRequests from './pages/teacher/Requests';
 import WrongQuestionsPage from './pages/teacher/WrongQuestions';
 import QuestionBanks from './pages/teacher/QuestionBanks';
+import TeacherLiveStream from './pages/teacher/LiveStream';
+import StudentLiveStream from './pages/student/LiveStream';
 import AssistantDashboard from './pages/assistant/Dashboard';
 import AssistantStudents from './pages/assistant/Students';
 import AssistantExams from './pages/teacher/Exams';
@@ -67,6 +69,7 @@ const AppRoutes = () => {
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
         <Route path="wrong-questions" element={<WrongQuestionsPage />} />
         <Route path="question-banks" element={<QuestionBanks />} />
+        <Route path="livestream" element={<TeacherLiveStream />} />
       </Route>
 
       <Route path="/assistant" element={<ProtectedRoute allowedRoles={['assistant']}><AssistantLayout /></ProtectedRoute>}>
@@ -91,6 +94,7 @@ const AppRoutes = () => {
         <Route path="notifications" element={<StudentNotifications />} />
         <Route path="leaderboard" element={<StudentLeaderboard />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
+        <Route path="live" element={<StudentLiveStream />} />
       </Route>
 
       <Route path="/" element={user ? <Navigate to={`/${user.role}`} replace /> : <LandingPage />} />
