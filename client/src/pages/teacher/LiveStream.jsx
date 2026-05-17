@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useLiveStream } from '../../context/LiveStreamContext';
 import {
-  Video, VideoOff, Plus, Users, Radio, Clock, Eye, EyeOff,
+  Video, VideoOff, Plus, Users, Radio, Clock, Eye,
   Trash2, X, StopCircle, GraduationCap, UserCheck, Globe,
-  CalendarDays, Wifi, WifiOff, AlertTriangle, Bell,
-  Mic, MicOff, Monitor, Settings2, ChevronLeft, ChevronRight,
-  CheckCircle, Search, Filter, RefreshCw, Send
+  CalendarDays, AlertTriangle, Bell,
+  Mic, MicOff, Settings2, ChevronRight,
+  Search, RefreshCw, Send
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
@@ -225,7 +226,12 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
             ))}
           </div>
 
-          <button onClick={handleConfirm} className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
+          <button
+            onClick={() => startStream(selCam, selMic, camOn, micOn)}
+            className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all border ${dark ? 'border-[var(--dk-border)] text-[var(--dk-text-2)] hover:bg-[var(--dk-elevated)]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            <RefreshCw className="w-4 h-4" /> تحديث الأجهزة
+          </button>
+          <button onClick={handleConfirm} className="btn-primary w-full flex items-center justify-center gap-2">
             <Radio className="w-4 h-4" />
             ابدأ البث الآن
           </button>
@@ -428,9 +434,10 @@ function ActiveStream({ stream, onEnd, dark }) {
 
 export default function TeacherLiveStream() {
   const { dark } = useTheme();
-  const [step, setStep] = useState('idle'); // idle | form | device | live
+  const { teacherLive, startTeacherStream, endTeacherStream } = useLiveStream();
+  const [step, setStep] = useState(() => teacherLive ? 'live' : 'idle');
   const [form, setForm] = useState(emptyForm);
-  const [activeLive, setActiveLive] = useState(null);
+  const [activeLive, setActiveLive] = useState(() => teacherLive || null);
   const [pastStreams, setPastStreams] = useState(MOCK_PAST);
   const [scheduled, setScheduled] = useState(MOCK_SCHEDULED);
   const [deviceConf, setDeviceConf] = useState(null);
@@ -468,12 +475,16 @@ export default function TeacherLiveStream() {
     const roomId = `wathba-${Date.now().toString(36)}`;
     const live = { ...form, roomId, startedAt: new Date(), id: Date.now(), devCamOn: conf.camOn, devMicOn: conf.micOn };
     setActiveLive(live);
+    startTeacherStream(live);
     setStep('live');
     toast.success('🔴 البث المباشر بدأ! تم إرسال إشعارات للطلاب 📣');
   };
 
   const handleEndLive = () => {
-    setPastStreams(prev => [{ ...activeLive, date: activeLive.startedAt, duration: 1, viewers: 0, status: 'ended' }, ...prev]);
+    if (activeLive) {
+      setPastStreams(prev => [{ ...activeLive, date: activeLive.startedAt, duration: 1, viewers: 0, status: 'ended' }, ...prev]);
+    }
+    endTeacherStream();
     setActiveLive(null);
     setForm(emptyForm);
     setStep('idle');

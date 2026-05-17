@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
+import { useLiveStream } from '../context/LiveStreamContext';
 import {
   LayoutDashboard, Users, BookOpen, FileText, UserCog,
   BarChart3, CreditCard, Trophy, LogOut, Menu, MessageCircle,
-  Bell, Database, ClipboardList, Moon, Sun, Inbox, BookMarked, Radio
+  Bell, Database, ClipboardList, Moon, Sun, Inbox, BookMarked, Radio,
+  StopCircle, ExternalLink
 } from 'lucide-react';
 import WathbaLogo from '../assets/wathba_logo.png';
 
@@ -31,7 +33,10 @@ export default function TeacherLayout() {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { teacherLive, endTeacherStream } = useLiveStream();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const onLivePage = location.pathname === '/teacher/livestream';
 
   useSSE(!!user, user?.role || 'teacher');
 
@@ -132,6 +137,27 @@ export default function TeacherLayout() {
           </div>
         </header>
 
+        {teacherLive && !onLivePage && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 flex-shrink-0 border-b"
+            style={{ backgroundColor: '#7f1d1d', borderColor: 'rgba(239,68,68,0.4)' }}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full animate-pulse flex-shrink-0">
+                <Radio className="w-3 h-3" /> مباشر
+              </span>
+              <p className="text-white text-sm font-bold truncate">{teacherLive.title}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={() => navigate('/teacher/livestream')}
+                className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">
+                <ExternalLink className="w-3.5 h-3.5" /> العودة للبث
+              </button>
+              <button onClick={() => { endTeacherStream(); }}
+                className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors">
+                <StopCircle className="w-3.5 h-3.5" /> إنهاء
+              </button>
+            </div>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6"
               style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
           <Outlet />

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useLiveStream } from '../../context/LiveStreamContext';
 import {
   Video, VideoOff, Mic, MicOff, Hand, MessageCircle,
   Users, Send, Radio, Clock, LogIn, LogOut,
   Volume2, VolumeX, Settings, ChevronRight,
-  AlertTriangle, Loader2, CheckCircle
+  AlertTriangle, Loader2, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -185,6 +186,11 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
             ))}
           </div>
 
+          <button
+            onClick={() => startPreview(selCam, selMic, camOn, micOn)}
+            className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all border ${dark ? 'border-[var(--dk-border)] text-[var(--dk-text-2)] hover:bg-[var(--dk-elevated)]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            <RefreshCw className="w-4 h-4" /> تحديث الأجهزة
+          </button>
           <button onClick={handleJoin} className="btn-primary w-full flex items-center justify-center gap-2 py-3">
             <LogIn className="w-5 h-5" /> انضم للبث الآن
           </button>
@@ -401,19 +407,22 @@ function LiveView({ stream, devConf, onLeave, dark }) {
 
 export default function StudentLiveStream() {
   const { dark } = useTheme();
-  const [step, setStep] = useState('lobby'); // lobby | device | connecting | live
-  const [selectedStream, setSelectedStream] = useState(null);
-  const [devConf, setDevConf] = useState(null);
+  const { studentStream, studentDevConf, joinStudentStream, leaveStudentStream } = useLiveStream();
+  const [step, setStep] = useState(() => studentStream ? 'live' : 'lobby');
+  const [selectedStream, setSelectedStream] = useState(() => studentStream || null);
+  const [devConf, setDevConf] = useState(() => studentDevConf || null);
 
   const handleClickJoin = (stream) => { setSelectedStream(stream); setStep('device'); };
 
   const handleDeviceConfirm = (stream, conf) => {
     setDevConf(conf);
+    joinStudentStream(stream, conf);
     setStep('connecting');
     setTimeout(() => { setStep('live'); toast.success('🎓 انضممت للبث!'); }, 1500);
   };
 
   const handleLeave = () => {
+    leaveStudentStream();
     setStep('lobby');
     setSelectedStream(null);
     setDevConf(null);

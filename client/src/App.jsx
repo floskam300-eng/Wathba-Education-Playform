@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { LiveStreamProvider } from './context/LiveStreamContext';
 import Login from './pages/Login';
 import LandingPage from './pages/LandingPage';
 import TeacherLayout from './layouts/TeacherLayout';
@@ -107,7 +108,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppRoutes />
+        <LiveStreamProvider>
+          <AppRoutes />
+        </LiveStreamProvider>
       </AuthProvider>
     </ThemeProvider>
   );
