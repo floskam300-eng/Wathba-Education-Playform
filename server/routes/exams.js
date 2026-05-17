@@ -1,4 +1,4 @@
-const { sendEvent, broadcastToTeacherStudents, broadcastToCourseStudents } = require('../sse');
+const { sendEvent } = require('../sse');
 const { sendFCMToStudents } = require('../lib/fcm');
 const express = require('express');
 const pool = require('../db/connection');
@@ -31,8 +31,6 @@ const uploadQuestionImage = multer({
     else cb(new Error('يُسمح بالصور فقط'));
   },
 });
-
-const { getPermissions } = require('../lib/permissionsCache');
 
 const getTeacherId = (req) => req.user.role === 'teacher' ? req.user.id : req.user.teacher_id;
 
@@ -70,16 +68,6 @@ router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
   }
 });
 
-const validateExamFields = ({ title, duration_minutes, total_score, pass_score }) => {
-  if (!title || !title.trim()) return 'عنوان الامتحان مطلوب';
-  const dur = parseInt(duration_minutes);
-  const total = parseInt(total_score);
-  const pass = parseInt(pass_score);
-  if (!dur || dur <= 0) return 'مدة الامتحان يجب أن تكون أكبر من صفر';
-  if (!total || total <= 0) return 'الدرجة الكلية يجب أن تكون أكبر من صفر';
-  if (pass < 0 || pass > total) return `درجة النجاح يجب أن تكون بين 0 و ${total}`;
-  return null;
-};
 
 // ── Create exam ──
 router.post('/', requireRole('teacher', 'assistant'), validateExam, async (req, res) => {

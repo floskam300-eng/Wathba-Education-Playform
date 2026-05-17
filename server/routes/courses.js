@@ -1,4 +1,4 @@
-const { sendEvent, broadcastToTeacherStudents, broadcastToCourseStudents } = require('../sse');
+const { sendEvent } = require('../sse');
 const { sendFCMToStudents } = require('../lib/fcm');
 const express = require('express');
 const multer = require('multer');
