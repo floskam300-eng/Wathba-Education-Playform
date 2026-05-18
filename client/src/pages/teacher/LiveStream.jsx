@@ -6,7 +6,7 @@ import {
   Trash2, X, StopCircle, GraduationCap, UserCheck, Globe,
   CalendarDays, AlertTriangle, Bell,
   Mic, MicOff, Settings2, ChevronRight,
-  Search, RefreshCw, Send
+  Search, RefreshCw, Send, ScreenShare, ScreenShareOff, Monitor
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
@@ -70,7 +70,7 @@ function MicMeter({ stream }) {
         cancelAnimationFrame(rafRef.current);
         ctx.close();
       };
-    } catch { /* no mic */ }
+    } catch { }
   }, [stream]);
 
   const bars = 20;
@@ -93,24 +93,32 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
   const [selMic, setSelMic] = useState('');
   const [camOn, setCamOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
+  const [screenOn, setScreenOn] = useState(false);
+  const [screenStream, setScreenStream] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const streamRef = useRef(null);
+  const screenStreamRef = useRef(null);
 
   const startStream = useCallback(async (camId, micId, cOn, mOn) => {
-    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     try {
       const constraints = {
         video: cOn ? (camId ? { deviceId: { exact: camId } } : true) : false,
         audio: mOn ? (micId ? { deviceId: { exact: micId } } : true) : false,
       };
       const s = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = s;
       setStream(s);
-      if (videoRef.current) { videoRef.current.srcObject = s; videoRef.current.muted = true; }
+      if (videoRef.current && !screenStreamRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.muted = true;
+      }
       const devices = await navigator.mediaDevices.enumerateDevices();
       setCameras(devices.filter(d => d.kind === 'videoinput'));
       setMics(devices.filter(d => d.kind === 'audioinput'));
       setError('');
-    } catch (e) {
+    } catch {
       setError('تعذّر الوصول للكاميرا أو الميكروفون. تأكد من الإذن.');
     }
     setLoading(false);
@@ -118,8 +126,48 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
 
   useEffect(() => {
     startStream('', '', true, true);
-    return () => { if (stream) stream.getTracks().forEach(t => t.stop()); };
+    return () => {
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach(t => t.stop());
+    };
   }, []);
+
+  const handleScreenToggle = async () => {
+    if (screenOn) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
+        screenStreamRef.current = null;
+      }
+      setScreenStream(null);
+      setScreenOn(false);
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.muted = true;
+      }
+    } else {
+      try {
+        const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = ss;
+        setScreenStream(ss);
+        setScreenOn(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = ss;
+          videoRef.current.muted = true;
+        }
+        ss.getVideoTracks()[0].addEventListener('ended', () => {
+          screenStreamRef.current = null;
+          setScreenStream(null);
+          setScreenOn(false);
+          if (videoRef.current && streamRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+            videoRef.current.muted = true;
+          }
+        });
+      } catch {
+        toast.error('تعذّر مشاركة الشاشة — تأكد من الإذن');
+      }
+    }
+  };
 
   const handleCamToggle = () => {
     const next = !camOn;
@@ -135,8 +183,9 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
   const handleMicChange = (id) => { setSelMic(id); startStream(selCam, id, camOn, micOn); };
 
   const handleConfirm = () => {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    onConfirm({ camOn, micOn, selCam, selMic });
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach(t => t.stop());
+    onConfirm({ camOn, micOn, selCam, selMic, screenOn });
   };
 
   const card = dark ? 'bg-[var(--dk-surface)] border-[var(--dk-border)]' : 'bg-white border-gray-100 shadow-sm';
@@ -164,14 +213,21 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
                 <p className="text-red-300 text-xs font-bold">{error}</p>
               </div>
             )}
-            {!camOn && !error && (
+            {!camOn && !screenOn && !error && !loading && (
               <div className="text-center">
                 <VideoOff className="w-10 h-10 text-gray-500 mx-auto mb-2" />
                 <p className="text-gray-400 text-sm font-bold">الكاميرا مغلقة</p>
               </div>
             )}
+            {screenOn && !loading && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                <div className="bg-blue-500/80 text-white text-xs font-black px-2 py-1 rounded-lg flex items-center gap-1">
+                  <Monitor className="w-3 h-3" /> معاينة الشاشة
+                </div>
+              </div>
+            )}
             <video ref={videoRef} autoPlay playsInline muted
-              className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] ${(!camOn || error) ? 'hidden' : ''}`} />
+              className={`absolute inset-0 w-full h-full object-cover ${screenOn ? '' : 'scale-x-[-1]'} ${(!camOn && !screenOn) || error ? 'hidden' : ''}`} />
             <div className="absolute top-2 right-2 flex gap-1.5">
               <button onClick={handleCamToggle}
                 className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${camOn ? 'bg-orange-500 text-white' : 'bg-black/60 text-white hover:bg-black/80'}`}>
@@ -180,6 +236,11 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
               <button onClick={handleMicToggle}
                 className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${micOn ? 'bg-orange-500 text-white' : 'bg-black/60 text-white hover:bg-black/80'}`}>
                 {micOn ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+              </button>
+              <button onClick={handleScreenToggle}
+                className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${screenOn ? 'bg-blue-500 text-white' : 'bg-black/60 text-white hover:bg-black/80'}`}
+                title={screenOn ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}>
+                {screenOn ? <ScreenShareOff className="w-3.5 h-3.5" /> : <ScreenShare className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
@@ -217,14 +278,29 @@ function DeviceCheck({ onConfirm, onBack, dark }) {
             {[
               { icon: camOn ? Video : VideoOff, label: 'الكاميرا', ok: camOn && !error },
               { icon: micOn ? Mic : MicOff, label: 'الميكروفون', ok: micOn && !error },
-            ].map(({ icon: Icon, label, ok }) => (
+              { icon: screenOn ? ScreenShare : Monitor, label: 'مشاركة الشاشة', ok: screenOn, optional: true },
+            ].map(({ icon: Icon, label, ok, optional }) => (
               <div key={label} className="flex items-center gap-2">
-                <Icon className={`w-4 h-4 ${ok ? 'text-green-500' : 'text-gray-400'}`} />
+                <Icon className={`w-4 h-4 ${ok ? 'text-blue-500' : 'text-gray-400'}`} style={ok && label === 'الكاميرا' ? { color: '#22c55e' } : ok && label === 'الميكروفون' ? { color: '#22c55e' } : {}} />
                 <span className={`text-sm font-bold flex-1 ${dark ? 'text-[var(--dk-text)]' : 'text-navy-700'}`}>{label}</span>
-                <span className={`text-xs font-bold ${ok ? 'text-green-600' : 'text-gray-400'}`}>{ok ? 'جاهز ✓' : 'مغلق'}</span>
+                <span className={`text-xs font-bold ${ok ? label === 'مشاركة الشاشة' ? 'text-blue-600' : 'text-green-600' : optional ? 'text-gray-400' : 'text-gray-400'}`}>
+                  {ok ? (label === 'مشاركة الشاشة' ? 'نشطة ✓' : 'جاهز ✓') : optional ? 'غير مفعّلة' : 'مغلق'}
+                </span>
               </div>
             ))}
           </div>
+
+          {screenOn && (
+            <div className={`rounded-xl p-3 border border-blue-200 ${dark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <ScreenShare className="w-4 h-4 text-blue-500" />
+                <span className={`text-xs font-black text-blue-600`}>مشاركة الشاشة مفعّلة</span>
+              </div>
+              <p className={`text-xs ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-500'}`}>
+                سيرى الطلاب شاشتك بدلاً من الكاميرا — يمكنك التبديل بينهم أثناء البث
+              </p>
+            </div>
+          )}
 
           <button
             onClick={() => startStream(selCam, selMic, camOn, micOn)}
@@ -254,7 +330,6 @@ function StudentPicker({ students, selectedIds, onToggle, onSelectAll, dark }) {
   });
 
   const el = dark ? 'bg-[var(--dk-elevated)] border-[var(--dk-border)]' : 'bg-white border-gray-200';
-  const surface = dark ? 'bg-[var(--dk-surface)]' : 'bg-gray-50';
 
   return (
     <div className={`rounded-xl border overflow-hidden ${el}`}>
@@ -304,13 +379,15 @@ function StudentPicker({ students, selectedIds, onToggle, onSelectAll, dark }) {
 
 function ActiveStream({ stream, onEnd, dark }) {
   const videoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
   const [elapsed, setElapsed] = useState(0);
   const [viewers, setViewers] = useState(0);
   const [chatOn, setChatOn] = useState(stream.chat);
   const [handOn, setHandOn] = useState(stream.handRaise);
   const [camOn, setCamOn] = useState(stream.devCamOn ?? true);
   const [micOn, setMicOn] = useState(stream.devMicOn ?? true);
-  const [localStream, setLocalStream] = useState(null);
+  const [screenOn, setScreenOn] = useState(stream.devScreenOn ?? false);
 
   useEffect(() => {
     const t = setInterval(() => setElapsed(e => e + 1), 60000);
@@ -319,22 +396,86 @@ function ActiveStream({ stream, onEnd, dark }) {
   }, []);
 
   useEffect(() => {
-    if (!camOn && !micOn) return;
-    navigator.mediaDevices.getUserMedia({ video: camOn, audio: micOn })
-      .then(s => {
-        setLocalStream(s);
-        if (videoRef.current) { videoRef.current.srcObject = s; videoRef.current.muted = true; }
-      }).catch(() => {});
-    return () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); };
+    const initMedia = async () => {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video: camOn, audio: micOn });
+        localStreamRef.current = s;
+        if (videoRef.current && !screenStreamRef.current) {
+          videoRef.current.srcObject = s;
+          videoRef.current.muted = true;
+        }
+      } catch { }
+
+      if (stream.devScreenOn) {
+        try {
+          const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          screenStreamRef.current = ss;
+          if (videoRef.current) {
+            videoRef.current.srcObject = ss;
+            videoRef.current.muted = true;
+          }
+          ss.getVideoTracks()[0].addEventListener('ended', () => {
+            screenStreamRef.current = null;
+            setScreenOn(false);
+            if (videoRef.current && localStreamRef.current) {
+              videoRef.current.srcObject = localStreamRef.current;
+              videoRef.current.muted = true;
+            }
+          });
+        } catch { }
+      }
+    };
+    initMedia();
+    return () => {
+      if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+      if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach(t => t.stop());
+    };
   }, []);
 
   const toggleCam = () => {
-    if (localStream) localStream.getVideoTracks().forEach(t => { t.enabled = !camOn; });
+    if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => { t.enabled = !camOn; });
     setCamOn(v => !v);
   };
   const toggleMic = () => {
-    if (localStream) localStream.getAudioTracks().forEach(t => { t.enabled = !micOn; });
+    if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = !micOn; });
     setMicOn(v => !v);
+  };
+
+  const toggleScreen = async () => {
+    if (screenOn) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
+        screenStreamRef.current = null;
+      }
+      setScreenOn(false);
+      if (videoRef.current && localStreamRef.current) {
+        videoRef.current.srcObject = localStreamRef.current;
+        videoRef.current.muted = true;
+      }
+      toast('أوقفت مشاركة الشاشة', { duration: 2000 });
+    } else {
+      try {
+        const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = ss;
+        setScreenOn(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = ss;
+          videoRef.current.muted = true;
+        }
+        ss.getVideoTracks()[0].addEventListener('ended', () => {
+          screenStreamRef.current = null;
+          setScreenOn(false);
+          if (videoRef.current && localStreamRef.current) {
+            videoRef.current.srcObject = localStreamRef.current;
+            videoRef.current.muted = true;
+          }
+          toast('انتهت مشاركة الشاشة', { duration: 2000 });
+        });
+        toast.success('🖥️ بدأت مشاركة الشاشة — يرى الطلاب شاشتك الآن');
+      } catch {
+        toast.error('تعذّر مشاركة الشاشة');
+      }
+    }
   };
 
   const sendNotif = () => toast.success('📣 تم إرسال إشعار لجميع الطلاب المسموح لهم!');
@@ -351,6 +492,11 @@ function ActiveStream({ stream, onEnd, dark }) {
               <Radio className="w-3.5 h-3.5" /> مباشر الآن
             </span>
             <h2 className={`text-base font-black ${dark ? 'text-[var(--dk-text)]' : 'text-navy-800'}`}>{stream.title}</h2>
+            {screenOn && (
+              <span className="flex items-center gap-1 bg-blue-500/90 text-white text-xs font-black px-2.5 py-1 rounded-full">
+                <Monitor className="w-3 h-3" /> مشاركة الشاشة
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={sendNotif}
@@ -367,14 +513,14 @@ function ActiveStream({ stream, onEnd, dark }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-5">
           <div className="lg:col-span-2 space-y-3">
             <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-950">
-              {!camOn && (
+              {!camOn && !screenOn && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <div className="w-20 h-20 bg-navy-700 rounded-full flex items-center justify-center text-white text-3xl font-black mb-2 ring-4 ring-orange-500">أ</div>
                   <p className="text-gray-300 text-sm font-bold">الكاميرا مغلقة</p>
                 </div>
               )}
               <video ref={videoRef} autoPlay playsInline muted
-                className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] ${!camOn ? 'hidden' : ''}`} />
+                className={`absolute inset-0 w-full h-full object-cover ${screenOn ? '' : 'scale-x-[-1]'} ${!camOn && !screenOn ? 'hidden' : ''}`} />
               <div className="absolute top-3 right-3 flex items-center gap-1.5">
                 <span className="flex items-center gap-1 bg-red-500/90 text-white text-xs font-black px-2 py-1 rounded-full animate-pulse">
                   <Radio className="w-3 h-3" /> LIVE
@@ -386,15 +532,27 @@ function ActiveStream({ stream, onEnd, dark }) {
               <div className="absolute top-3 left-3 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                 <Eye className="w-3 h-3 text-blue-400" /> {viewers} مشاهد
               </div>
+              {screenOn && (
+                <div className="absolute bottom-3 left-3 bg-blue-500/80 text-white text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <Monitor className="w-3 h-3" /> جاري مشاركة الشاشة
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-center gap-3">
               <button onClick={toggleMic}
-                className={`p-3 rounded-xl transition-all ${micOn ? 'bg-orange-500 text-white' : dark ? 'bg-[var(--dk-elevated)] text-[var(--dk-text-2)]' : 'bg-gray-200 text-gray-500'}`}>
+                className={`p-3 rounded-xl transition-all ${micOn ? 'bg-orange-500 text-white' : dark ? 'bg-[var(--dk-elevated)] text-[var(--dk-text-2)]' : 'bg-gray-200 text-gray-500'}`}
+                title={micOn ? 'أوقف الميك' : 'شغّل الميك'}>
                 {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
               </button>
               <button onClick={toggleCam}
-                className={`p-3 rounded-xl transition-all ${camOn ? 'bg-orange-500 text-white' : dark ? 'bg-[var(--dk-elevated)] text-[var(--dk-text-2)]' : 'bg-gray-200 text-gray-500'}`}>
+                className={`p-3 rounded-xl transition-all ${camOn ? 'bg-orange-500 text-white' : dark ? 'bg-[var(--dk-elevated)] text-[var(--dk-text-2)]' : 'bg-gray-200 text-gray-500'}`}
+                title={camOn ? 'أوقف الكاميرا' : 'شغّل الكاميرا'}>
                 {camOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </button>
+              <button onClick={toggleScreen}
+                className={`p-3 rounded-xl transition-all ${screenOn ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : dark ? 'bg-[var(--dk-elevated)] text-[var(--dk-text-2)]' : 'bg-gray-200 text-gray-500'}`}
+                title={screenOn ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}>
+                {screenOn ? <ScreenShareOff className="w-5 h-5" /> : <ScreenShare className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -415,11 +573,15 @@ function ActiveStream({ stream, onEnd, dark }) {
               {[
                 { label: 'الدردشة', state: chatOn, toggle: () => setChatOn(v => !v) },
                 { label: 'رفع اليد', state: handOn, toggle: () => setHandOn(v => !v) },
-              ].map(({ label, state, toggle }) => (
+                { label: 'مشاركة الشاشة', state: screenOn, toggle: toggleScreen, blue: true },
+              ].map(({ label, state, toggle, blue }) => (
                 <div key={label} className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${dark ? 'text-[var(--dk-text)]' : 'text-navy-700'}`}>{label}</span>
+                  <span className={`text-xs font-bold flex items-center gap-1.5 ${dark ? 'text-[var(--dk-text)]' : 'text-navy-700'}`}>
+                    {label === 'مشاركة الشاشة' && <Monitor className="w-3.5 h-3.5 text-blue-500" />}
+                    {label}
+                  </span>
                   <button onClick={toggle}
-                    className={`relative w-9 h-5 rounded-full transition-all ${state ? 'bg-orange-500' : dark ? 'bg-[var(--dk-border)]' : 'bg-gray-300'}`}>
+                    className={`relative w-9 h-5 rounded-full transition-all ${state ? (blue ? 'bg-blue-500' : 'bg-orange-500') : dark ? 'bg-[var(--dk-border)]' : 'bg-gray-300'}`}>
                     <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${state ? 'right-0.5' : 'left-0.5'}`} />
                   </button>
                 </div>
@@ -473,7 +635,7 @@ export default function TeacherLiveStream() {
   const handleDeviceConfirm = (conf) => {
     setDeviceConf(conf);
     const roomId = `wathba-${Date.now().toString(36)}`;
-    const live = { ...form, roomId, startedAt: new Date(), id: Date.now(), devCamOn: conf.camOn, devMicOn: conf.micOn };
+    const live = { ...form, roomId, startedAt: new Date(), id: Date.now(), devCamOn: conf.camOn, devMicOn: conf.micOn, devScreenOn: conf.screenOn };
     setActiveLive(live);
     startTeacherStream(live);
     setStep('live');
@@ -492,7 +654,6 @@ export default function TeacherLiveStream() {
   };
 
   const card = dark ? 'bg-[var(--dk-surface)] border-[var(--dk-border)]' : 'bg-white border-gray-100 shadow-sm';
-
   const fmtDate = (d) => new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (

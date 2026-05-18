@@ -5,7 +5,7 @@ import {
   Video, VideoOff, Mic, MicOff, Hand, MessageCircle,
   Users, Send, Radio, Clock, LogIn, LogOut,
   Volume2, VolumeX, Settings, ChevronRight,
-  AlertTriangle, Loader2, RefreshCw
+  AlertTriangle, Loader2, RefreshCw, ScreenShare, ScreenShareOff, Monitor
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -61,6 +61,8 @@ function MicMeter({ stream }) {
 
 function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
   const videoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
   const [localStream, setLocalStream] = useState(null);
   const [cameras, setCameras] = useState([]);
   const [mics, setMics] = useState([]);
@@ -68,24 +70,30 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
   const [selMic, setSelMic] = useState('');
   const [camOn, setCamOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
+  const [screenOn, setScreenOn] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   const startPreview = useCallback(async (camId, micId, cOn, mOn) => {
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: cOn ? (camId ? { deviceId: { exact: camId } } : true) : false,
         audio: mOn ? (micId ? { deviceId: { exact: micId } } : true) : false,
       });
+      localStreamRef.current = s;
       setLocalStream(s);
-      if (videoRef.current) { videoRef.current.srcObject = s; videoRef.current.muted = true; }
+      if (videoRef.current && !screenStreamRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.muted = true;
+      }
       const devices = await navigator.mediaDevices.enumerateDevices();
       setCameras(devices.filter(d => d.kind === 'videoinput'));
       setMics(devices.filter(d => d.kind === 'audioinput'));
       setError('');
     } catch {
       setError('لم يتم منح إذن الكاميرا أو الميك — يمكنك الانضمام بدونهم.');
+      localStreamRef.current = null;
       setLocalStream(null);
     }
     setLoading(false);
@@ -93,12 +101,50 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
 
   useEffect(() => {
     startPreview('', '', true, true);
-    return () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); };
+    return () => {
+      if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+      if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach(t => t.stop());
+    };
   }, []);
 
+  const handleScreenToggle = async () => {
+    if (screenOn) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
+        screenStreamRef.current = null;
+      }
+      setScreenOn(false);
+      if (videoRef.current && localStreamRef.current) {
+        videoRef.current.srcObject = localStreamRef.current;
+        videoRef.current.muted = true;
+      }
+    } else {
+      try {
+        const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = ss;
+        setScreenOn(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = ss;
+          videoRef.current.muted = true;
+        }
+        ss.getVideoTracks()[0].addEventListener('ended', () => {
+          screenStreamRef.current = null;
+          setScreenOn(false);
+          if (videoRef.current && localStreamRef.current) {
+            videoRef.current.srcObject = localStreamRef.current;
+            videoRef.current.muted = true;
+          }
+        });
+      } catch {
+        toast.error('تعذّر مشاركة الشاشة — تأكد من الإذن');
+      }
+    }
+  };
+
   const handleJoin = () => {
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
-    onJoin(targetStream, { camOn, micOn, selCam, selMic });
+    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+    if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach(t => t.stop());
+    onJoin(targetStream, { camOn, micOn, selCam, selMic, screenOn });
   };
 
   const el = dark ? 'bg-[var(--dk-elevated)] border-[var(--dk-border)]' : 'bg-gray-50 border-gray-200';
@@ -120,20 +166,27 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
         <div className="space-y-3">
           <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-950 flex items-center justify-center">
             {loading && <div className="text-gray-400 text-sm animate-pulse">جاري الوصول للكاميرا...</div>}
-            {!camOn && !loading && (
+            {!camOn && !screenOn && !loading && (
               <div className="text-center">
                 <VideoOff className="w-10 h-10 text-gray-500 mx-auto mb-2" />
                 <p className="text-gray-400 text-sm">الكاميرا مغلقة</p>
               </div>
             )}
-            {error && !loading && camOn && (
+            {error && !loading && camOn && !screenOn && (
               <div className="text-center px-4">
                 <AlertTriangle className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
                 <p className="text-yellow-300 text-xs font-bold">{error}</p>
               </div>
             )}
+            {screenOn && !loading && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                <div className="bg-blue-500/80 text-white text-xs font-black px-2 py-1 rounded-lg flex items-center gap-1">
+                  <Monitor className="w-3 h-3" /> معاينة الشاشة
+                </div>
+              </div>
+            )}
             <video ref={videoRef} autoPlay playsInline muted
-              className={`absolute inset-0 w-full h-full object-cover scale-x-[-1] ${(!camOn || error) ? 'hidden' : ''}`} />
+              className={`absolute inset-0 w-full h-full object-cover ${screenOn ? '' : 'scale-x-[-1]'} ${(!camOn && !screenOn) || (error && !screenOn) ? 'hidden' : ''}`} />
             <div className="absolute top-2 right-2 flex gap-1.5">
               <button onClick={() => { const n = !camOn; setCamOn(n); startPreview(selCam, selMic, n, micOn); }}
                 className={`p-1.5 rounded-lg transition-all ${camOn ? 'bg-orange-500 text-white' : 'bg-black/60 text-white'}`}>
@@ -142,6 +195,11 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
               <button onClick={() => { const n = !micOn; setMicOn(n); startPreview(selCam, selMic, camOn, n); }}
                 className={`p-1.5 rounded-lg transition-all ${micOn ? 'bg-orange-500 text-white' : 'bg-black/60 text-white'}`}>
                 {micOn ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+              </button>
+              <button onClick={handleScreenToggle}
+                className={`p-1.5 rounded-lg transition-all ${screenOn ? 'bg-blue-500 text-white' : 'bg-black/60 text-white'}`}
+                title={screenOn ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}>
+                {screenOn ? <ScreenShareOff className="w-3.5 h-3.5" /> : <ScreenShare className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
@@ -175,16 +233,29 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
             {[
               { label: 'الكاميرا', ok: camOn && !error, off: !camOn },
               { label: 'الميكروفون', ok: micOn && !error, off: !micOn },
-            ].map(({ label, ok, off }) => (
+              { label: 'مشاركة الشاشة', ok: screenOn, off: !screenOn, optional: true },
+            ].map(({ label, ok, off, optional }) => (
               <div key={label} className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${ok ? 'bg-green-500' : off ? 'bg-gray-400' : 'bg-yellow-500'}`} />
+                <div className={`w-2 h-2 rounded-full ${ok ? (optional ? 'bg-blue-500' : 'bg-green-500') : off ? 'bg-gray-400' : 'bg-yellow-500'}`} />
                 <span className={`text-sm font-bold flex-1 ${dark ? 'text-[var(--dk-text)]' : 'text-navy-700'}`}>{label}</span>
-                <span className={`text-xs font-bold ${ok ? 'text-green-600' : off ? 'text-gray-400' : 'text-yellow-600'}`}>
-                  {ok ? 'جاهز ✓' : off ? 'مغلق' : 'لا يوجد إذن'}
+                <span className={`text-xs font-bold ${ok ? (optional ? 'text-blue-600' : 'text-green-600') : off ? 'text-gray-400' : 'text-yellow-600'}`}>
+                  {ok ? (optional ? 'نشطة ✓' : 'جاهز ✓') : off ? (optional ? 'غير مفعّلة' : 'مغلق') : 'لا يوجد إذن'}
                 </span>
               </div>
             ))}
           </div>
+
+          {screenOn && (
+            <div className={`rounded-xl p-3 border border-blue-200 ${dark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <ScreenShare className="w-4 h-4 text-blue-500" />
+                <span className="text-xs font-black text-blue-600">مشاركة الشاشة مفعّلة</span>
+              </div>
+              <p className={`text-xs ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-500'}`}>
+                سيرى الأستاذ والطلاب شاشتك أثناء البث
+              </p>
+            </div>
+          )}
 
           <button
             onClick={() => startPreview(selCam, selMic, camOn, micOn)}
@@ -203,15 +274,18 @@ function DeviceCheckScreen({ stream: targetStream, onJoin, onBack, dark }) {
 
 function LiveView({ stream, devConf, onLeave, dark }) {
   const selfVideoRef = useRef(null);
+  const screenVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
   const [localStream, setLocalStream] = useState(null);
   const [micOn, setMicOn] = useState(devConf?.micOn ?? false);
   const [camOn, setCamOn] = useState(devConf?.camOn ?? false);
+  const [screenOn, setScreenOn] = useState(devConf?.screenOn ?? false);
   const [handRaised, setHandRaised] = useState(false);
   const [muted, setMuted] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [chatMsg, setChatMsg] = useState('');
   const [msgs, setMsgs] = useState(MOCK_CHAT);
-  const [activeEmoji, setActiveEmoji] = useState(null);
   const [emojiAnim, setEmojiAnim] = useState([]);
   const [viewers, setViewers] = useState(stream.viewersCount + 1);
   const [elapsed, setElapsed] = useState(fmtElapsed(stream.startedAt));
@@ -228,22 +302,68 @@ function LiveView({ stream, devConf, onLeave, dark }) {
   }, [msgs]);
 
   useEffect(() => {
-    if (!devConf?.camOn && !devConf?.micOn) return;
-    navigator.mediaDevices.getUserMedia({ video: devConf.camOn, audio: devConf.micOn })
-      .then(s => {
-        setLocalStream(s);
-        if (selfVideoRef.current) { selfVideoRef.current.srcObject = s; selfVideoRef.current.muted = true; }
-      }).catch(() => {});
-    return () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); };
+    const initMedia = async () => {
+      if (devConf?.camOn || devConf?.micOn) {
+        try {
+          const s = await navigator.mediaDevices.getUserMedia({ video: devConf.camOn, audio: devConf.micOn });
+          localStreamRef.current = s;
+          setLocalStream(s);
+          if (selfVideoRef.current) { selfVideoRef.current.srcObject = s; selfVideoRef.current.muted = true; }
+        } catch { }
+      }
+
+      if (devConf?.screenOn) {
+        try {
+          const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          screenStreamRef.current = ss;
+          if (screenVideoRef.current) { screenVideoRef.current.srcObject = ss; screenVideoRef.current.muted = true; }
+          ss.getVideoTracks()[0].addEventListener('ended', () => {
+            screenStreamRef.current = null;
+            setScreenOn(false);
+          });
+        } catch { }
+      }
+    };
+    initMedia();
+    return () => {
+      if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+      if (screenStreamRef.current) screenStreamRef.current.getTracks().forEach(t => t.stop());
+    };
   }, []);
 
   const toggleMic = () => {
-    if (localStream) localStream.getAudioTracks().forEach(t => { t.enabled = !micOn; });
+    if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = !micOn; });
     setMicOn(v => !v);
   };
   const toggleCam = () => {
-    if (localStream) localStream.getVideoTracks().forEach(t => { t.enabled = !camOn; });
+    if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => { t.enabled = !camOn; });
     setCamOn(v => !v);
+  };
+
+  const toggleScreen = async () => {
+    if (screenOn) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
+        screenStreamRef.current = null;
+      }
+      setScreenOn(false);
+      toast('أوقفت مشاركة الشاشة', { duration: 2000 });
+    } else {
+      try {
+        const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = ss;
+        setScreenOn(true);
+        if (screenVideoRef.current) { screenVideoRef.current.srcObject = ss; screenVideoRef.current.muted = true; }
+        ss.getVideoTracks()[0].addEventListener('ended', () => {
+          screenStreamRef.current = null;
+          setScreenOn(false);
+          toast('انتهت مشاركة الشاشة', { duration: 2000 });
+        });
+        toast.success('🖥️ بدأت مشاركة الشاشة');
+      } catch {
+        toast.error('تعذّر مشاركة الشاشة');
+      }
+    }
   };
 
   const sendEmoji = (emoji) => {
@@ -273,6 +393,11 @@ function LiveView({ stream, devConf, onLeave, dark }) {
             <Radio className="w-3 h-3" /> مباشر
           </span>
           <span className={`text-sm font-black truncate ${dark ? 'text-[var(--dk-text)]' : 'text-navy-800'}`}>{stream.title}</span>
+          {screenOn && (
+            <span className="flex items-center gap-1 bg-blue-500/90 text-white text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">
+              <Monitor className="w-3 h-3" /> تشارك شاشتك
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-xs font-bold hidden sm:flex items-center gap-1 ${dark ? 'text-[var(--dk-text-2)]' : 'text-gray-400'}`}>
@@ -325,6 +450,15 @@ function LiveView({ stream, devConf, onLeave, dark }) {
               </div>
             ))}
 
+            {screenOn && (
+              <div className="absolute bottom-4 right-4 z-20 w-48 aspect-video rounded-xl overflow-hidden border-2 border-blue-500 bg-gray-900 shadow-lg shadow-blue-500/20">
+                <video ref={screenVideoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+                <div className="absolute top-1 right-1 bg-blue-500/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <Monitor className="w-2.5 h-2.5" /> شاشتك
+                </div>
+              </div>
+            )}
+
             {camOn && localStream && (
               <div className="absolute bottom-4 left-4 z-20 w-32 aspect-video rounded-xl overflow-hidden border-2 border-orange-500 bg-gray-900">
                 <video ref={selfVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
@@ -357,6 +491,11 @@ function LiveView({ stream, devConf, onLeave, dark }) {
                 className={`p-2.5 rounded-xl transition-all ${camOn ? 'bg-orange-500 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}
                 title={camOn ? 'أوقف الكاميرا' : 'شغّل الكاميرا'}>
                 {camOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+              </button>
+              <button onClick={toggleScreen}
+                className={`p-2.5 rounded-xl transition-all ${screenOn ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}
+                title={screenOn ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}>
+                {screenOn ? <ScreenShareOff className="w-4 h-4" /> : <ScreenShare className="w-4 h-4" />}
               </button>
               <button onClick={() => setMuted(v => !v)}
                 className={`p-2.5 rounded-xl transition-all ${muted ? 'bg-red-500/40 text-red-300' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}>
@@ -485,7 +624,7 @@ export default function StudentLiveStream() {
                     <LogIn className="w-5 h-5" /> انضم للبث
                   </button>
                 </div>
-                <div className={`px-5 py-3 flex justify-center ${dark ? '' : ''}`}>
+                <div className="px-5 py-3 flex justify-center">
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">{stream.stage}</span>
                 </div>
               </div>
