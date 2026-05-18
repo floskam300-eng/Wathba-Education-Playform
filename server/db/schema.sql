@@ -303,3 +303,50 @@ CREATE TABLE IF NOT EXISTS leaderboard_reset_tracker (
   last_reset_at TIMESTAMP DEFAULT NOW(),
   next_reset_at TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days')
 );
+
+-- ── Live Streaming ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS live_streams (
+  id SERIAL PRIMARY KEY,
+  teacher_id INTEGER REFERENCES teachers(id) ON DELETE CASCADE,
+  room_id VARCHAR(300) NOT NULL UNIQUE,
+  title VARCHAR(300) NOT NULL,
+  description TEXT,
+  access VARCHAR(20) DEFAULT 'all',
+  allowed_stages JSONB DEFAULT '[]',
+  allowed_student_ids JSONB DEFAULT '[]',
+  chat_enabled BOOLEAN DEFAULT true,
+  hand_raise_enabled BOOLEAN DEFAULT true,
+  status VARCHAR(20) DEFAULT 'active',
+  started_at TIMESTAMP DEFAULT NOW(),
+  ended_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS live_stream_viewers (
+  id SERIAL PRIMARY KEY,
+  stream_id INTEGER REFERENCES live_streams(id) ON DELETE CASCADE,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP DEFAULT NOW(),
+  left_at TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  UNIQUE(stream_id, student_id)
+);
+
+CREATE TABLE IF NOT EXISTS live_chat_messages (
+  id SERIAL PRIMARY KEY,
+  stream_id INTEGER REFERENCES live_streams(id) ON DELETE CASCADE,
+  sender_id INTEGER NOT NULL,
+  sender_type VARCHAR(20) NOT NULL,
+  sender_name VARCHAR(200),
+  message TEXT NOT NULL,
+  sent_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS live_hand_raises (
+  id SERIAL PRIMARY KEY,
+  stream_id INTEGER REFERENCES live_streams(id) ON DELETE CASCADE,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  raised_at TIMESTAMP DEFAULT NOW(),
+  lowered_at TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  UNIQUE(stream_id, student_id)
+);

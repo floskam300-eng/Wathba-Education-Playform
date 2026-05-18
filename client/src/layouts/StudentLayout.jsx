@@ -224,7 +224,7 @@ export default function StudentLayout() {
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { studentStream, leaveStudentStream } = useLiveStream();
+  const { studentStream, leaveStudentStream, availableLive, clearAvailableLive } = useLiveStream();
   const onLivePage = location.pathname === '/student/live';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [captureWarning, setCaptureWarning] = useState(false);
@@ -383,9 +383,30 @@ export default function StudentLayout() {
                 className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">
                 <ExternalLink className="w-3.5 h-3.5" /> العودة للبث
               </button>
-              <button onClick={() => leaveStudentStream()}
+              <button onClick={() => leaveStudentStream(studentStream.id)}
                 className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors">
                 <StopCircle className="w-3.5 h-3.5" /> مغادرة
+              </button>
+            </div>
+          </div>
+        )}
+        {availableLive && !studentStream && !onLivePage && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2 flex-shrink-0 border-b"
+            style={{ backgroundColor: '#1e3a2e', borderColor: 'rgba(34,197,94,0.35)' }}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-full animate-pulse flex-shrink-0">
+                <Radio className="w-3 h-3" /> بث جديد
+              </span>
+              <p className="text-green-100 text-sm font-bold truncate">{availableLive.title || 'بث مباشر متاح'}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={() => { clearAvailableLive(); navigate('/student/live'); }}
+                className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors">
+                <ExternalLink className="w-3.5 h-3.5" /> انضم الآن
+              </button>
+              <button onClick={clearAvailableLive}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors">
+                <StopCircle className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
