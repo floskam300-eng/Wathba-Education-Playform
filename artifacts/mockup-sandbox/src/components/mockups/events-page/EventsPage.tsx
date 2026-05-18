@@ -1,572 +1,533 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, BookOpen, FileText, Trophy, Radio,
-  BarChart2, LogOut, Gamepad2, Zap, Star, Clock, Users,
-  Sparkles, Lock, PlayCircle,
+  BarChart2, LogOut, Gamepad2, Lock, PlayCircle, Star,
 } from "lucide-react";
 
-/* ── Sparkle particle ─────────────────────────────────────── */
-interface Particle {
-  id: number; x: number; y: number;
-  size: number; color: string; delay: number; duration: number;
-}
-
+/* ═══════════════════════════════════════════════
+   HEADER PARTICLES
+═══════════════════════════════════════════════ */
+interface Particle { id: number; x: number; y: number; size: number; color: string; delay: number; dur: number; }
 function HeaderParticles() {
-  const [particles, setParticles] = useState<Particle[]>([]);
+  const [ps, setPs] = useState<Particle[]>([]);
   useEffect(() => {
-    const colors = ["#f59e0b","#ec4899","#8b5cf6","#10b981","#ef4444","#3b82f6","#f97316","#06b6d4"];
-    const ps: Particle[] = Array.from({ length: 28 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 4 + Math.random() * 8,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      delay: Math.random() * 2,
-      duration: 2 + Math.random() * 3,
-    }));
-    setParticles(ps);
+    const colors = ["#f59e0b","#ec4899","#8b5cf6","#10b981","#ef4444","#3b82f6","#f97316"];
+    setPs(Array.from({ length: 22 }, (_, i) => ({
+      id: i, x: Math.random() * 100, y: Math.random() * 100,
+      size: 4 + Math.random() * 7, color: colors[i % colors.length],
+      delay: Math.random() * 2, dur: 2 + Math.random() * 3,
+    })));
   }, []);
-
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map(p => (
-        <div
-          key={p.id}
-          className="absolute rounded-full animate-ping"
-          style={{
-            left: `${p.x}%`, top: `${p.y}%`,
-            width: p.size, height: p.size,
-            backgroundColor: p.color,
-            opacity: 0.7,
-            animationDelay: `${p.delay}s`,
-            animationDuration: `${p.duration}s`,
-          }}
-        />
+      {ps.map(p => (
+        <div key={p.id} className="absolute rounded-full animate-ping"
+          style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size,
+            backgroundColor: p.color, opacity: 0.65,
+            animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s` }} />
       ))}
     </div>
   );
 }
 
-/* ── Floating emoji ───────────────────────────────────────── */
-function FloatingEmoji({ emoji, style }: { emoji: string; style: React.CSSProperties }) {
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════ */
+const navItems = [
+  { icon: LayoutDashboard, label: "لوحتي" },
+  { icon: BookOpen, label: "كورساتي" },
+  { icon: FileText, label: "الاختبارات" },
+  { icon: BarChart2, label: "إحصائياتي" },
+  { icon: Trophy, label: "المتصدرون" },
+  { icon: Radio, label: "بث مباشر" },
+];
+
+/* ═══════════════════════════════════════════════
+   CARD DESIGNS — each card is a self-contained component
+═══════════════════════════════════════════════ */
+
+/* ── 1. Weekly Physics — electric spark look ── */
+function CardPhysics({ locked, points, threshold }: CardProps) {
   return (
-    <span
-      className="absolute text-3xl select-none pointer-events-none"
-      style={{ animation: "floatBob 3s ease-in-out infinite", ...style }}
-    >
-      {emoji}
-    </span>
+    <CardShell locked={locked} points={points} threshold={threshold}
+      bg="linear-gradient(145deg,#0a0a2e 0%,#1a1060 50%,#0d0d3d 100%)"
+      glowColor="rgba(99,102,241,0.5)">
+      {/* electric grid lines */}
+      <div style={{ position:"absolute", inset:0, opacity:0.12,
+        backgroundImage:"linear-gradient(rgba(99,102,241,1) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,1) 1px,transparent 1px)",
+        backgroundSize:"28px 28px" }} />
+      {/* big lightning bolt */}
+      <div style={{ position:"absolute", top:"8%", right:"12%", fontSize:70, opacity:0.18, lineHeight:1 }}>⚡</div>
+      {/* sparks */}
+      {["10%","35%","60%","80%"].map((t,i) => (
+        <div key={i} style={{ position:"absolute", top:t, left:`${15+i*18}%`,
+          width:3, height:18, background:"#818cf8", borderRadius:2,
+          opacity:0.5, transform:`rotate(${-20+i*15}deg)` }} />
+      ))}
+      <CardContent emoji="⚡" title="تحدي الفيزياء الخاطف" subtitle="أسبوعي • 500 نقطة"
+        badgeText="أسبوعي" badgeBg="rgba(99,102,241,0.35)" textColor="#c7d2fe" />
+    </CardShell>
   );
 }
 
-/* ── Sidebar nav ──────────────────────────────────────────── */
-const navItems = [
-  { icon: LayoutDashboard, label: "لوحتي", active: false },
-  { icon: BookOpen,        label: "كورساتي", active: false },
-  { icon: FileText,        label: "الاختبارات", active: false },
-  { icon: BarChart2,       label: "إحصائياتي", active: false },
-  { icon: Trophy,          label: "المتصدرون", active: false },
-  { icon: Radio,           label: "بث مباشر", active: false },
-];
-
-/* ── Event card data ──────────────────────────────────────── */
-interface EventCard {
-  id: number;
-  title: string;
-  emoji: string;
-  desc: string;
-  gradient: string;
-  glow: string;
-  badge: string;
-  badgeBg: string;
-  players: number;
-  duration: string;
-  points: number;
-  locked: boolean;
-  upcoming?: string;
+/* ── 2. Ramadan — lanterns & crescent ── */
+function CardRamadan({ locked, points, threshold }: CardProps) {
+  return (
+    <CardShell locked={locked} points={points} threshold={threshold}
+      bg="linear-gradient(145deg,#0d1b2a 0%,#1a2f1a 40%,#0f2020 100%)"
+      glowColor="rgba(212,175,55,0.5)">
+      {/* starfield */}
+      {Array.from({length:14},(_,i)=>(
+        <div key={i} style={{ position:"absolute",
+          top:`${8+Math.floor(i/3)*22}%`, left:`${8+((i*31)%80)}%`,
+          width: i%3===0?3:2, height: i%3===0?3:2,
+          borderRadius:"50%", background:"#fde68a", opacity:0.6+i%3*0.2 }} />
+      ))}
+      {/* crescent moon */}
+      <div style={{ position:"absolute", top:"6%", right:"10%",
+        width:48, height:48, borderRadius:"50%",
+        background:"transparent", boxShadow:"-8px 4px 0 0 #fbbf24",
+        opacity:0.85 }} />
+      {/* big lantern */}
+      <div style={{ position:"absolute", bottom:"8%", right:"8%", opacity:0.22 }}>
+        <div style={{ fontSize:52, lineHeight:1 }}>🏮</div>
+      </div>
+      {/* small lanterns */}
+      <div style={{ position:"absolute", top:"10%", left:"8%", fontSize:22, opacity:0.3 }}>🏮</div>
+      <div style={{ position:"absolute", bottom:"20%", left:"14%", fontSize:16, opacity:0.25 }}>🏮</div>
+      {/* festoon string */}
+      <svg style={{ position:"absolute", top:0, left:0, width:"100%", height:40, opacity:0.4 }} viewBox="0 0 300 40">
+        <path d="M0,8 Q50,32 100,8 Q150,32 200,8 Q250,32 300,8" fill="none" stroke="#fbbf24" strokeWidth="1.5"/>
+        {[50,100,150,200,250].map(x=>(
+          <ellipse key={x} cx={x} cy={24} rx={5} ry={8} fill="#ef4444" opacity={0.7}/>
+        ))}
+      </svg>
+      <CardContent emoji="🌙" title="رمضان كريم" subtitle="طوال رمضان • 1000 نقطة"
+        badgeText="رمضان ✨" badgeBg="rgba(212,175,55,0.3)" textColor="#fde68a" />
+    </CardShell>
+  );
 }
 
-const events: EventCard[] = [
-  {
-    id: 1,
-    title: "تحدي الفيزياء السريع",
-    emoji: "⚡",
-    desc: "أجب على 10 أسئلة في وقت قياسي واحصد النقاط!",
-    gradient: "linear-gradient(135deg, #f97316 0%, #ec4899 100%)",
-    glow: "rgba(249,115,22,0.4)",
-    badge: "جديد 🔥",
-    badgeBg: "rgba(255,255,255,0.25)",
-    players: 142,
-    duration: "5 دقائق",
-    points: 500,
-    locked: false,
-  },
-  {
-    id: 2,
-    title: "من سيربح المليون؟",
-    emoji: "🏆",
-    desc: "تنافس مع زملائك في أسئلة متدرجة الصعوبة!",
-    gradient: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 60%, #ec4899 100%)",
-    glow: "rgba(99,102,241,0.4)",
-    badge: "الأكثر شعبية ⭐",
-    badgeBg: "rgba(255,255,255,0.2)",
-    players: 389,
-    duration: "15 دقيقة",
-    points: 1000,
-    locked: false,
-  },
-  {
-    id: 3,
-    title: "بازل المعادلات",
-    emoji: "🧩",
-    desc: "رتب قطع الأحجية لتكوين معادلة رياضية صحيحة!",
-    gradient: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)",
-    glow: "rgba(16,185,129,0.4)",
-    badge: "قريباً 🚀",
-    badgeBg: "rgba(255,255,255,0.2)",
-    players: 0,
-    duration: "10 دقائق",
-    points: 750,
-    locked: false,
-    upcoming: "يفتح الجمعة",
-  },
-  {
-    id: 4,
-    title: "لغز الكيمياء المجنون",
-    emoji: "🧪",
-    desc: "خمّن العنصر الكيميائي من تلميحات غريبة وممتعة!",
-    gradient: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
-    glow: "rgba(245,158,11,0.4)",
-    badge: "حصري 👑",
-    badgeBg: "rgba(255,255,255,0.2)",
-    players: 0,
-    duration: "8 دقائق",
-    points: 600,
-    locked: true,
-  },
-  {
-    id: 5,
-    title: "مسابقة العلوم الخاطفة",
-    emoji: "🔬",
-    desc: "سباق ضد الزمن! من يحل أكثر مسائل في دقيقة واحدة؟",
-    gradient: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
-    glow: "rgba(59,130,246,0.4)",
-    badge: "موسمي 🎄",
-    badgeBg: "rgba(255,255,255,0.2)",
-    players: 211,
-    duration: "3 دقائق",
-    points: 300,
-    locked: false,
-  },
-  {
-    id: 6,
-    title: "اختبار الذكاء الخارق",
-    emoji: "🧠",
-    desc: "تحديات منطقية وألغاز ذكاء مستوحاة من المناهج!",
-    gradient: "linear-gradient(135deg, #ec4899 0%, #f97316 60%, #f59e0b 100%)",
-    glow: "rgba(236,72,153,0.4)",
-    badge: "المفضل 💖",
-    badgeBg: "rgba(255,255,255,0.2)",
-    players: 527,
-    duration: "20 دقيقة",
-    points: 1500,
-    locked: false,
-  },
+/* ── 3. Eid al-Fitr — flowers & celebration ── */
+function CardEid({ locked, points, threshold }: CardProps) {
+  return (
+    <CardShell locked={locked} points={points} threshold={threshold}
+      bg="linear-gradient(145deg,#065f46 0%,#047857 50%,#064e3b 100%)"
+      glowColor="rgba(52,211,153,0.5)">
+      {/* confetti rects */}
+      {[
+        {top:"12%",left:"10%",w:10,h:4,bg:"#fde68a",rot:30},
+        {top:"20%",left:"55%",w:8,h:3,bg:"#f9a8d4",rot:-20},
+        {top:"35%",left:"25%",w:6,h:6,bg:"#86efac",rot:45},
+        {top:"15%",left:"75%",w:9,h:3,bg:"#c4b5fd",rot:15},
+        {top:"55%",left:"8%",w:7,h:3,bg:"#fcd34d",rot:-35},
+        {top:"60%",left:"70%",w:10,h:4,bg:"#fb923c",rot:25},
+      ].map((r,i)=>(
+        <div key={i} style={{ position:"absolute", top:r.top, left:r.left,
+          width:r.w, height:r.h, background:r.bg, borderRadius:2, opacity:0.8,
+          transform:`rotate(${r.rot}deg)` }} />
+      ))}
+      {/* star and crescent */}
+      <div style={{ position:"absolute", top:"8%", right:"12%", fontSize:38, opacity:0.25 }}>☪️</div>
+      {/* flower decorations */}
+      <div style={{ position:"absolute", bottom:"6%", left:"6%", fontSize:28, opacity:0.35, lineHeight:1 }}>🌸</div>
+      <div style={{ position:"absolute", bottom:"14%", right:"8%", fontSize:20, opacity:0.3 }}>🌸</div>
+      <div style={{ position:"absolute", top:"18%", left:"14%", fontSize:16, opacity:0.3 }}>✿</div>
+      <CardContent emoji="🎉" title="عيد الفطر المبارك" subtitle="عيد الفطر • 1200 نقطة"
+        badgeText="عيد الفطر 🌙" badgeBg="rgba(52,211,153,0.3)" textColor="#a7f3d0" />
+    </CardShell>
+  );
+}
+
+/* ── 4. Halloween — dark pumpkins & spiderwebs ── */
+function CardHalloween({ locked, points, threshold }: CardProps) {
+  return (
+    <CardShell locked={locked} points={points} threshold={threshold}
+      bg="linear-gradient(145deg,#1a0a00 0%,#2d1000 50%,#150a1a 100%)"
+      glowColor="rgba(249,115,22,0.5)">
+      {/* spiderweb SVG */}
+      <svg style={{ position:"absolute", top:0, right:0, width:90, height:90, opacity:0.25 }} viewBox="0 0 90 90">
+        <line x1="0" y1="0" x2="90" y2="90" stroke="#aaa" strokeWidth="1"/>
+        <line x1="45" y1="0" x2="45" y2="90" stroke="#aaa" strokeWidth="1"/>
+        <line x1="90" y1="0" x2="0" y2="90" stroke="#aaa" strokeWidth="1"/>
+        <line x1="0" y1="45" x2="90" y2="45" stroke="#aaa" strokeWidth="1"/>
+        {[15,30,50,70].map(r=><circle key={r} cx="45" cy="45" r={r} fill="none" stroke="#888" strokeWidth="0.8"/>)}
+      </svg>
+      {/* bats */}
+      <div style={{ position:"absolute", top:"10%", left:"12%", fontSize:22, opacity:0.5, transform:"scaleX(-1)" }}>🦇</div>
+      <div style={{ position:"absolute", top:"22%", left:"42%", fontSize:14, opacity:0.4 }}>🦇</div>
+      {/* big pumpkin */}
+      <div style={{ position:"absolute", bottom:"5%", right:"8%", fontSize:48, opacity:0.2, lineHeight:1 }}>🎃</div>
+      {/* small pumpkin */}
+      <div style={{ position:"absolute", bottom:"10%", left:"8%", fontSize:24, opacity:0.3 }}>🎃</div>
+      {/* moon */}
+      <div style={{ position:"absolute", top:"6%", right:"30%",
+        width:30, height:30, borderRadius:"50%",
+        background:"transparent", boxShadow:"-5px 3px 0 0 #fbbf24", opacity:0.5 }} />
+      <CardContent emoji="🎃" title="ليلة الهالوين" subtitle="أكتوبر • 800 نقطة"
+        badgeText="هالوين 👻" badgeBg="rgba(249,115,22,0.3)" textColor="#fed7aa" />
+    </CardShell>
+  );
+}
+
+/* ── 5. Christmas — snow & trees ── */
+function CardChristmas({ locked, points, threshold }: CardProps) {
+  return (
+    <CardShell locked={locked} points={points} threshold={threshold}
+      bg="linear-gradient(145deg,#0f172a 0%,#1e1b4b 40%,#0c1120 100%)"
+      glowColor="rgba(239,68,68,0.5)">
+      {/* snowflakes */}
+      {["12%","30%","55%","72%","88%","20%","65%"].map((l,i)=>(
+        <div key={i} style={{ position:"absolute", top:`${8+i*10}%`, left:l,
+          fontSize:i%2===0?14:10, opacity:0.4+i%3*0.1, color:"#bfdbfe" }}>❄</div>
+      ))}
+      {/* big tree */}
+      <div style={{ position:"absolute", bottom:"4%", right:"8%", fontSize:52, opacity:0.2, lineHeight:1 }}>🎄</div>
+      {/* small tree */}
+      <div style={{ position:"absolute", bottom:"8%", left:"6%", fontSize:26, opacity:0.25 }}>🎄</div>
+      {/* star on top */}
+      <div style={{ position:"absolute", bottom:"34%", right:"14%", fontSize:18, opacity:0.45 }}>⭐</div>
+      {/* gift */}
+      <div style={{ position:"absolute", bottom:"4%", left:"38%", fontSize:22, opacity:0.3 }}>🎁</div>
+      {/* snow ground */}
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, height:18, opacity:0.15,
+        borderRadius:"50% 50% 0 0 / 100% 100% 0 0",
+        background:"linear-gradient(180deg,#e0f2fe,white)" }} />
+      <CardContent emoji="🎄" title="عيد الكريسماس" subtitle="ديسمبر • 900 نقطة"
+        badgeText="كريسماس 🎁" badgeBg="rgba(239,68,68,0.3)" textColor="#bfdbfe" />
+    </CardShell>
+  );
+}
+
+/* ── 6. Science weekly — lab & atoms ── */
+function CardScience({ locked, points, threshold }: CardProps) {
+  return (
+    <CardShell locked={locked} points={points} threshold={threshold}
+      bg="linear-gradient(145deg,#042f2e 0%,#064e3b 50%,#022c22 100%)"
+      glowColor="rgba(16,185,129,0.5)">
+      {/* atom rings SVG */}
+      <svg style={{ position:"absolute", top:"5%", right:"6%", width:80, height:80, opacity:0.2 }} viewBox="0 0 80 80">
+        <ellipse cx="40" cy="40" rx="36" ry="14" fill="none" stroke="#34d399" strokeWidth="2"/>
+        <ellipse cx="40" cy="40" rx="36" ry="14" fill="none" stroke="#34d399" strokeWidth="2" transform="rotate(60 40 40)"/>
+        <ellipse cx="40" cy="40" rx="36" ry="14" fill="none" stroke="#34d399" strokeWidth="2" transform="rotate(120 40 40)"/>
+        <circle cx="40" cy="40" r="6" fill="#6ee7b7"/>
+      </svg>
+      {/* bubbles */}
+      {[{top:"18%",left:"8%",s:20},{top:"40%",left:"18%",s:13},{top:"60%",left:"6%",s:16},{top:"22%",left:"50%",s:10}].map((b,i)=>(
+        <div key={i} style={{ position:"absolute", top:b.top, left:b.left,
+          width:b.s, height:b.s, borderRadius:"50%",
+          border:"1.5px solid rgba(52,211,153,0.5)", opacity:0.45 }} />
+      ))}
+      {/* beakers */}
+      <div style={{ position:"absolute", bottom:"6%", right:"8%", fontSize:40, opacity:0.2, lineHeight:1 }}>🧪</div>
+      <div style={{ position:"absolute", bottom:"10%", left:"8%", fontSize:22, opacity:0.3 }}>🔬</div>
+      <CardContent emoji="🔬" title="مسابقة العلوم الأسبوعية" subtitle="أسبوعي • 600 نقطة"
+        badgeText="علوم 🧬" badgeBg="rgba(16,185,129,0.3)" textColor="#a7f3d0" />
+    </CardShell>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   REUSABLE CARD SHELL & CONTENT
+═══════════════════════════════════════════════ */
+interface CardProps { locked: boolean; points: number; threshold: number; }
+
+function CardShell({ locked, points, threshold, bg, glowColor, children }: CardProps & {
+  bg: string; glowColor: string; children: React.ReactNode;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const progress = Math.min(100, (points / threshold) * 100);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative", aspectRatio: "1/1", borderRadius: 24, overflow: "hidden",
+        background: bg, cursor: locked ? "default" : "pointer",
+        transform: hovered && !locked ? "translateY(-6px) scale(1.03)" : "none",
+        transition: "transform 0.25s ease, box-shadow 0.25s ease",
+        boxShadow: hovered && !locked
+          ? `0 20px 60px ${glowColor}, 0 0 0 1.5px rgba(255,255,255,0.1)`
+          : `0 6px 28px ${glowColor.replace("0.5","0.2")}`,
+      }}
+    >
+      {/* decorations from parent */}
+      {children}
+
+      {/* dark gradient overlay so text is readable */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)",
+        zIndex: 1,
+      }} />
+
+      {/* LOCK OVERLAY */}
+      {locked && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 10,
+          background: "rgba(0,0,0,0.68)", backdropFilter: "blur(3px)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          gap: 10,
+        }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%",
+            background: "rgba(255,255,255,0.1)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Lock size={24} color="white" />
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 700, textAlign: "center" }}>
+            تحتاج {threshold.toLocaleString("ar-EG")} نقطة
+          </div>
+          {/* progress bar */}
+          <div style={{ width: "65%", height: 6, borderRadius: 999, background: "rgba(255,255,255,0.15)" }}>
+            <div style={{
+              height: "100%", borderRadius: 999, width: `${progress}%`,
+              background: "linear-gradient(90deg,#6366f1,#ec4899)",
+              transition: "width 0.4s ease",
+            }} />
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>
+            {points.toLocaleString("ar-EG")} / {threshold.toLocaleString("ar-EG")}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardContent({ emoji, title, subtitle, badgeText, badgeBg, textColor }: {
+  emoji: string; title: string; subtitle: string;
+  badgeText: string; badgeBg: string; textColor: string;
+}) {
+  return (
+    <div style={{
+      position: "absolute", inset: 0, zIndex: 2,
+      display: "flex", flexDirection: "column", justifyContent: "space-between",
+      padding: "14px 16px",
+    }}>
+      {/* Top: badge */}
+      <div>
+        <div style={{
+          display: "inline-flex", alignItems: "center",
+          background: badgeBg, backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 999, padding: "3px 10px",
+          color: textColor, fontSize: 11, fontWeight: 700,
+        }}>
+          {badgeText}
+        </div>
+      </div>
+
+      {/* Bottom: emoji + title + play */}
+      <div>
+        <div style={{ fontSize: 38, lineHeight: 1, marginBottom: 8 }}>{emoji}</div>
+        <div style={{ color: "white", fontWeight: 900, fontSize: 16, lineHeight: 1.35, marginBottom: 4 }}>
+          {title}
+        </div>
+        <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, marginBottom: 12 }}>
+          {subtitle}
+        </div>
+        <button style={{
+          display: "flex", alignItems: "center", gap: 6, justifyContent: "center",
+          width: "100%", padding: "9px 0", borderRadius: 12, border: "none",
+          background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)",
+          color: "white", fontFamily: "inherit", fontWeight: 700, fontSize: 13,
+          cursor: "pointer",
+        }}>
+          <PlayCircle size={15} /> العب الآن
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN PAGE
+═══════════════════════════════════════════════ */
+const STUDENT_POINTS = 820;
+
+const cardList = [
+  { id: 1, component: CardPhysics,   threshold: 0 },
+  { id: 2, component: CardRamadan,   threshold: 500 },
+  { id: 3, component: CardScience,   threshold: 600 },
+  { id: 4, component: CardEid,       threshold: 1000 },
+  { id: 5, component: CardHalloween, threshold: 1500 },
+  { id: 6, component: CardChristmas, threshold: 2000 },
 ];
 
-/* ── Main component ───────────────────────────────────────── */
 export function EventsPage() {
-  const [headerVisible, setHeaderVisible] = useState(false);
-  const [cardsVisible, setCardsVisible] = useState(false);
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [headerIn, setHeaderIn] = useState(false);
+  const [cardsIn, setCardsIn] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setHeaderVisible(true), 100);
-    const t2 = setTimeout(() => setCardsVisible(true), 600);
+    const t1 = setTimeout(() => setHeaderIn(true), 100);
+    const t2 = setTimeout(() => setCardsIn(true), 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   return (
-    <div dir="rtl" className="flex h-screen overflow-hidden font-['Cairo',sans-serif]" style={{ background: "#0f0c1a" }}>
+    <div dir="rtl" className="flex h-screen overflow-hidden"
+      style={{ background: "#0f0c1a", fontFamily: "'Cairo', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-
-        @keyframes floatBob {
-          0%, 100% { transform: translateY(0px) rotate(-5deg); }
-          50%       { transform: translateY(-12px) rotate(5deg); }
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-40px) scale(0.95); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shimmer {
-          0%   { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        @keyframes pulseBorder {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0); }
-          50%       { box-shadow: 0 0 0 6px rgba(249,115,22,0.2); }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        .card-enter {
-          animation: fadeUp 0.55s ease forwards;
-        }
-        .card-hover {
-          transform: translateY(-6px) scale(1.02);
-          transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-        .events-nav-item {
-          position: relative;
-          display: flex; align-items: center; gap: 10px;
-          padding: 10px 14px; border-radius: 12px;
-          font-size: 14px; font-weight: 600;
-          color: rgba(255,255,255,0.7);
-          cursor: pointer;
-          transition: all 0.2s;
-          text-decoration: none;
-        }
-        .events-nav-item:hover {
-          background: rgba(255,255,255,0.07);
-          color: white;
-        }
-        .events-nav-item.active-nav {
-          background: linear-gradient(135deg, #f97316, #ec4899);
-          color: white;
-          font-weight: 700;
-          box-shadow: 0 4px 20px rgba(249,115,22,0.35);
-        }
+        @keyframes slideDown { from { opacity:0; transform:translateY(-32px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes fadeUp    { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes shimmer   { 0% { background-position:-200% center; } 100% { background-position:200% center; } }
+        @keyframes floatBob  { 0%,100% { transform:translateY(0) rotate(-4deg); } 50% { transform:translateY(-10px) rotate(4deg); } }
+        @keyframes spin4     { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+        .card-in { animation: fadeUp 0.5s ease both; }
+        .nav-link { display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:12px;
+          font-size:14px; font-weight:600; color:rgba(255,255,255,0.6); cursor:pointer;
+          transition:background 0.18s, color 0.18s; }
+        .nav-link:hover { background:rgba(255,255,255,0.07); color:white; }
         .special-nav {
-          position: relative;
-          display: flex; align-items: center; gap: 10px;
-          padding: 11px 14px; border-radius: 14px;
-          font-size: 14px; font-weight: 900;
-          cursor: pointer;
-          overflow: hidden;
-          background: linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #f97316 100%);
-          color: white;
-          box-shadow: 0 4px 24px rgba(124,58,237,0.45);
-          animation: pulseBorder 2.5s ease-in-out infinite;
-          transition: transform 0.2s, box-shadow 0.2s;
+          position:relative; display:flex; align-items:center; gap:10px;
+          padding:11px 14px; border-radius:14px; font-size:14px; font-weight:900;
+          cursor:pointer; overflow:hidden; color:white;
+          background:linear-gradient(135deg,#7c3aed 0%,#ec4899 50%,#f97316 100%);
+          box-shadow:0 4px 24px rgba(124,58,237,0.45);
+          transition:transform 0.2s, box-shadow 0.2s;
         }
-        .special-nav:hover {
-          transform: scale(1.03);
-          box-shadow: 0 6px 30px rgba(124,58,237,0.6);
-        }
+        .special-nav:hover { transform:scale(1.03); box-shadow:0 6px 30px rgba(124,58,237,0.65); }
         .special-nav::before {
-          content: '';
-          position: absolute; inset: 0;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-          background-size: 200% 100%;
-          animation: shimmer 2s linear infinite;
-        }
-        .sparkle-icon {
-          animation: spin-slow 4s linear infinite;
+          content:''; position:absolute; inset:0;
+          background:linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent);
+          background-size:200% 100%; animation:shimmer 2.2s linear infinite;
         }
       `}</style>
 
       {/* ── Sidebar ── */}
-      <aside style={{
-        width: 240, flexShrink: 0, display: "flex", flexDirection: "column",
-        background: "linear-gradient(180deg, #161422 0%, #100e1a 100%)",
-        borderLeft: "1px solid rgba(230,175,80,0.1)",
-      }}>
-        {/* Logo */}
-        <div style={{ padding: "24px 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 12,
-              background: "linear-gradient(135deg, #7c3aed, #ec4899)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 20, flexShrink: 0,
-            }}>و</div>
+      <aside style={{ width:240, flexShrink:0, display:"flex", flexDirection:"column",
+        background:"linear-gradient(180deg,#161422 0%,#100e1a 100%)",
+        borderLeft:"1px solid rgba(230,175,80,0.09)" }}>
+
+        <div style={{ padding:"24px 20px 16px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:42, height:42, borderRadius:12, flexShrink:0,
+              background:"linear-gradient(135deg,#7c3aed,#ec4899)",
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>و</div>
             <div>
-              <div style={{ color: "white", fontWeight: 900, fontSize: 20 }}>وثبة</div>
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>منطقة الطالب</div>
+              <div style={{ color:"white", fontWeight:900, fontSize:20 }}>وثبة</div>
+              <div style={{ color:"rgba(255,255,255,0.38)", fontSize:11 }}>منطقة الطالب</div>
             </div>
           </div>
         </div>
 
-        {/* Student info */}
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: "50%",
-              background: "linear-gradient(135deg, #f97316, #ec4899)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "white", fontWeight: 900, fontSize: 16,
-            }}>أ</div>
+        <div style={{ padding:"14px 20px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:40, height:40, borderRadius:"50%", flexShrink:0,
+              background:"linear-gradient(135deg,#f97316,#ec4899)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              color:"white", fontWeight:900, fontSize:16 }}>أ</div>
             <div>
-              <div style={{ color: "white", fontWeight: 700, fontSize: 13 }}>أحمد محمد</div>
-              <div style={{ color: "#fb923c", fontSize: 11, fontWeight: 700 }}>⭐ 2,340 نقطة</div>
+              <div style={{ color:"white", fontWeight:700, fontSize:13 }}>أحمد محمد</div>
+              <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                <Star size={11} style={{ color:"#fb923c" }} />
+                <span style={{ color:"#fb923c", fontSize:11, fontWeight:700 }}>
+                  {STUDENT_POINTS.toLocaleString("ar-EG")} نقطة
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Nav items */}
-        <nav style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+        <nav style={{ flex:1, padding:"12px 10px", display:"flex", flexDirection:"column", gap:3 }}>
           {navItems.map(({ icon: Icon, label }) => (
-            <div key={label} className="events-nav-item">
-              <Icon size={18} />
-              <span>{label}</span>
+            <div key={label} className="nav-link">
+              <Icon size={18} /><span>{label}</span>
             </div>
           ))}
-
-          {/* Special events nav item */}
-          <div style={{ marginTop: 8 }}>
-            <div className="special-nav active-nav">
-              <Gamepad2 size={18} className="sparkle-icon" style={{ flexShrink: 0 }} />
+          <div style={{ marginTop:8 }}>
+            <div className="special-nav">
+              <Gamepad2 size={18} style={{ flexShrink:0, animation:"spin4 5s linear infinite" }} />
               <span>الفعاليات</span>
-              <span style={{
-                marginRight: "auto",
-                background: "rgba(255,255,255,0.25)",
-                borderRadius: 999, padding: "1px 8px",
-                fontSize: 10, fontWeight: 900,
-              }}>6 🎮</span>
+              <span style={{ marginRight:"auto", background:"rgba(255,255,255,0.22)",
+                borderRadius:999, padding:"1px 8px", fontSize:10, fontWeight:900 }}>6 🎮</span>
             </div>
           </div>
         </nav>
 
-        {/* Logout */}
-        <div style={{ padding: "12px 10px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="events-nav-item" style={{ color: "rgba(252,165,165,0.8)" }}>
-            <LogOut size={18} />
-            <span>تسجيل الخروج</span>
+        <div style={{ padding:"12px 10px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          <div className="nav-link" style={{ color:"rgba(252,165,165,0.75)" }}>
+            <LogOut size={18} /><span>تسجيل الخروج</span>
           </div>
         </div>
       </aside>
 
-      {/* ── Main content ── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* ── Main ── */}
+      <main style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
-        {/* ── Animated hero header ── */}
-        <div
-          style={{
-            position: "relative", flexShrink: 0,
-            padding: "28px 32px 32px",
-            background: "linear-gradient(135deg, #1e0a3c 0%, #3b0764 40%, #1e1035 100%)",
-            borderBottom: "1px solid rgba(139,92,246,0.3)",
-            overflow: "hidden",
-            opacity: headerVisible ? 1 : 0,
-            transition: "opacity 0.4s ease",
-          }}
-        >
+        {/* Header */}
+        <div style={{
+          position:"relative", flexShrink:0, padding:"26px 32px 28px",
+          background:"linear-gradient(135deg,#1e0a3c 0%,#3b0764 40%,#1e1035 100%)",
+          borderBottom:"1px solid rgba(139,92,246,0.25)", overflow:"hidden",
+          opacity: headerIn ? 1 : 0, transition:"opacity 0.4s ease",
+        }}>
           <HeaderParticles />
 
-          {/* Floating emojis */}
-          <FloatingEmoji emoji="🎮" style={{ top: 12, left: 40, animationDelay: "0s", animationDuration: "2.8s" }} />
-          <FloatingEmoji emoji="🏆" style={{ top: 8, left: 180, animationDelay: "0.5s", animationDuration: "3.2s" }} />
-          <FloatingEmoji emoji="⚡" style={{ bottom: 10, left: 80, animationDelay: "1s", animationDuration: "2.5s" }} />
-          <FloatingEmoji emoji="🎯" style={{ top: 16, right: 60, animationDelay: "0.3s", animationDuration: "3s" }} />
-          <FloatingEmoji emoji="⭐" style={{ bottom: 16, right: 140, animationDelay: "0.8s", animationDuration: "2.7s" }} />
-          <FloatingEmoji emoji="🧠" style={{ top: 20, right: 220, animationDelay: "1.2s", animationDuration: "3.5s" }} />
+          {/* floating emojis */}
+          {[
+            {e:"🎮",top:"10%",left:"3%",d:"0s",dur:"2.8s"},
+            {e:"🏆",top:"6%",left:"15%",d:"0.5s",dur:"3.2s"},
+            {e:"⚡",top:"65%",left:"6%",d:"1s",dur:"2.5s"},
+            {e:"🎯",top:"12%",right:"5%",d:"0.3s",dur:"3s"},
+            {e:"🧠",top:"14%",right:"18%",d:"1.1s",dur:"3.5s"},
+          ].map((f,i)=>(
+            <span key={i} style={{
+              position:"absolute", top:f.top, left:(f as any).left, right:(f as any).right,
+              fontSize:28, pointerEvents:"none", userSelect:"none",
+              animation:`floatBob ${f.dur} ease-in-out infinite`, animationDelay:f.d,
+            }}>{f.e}</span>
+          ))}
 
-          {/* Glowing orbs */}
-          <div style={{
-            position: "absolute", left: "15%", top: "50%", transform: "translateY(-50%)",
-            width: 200, height: 200, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(124,58,237,0.25) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }} />
-          <div style={{
-            position: "absolute", right: "20%", top: "50%", transform: "translateY(-50%)",
-            width: 150, height: 150, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }} />
+          {/* glow orbs */}
+          <div style={{ position:"absolute", left:"18%", top:"50%", transform:"translateY(-50%)",
+            width:180, height:180, borderRadius:"50%", pointerEvents:"none",
+            background:"radial-gradient(circle,rgba(124,58,237,0.22) 0%,transparent 70%)" }} />
+          <div style={{ position:"absolute", right:"22%", top:"50%", transform:"translateY(-50%)",
+            width:130, height:130, borderRadius:"50%", pointerEvents:"none",
+            background:"radial-gradient(circle,rgba(236,72,153,0.18) 0%,transparent 70%)" }} />
 
-          {/* Header text */}
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 14, marginBottom: 10,
-              animation: headerVisible ? "slideDown 0.6s ease forwards" : "none",
-            }}>
-              <div style={{
-                width: 54, height: 54, borderRadius: 18,
-                background: "linear-gradient(135deg, #7c3aed, #ec4899, #f97316)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 26, flexShrink: 0,
-                boxShadow: "0 8px 32px rgba(124,58,237,0.5)",
-              }}>🎮</div>
+          <div style={{ position:"relative", zIndex:1,
+            animation: headerIn ? "slideDown 0.6s ease both" : "none" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ width:52, height:52, borderRadius:18, flexShrink:0, fontSize:24,
+                background:"linear-gradient(135deg,#7c3aed,#ec4899,#f97316)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                boxShadow:"0 8px 30px rgba(124,58,237,0.5)" }}>🎮</div>
               <div>
                 <h1 style={{
-                  margin: 0, fontSize: 28, fontWeight: 900, color: "white",
-                  background: "linear-gradient(90deg, #fff 0%, #c4b5fd 40%, #f9a8d4 80%, #fdba74 100%)",
-                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}>
-                  الفعاليات التعليمية 🎯
-                </h1>
-                <p style={{ margin: "4px 0 0", color: "rgba(196,181,253,0.8)", fontSize: 13 }}>
-                  العب، تعلّم، وتصدّر القائمة! ✨
+                  margin:0, fontSize:26, fontWeight:900,
+                  background:"linear-gradient(90deg,#fff 0%,#c4b5fd 40%,#f9a8d4 75%,#fdba74 100%)",
+                  WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+                }}>الفعاليات التعليمية 🎯</h1>
+                <p style={{ margin:"4px 0 0", color:"rgba(196,181,253,0.75)", fontSize:13 }}>
+                  كل مناسبة ليها لعبة خاصة — اجمع نقاط وافتح الألعاب الجديدة ✨
                 </p>
               </div>
-            </div>
-
-            {/* Stats row */}
-            <div style={{
-              display: "flex", gap: 12, marginTop: 16,
-              animation: headerVisible ? "slideDown 0.7s 0.15s ease both" : "none",
-            }}>
-              {[
-                { icon: "🎮", label: "فعالية نشطة", val: "4" },
-                { icon: "👥", label: "لاعب الآن", val: "1,269" },
-                { icon: "🏆", label: "أقصى نقاط", val: "1,500" },
-                { icon: "🕹️", label: "قريباً", val: "2" },
-              ].map(s => (
-                <div key={s.label} style={{
-                  background: "rgba(255,255,255,0.08)", backdropFilter: "blur(10px)",
-                  border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14,
-                  padding: "8px 16px", display: "flex", alignItems: "center", gap: 8,
-                }}>
-                  <span style={{ fontSize: 18 }}>{s.icon}</span>
-                  <div>
-                    <div style={{ color: "white", fontWeight: 900, fontSize: 16 }}>{s.val}</div>
-                    <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>{s.label}</div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
 
-        {/* ── Cards grid ── */}
-        <div style={{
-          flex: 1, overflowY: "auto", padding: "24px 28px",
-          background: "#0f0c1a",
-        }}>
+        {/* Cards grid */}
+        <div style={{ flex:1, overflowY:"auto", padding:"24px 28px", background:"#0f0c1a" }}>
           <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: 20,
+            display:"grid",
+            gridTemplateColumns:"repeat(auto-fill, minmax(220px, 1fr))",
+            gap:20,
           }}>
-            {events.map((ev, i) => (
-              <div
-                key={ev.id}
-                className={cardsVisible ? "card-enter" : ""}
-                style={{ animationDelay: cardsVisible ? `${i * 0.08}s` : "0s", opacity: cardsVisible ? undefined : 0 }}
-                onMouseEnter={() => setHoveredId(ev.id)}
-                onMouseLeave={() => setHoveredId(null)}
-              >
-                <div
-                  style={{
-                    borderRadius: 20, overflow: "hidden", cursor: "pointer",
-                    transform: hoveredId === ev.id ? "translateY(-6px) scale(1.02)" : "none",
-                    transition: "transform 0.25s ease, box-shadow 0.25s ease",
-                    boxShadow: hoveredId === ev.id
-                      ? `0 20px 60px ${ev.glow}, 0 0 0 1px rgba(255,255,255,0.15)`
-                      : `0 4px 24px ${ev.glow.replace("0.4", "0.2")}`,
-                  }}
-                >
-                  {/* Card header with gradient */}
-                  <div style={{
-                    background: ev.gradient,
-                    padding: "20px 20px 16px",
-                    position: "relative", overflow: "hidden",
-                  }}>
-                    {/* Shimmer effect */}
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-                      backgroundSize: "200% 100%",
-                      animation: "shimmer 3s linear infinite",
-                    }} />
-
-                    {/* Badge */}
-                    <div style={{
-                      display: "inline-flex", alignItems: "center",
-                      background: ev.badgeBg, borderRadius: 999,
-                      padding: "3px 10px", fontSize: 11, fontWeight: 700,
-                      color: "white", marginBottom: 10, position: "relative", zIndex: 1,
-                    }}>
-                      {ev.badge}
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, position: "relative", zIndex: 1 }}>
-                      <div style={{ fontSize: 40, lineHeight: 1, flexShrink: 0 }}>{ev.emoji}</div>
-                      <div>
-                        <h3 style={{ margin: 0, color: "white", fontWeight: 900, fontSize: 17, lineHeight: 1.3 }}>
-                          {ev.title}
-                        </h3>
-                        <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.8)", fontSize: 12, lineHeight: 1.5 }}>
-                          {ev.desc}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card footer */}
-                  <div style={{
-                    background: "#1a1628", padding: "14px 20px",
-                    borderTop: "1px solid rgba(255,255,255,0.07)",
-                  }}>
-                    {/* Stats row */}
-                    <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
-                      {[
-                        { Icon: Users, val: ev.players > 0 ? ev.players.toLocaleString("ar-EG") : "—", label: "لاعب" },
-                        { Icon: Clock, val: ev.duration, label: "" },
-                        { Icon: Star, val: `${ev.points.toLocaleString("ar-EG")} نقطة`, label: "" },
-                      ].map(({ Icon, val, label }) => (
-                        <div key={val} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <Icon size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
-                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>{val} {label}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* CTA button */}
-                    {ev.locked ? (
-                      <button style={{
-                        width: "100%", padding: "10px", borderRadius: 12, border: "none",
-                        background: "rgba(255,255,255,0.07)",
-                        color: "rgba(255,255,255,0.35)",
-                        fontFamily: "inherit", fontWeight: 700, fontSize: 14,
-                        cursor: "not-allowed", display: "flex", alignItems: "center",
-                        justifyContent: "center", gap: 6,
-                      }}>
-                        <Lock size={14} /> مقفول — اكسب المزيد من النقاط
-                      </button>
-                    ) : ev.upcoming ? (
-                      <button style={{
-                        width: "100%", padding: "10px", borderRadius: 12, border: "none",
-                        background: "rgba(255,255,255,0.07)",
-                        color: "rgba(196,181,253,0.8)",
-                        fontFamily: "inherit", fontWeight: 700, fontSize: 14,
-                        cursor: "not-allowed", display: "flex", alignItems: "center",
-                        justifyContent: "center", gap: 6,
-                      }}>
-                        <Clock size={14} /> {ev.upcoming}
-                      </button>
-                    ) : (
-                      <button style={{
-                        width: "100%", padding: "10px", borderRadius: 12, border: "none",
-                        background: ev.gradient, color: "white",
-                        fontFamily: "inherit", fontWeight: 900, fontSize: 14,
-                        cursor: "pointer", display: "flex", alignItems: "center",
-                        justifyContent: "center", gap: 6,
-                        boxShadow: `0 4px 16px ${ev.glow}`,
-                        transition: "opacity 0.2s",
-                      }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-                      >
-                        <PlayCircle size={16} /> العب الآن
-                      </button>
-                    )}
-                  </div>
-                </div>
+            {cardList.map(({ id, component: Comp, threshold }, i) => (
+              <div key={id}
+                className={cardsIn ? "card-in" : ""}
+                style={{ animationDelay: cardsIn ? `${i * 0.07}s` : "0s", opacity: cardsIn ? undefined : 0 }}>
+                <Comp locked={STUDENT_POINTS < threshold} points={STUDENT_POINTS} threshold={threshold} />
               </div>
             ))}
           </div>
-
-          {/* Bottom spacer */}
-          <div style={{ height: 24 }} />
+          <div style={{ height:24 }} />
         </div>
       </main>
     </div>
