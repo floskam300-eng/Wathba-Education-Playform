@@ -16,9 +16,8 @@ const BASE_SPD = 3.2;
 const MAX_SPD = 8.5;
 
 // Frame-based boss timing (at ~60fps)
-const BOSS1_FRAME   = 30 * 60;       // boss 1 appears after 30 seconds
-const BOSS_GAP_FRAMES = 120 * 60;    // 2 minutes gap between bosses
-const BOSS_WARN_FRAMES = 10 * 60;    // warning 10 seconds before boss
+const BOSS1_FRAME     = 20 * 60;   // boss 1 appears after 20 seconds
+const BOSS_GAP_FRAMES = 25 * 60;   // ~25 seconds gap between bosses
 
 // ── canvas helpers ─────────────────────────────────────────────
 function rr(ctx, x, y, w, h, r, fill, stroke) {
@@ -238,16 +237,6 @@ function drawHUD(ctx, lives, defeated, spd, nextBossFrames, totalFrames) {
     ctx.fillText('⭐', CW - 78 + i * 24, 32);
   }
   ctx.globalAlpha = 1;
-  // speed bar
-  const sp = Math.min((spd - BASE_SPD) / (MAX_SPD - BASE_SPD), 1);
-  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(CW / 2 - 55, 10, 110, 11);
-  const gc = ctx.createLinearGradient(CW / 2 - 55, 0, CW / 2 + 55, 0);
-  gc.addColorStop(0, '#22c55e'); gc.addColorStop(0.6, '#f59e0b'); gc.addColorStop(1, '#ef4444');
-  ctx.fillStyle = gc; ctx.fillRect(CW / 2 - 55, 10, sp * 110, 11);
-  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1;
-  ctx.strokeRect(CW / 2 - 55, 10, 110, 11);
-  ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.font = '10px monospace';
-  ctx.textAlign = 'center'; ctx.fillText('السرعة', CW / 2, 33); ctx.textAlign = 'left';
 
   // Next boss countdown
   if (nextBossFrames > 0 && defeated < 3) {
@@ -431,6 +420,12 @@ export default function StickmanRun({ onClose, academicStage }) {
     const ctx = canvas.getContext('2d');
     const gs  = stateRef.current;
     if (!gs) return;
+
+    // High-DPI fix: scale canvas buffer to match screen pixel density
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = CW * dpr;
+    canvas.height = CH * dpr;
+    ctx.scale(dpr, dpr);
 
     const finishGame = (state) => {
       state.phase = 'gameover';
@@ -647,15 +642,14 @@ export default function StickmanRun({ onClose, academicStage }) {
         @keyframes pulse     { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
       `}</style>
 
-      {/* Canvas — fills all available space */}
+      {/* Canvas — fills width, maintains aspect ratio */}
       <canvas
         ref={canvasRef} width={CW} height={CH}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         style={{
-          display: 'block', width: '100%', height: '100%',
-          objectFit: 'contain', touchAction: 'none',
+          display: 'block', width: '100%', height: 'auto',
+          touchAction: 'none',
           visibility: phase === 'playing' ? 'visible' : 'hidden',
-          flex: 1,
         }}
       />
 
