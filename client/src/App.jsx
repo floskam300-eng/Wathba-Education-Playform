@@ -38,6 +38,7 @@ import StudentLeaderboard from './pages/student/Leaderboard';
 import StudentMyStats from './pages/student/MyStats';
 import StudentNotifications from './pages/student/Notifications';
 import StudentEvents from './pages/student/Events';
+import StickmanRunPage from './pages/student/games/StickmanRunPage';
 import ExamReviewPage from './pages/ExamReviewPage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -98,6 +99,7 @@ const AppRoutes = () => {
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
         <Route path="live" element={<StudentLiveStream />} />
         <Route path="events" element={<StudentEvents />} />
+        <Route path="events/stickman-run" element={<StickmanRunPage />} />
       </Route>
 
       <Route path="/" element={user ? <Navigate to={`/${user.role}`} replace /> : <LandingPage />} />

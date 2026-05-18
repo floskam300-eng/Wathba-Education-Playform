@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getGameConfig, BOSS_POINTS } from './gameConfig';
 import api from '../../../lib/api';
@@ -16,6 +15,7 @@ const BASE_SPEED = 3.2;
 const MAX_SPEED = 9;
 const BOSS_DISTS = [380, 900, 1700];
 
+// ── canvas helpers ────────────────────────────────────────────
 function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -104,7 +104,6 @@ function drawStickman(ctx, px, py, frame, ducking, invincible) {
   ctx.lineCap = 'round';
   ctx.shadowBlur = 9;
   ctx.shadowColor = col;
-
   if (ducking) {
     const hy = py - 16;
     ctx.beginPath(); ctx.arc(px, hy, 7, 0, Math.PI * 2); ctx.stroke();
@@ -137,41 +136,28 @@ function drawStickman(ctx, px, py, frame, ducking, invincible) {
   ctx.shadowBlur = 0;
 }
 
-function drawObstacle(ctx, ob, frame) {
+function drawObstacle(ctx, ob) {
   if (ob.type === 'jump') {
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#f97316';
-    ctx.fillStyle = '#2a0a00';
-    ctx.strokeStyle = '#f97316';
-    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12; ctx.shadowColor = '#f97316';
+    ctx.fillStyle = '#2a0a00'; ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2;
     roundRect(ctx, ob.x - 18, GROUND - ob.h, 36, ob.h, 5, true, true);
-    ctx.fillStyle = '#f97316';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f97316'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
     ctx.fillText('x²', ob.x, GROUND - ob.h / 2 + 4);
     ctx.shadowBlur = 0;
   } else {
     const gy = ob.y;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#06b6d4';
-    ctx.fillStyle = '#001a2a';
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12; ctx.shadowColor = '#06b6d4';
+    ctx.fillStyle = '#001a2a'; ctx.strokeStyle = '#06b6d4'; ctx.lineWidth = 2;
     roundRect(ctx, ob.x - ob.w / 2, gy - 14, ob.w, 28, 6, true, true);
-    ctx.fillStyle = '#06b6d4';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'center';
+    ctx.fillStyle = '#06b6d4'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
     ctx.fillText('÷', ob.x, gy + 4);
     ctx.shadowBlur = 0;
   }
 }
 
 function drawBoss1(ctx, x, y, frame) {
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = '#a855f7';
-  ctx.fillStyle = '#1e0050';
-  ctx.strokeStyle = '#a855f7';
-  ctx.lineWidth = 2.5;
+  ctx.shadowBlur = 18; ctx.shadowColor = '#a855f7';
+  ctx.fillStyle = '#1e0050'; ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2.5;
   roundRect(ctx, x - 42, y - 76, 84, 76, 8, true, true);
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#7c3aed';
@@ -186,11 +172,8 @@ function drawBoss1(ctx, x, y, frame) {
     ctx.beginPath(); ctx.arc(x - 13, y - 55, 3.5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x + 13, y - 55, 3.5, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = '#f0abfc';
-  ctx.font = 'bold 12px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('x²+5x', x, y - 34);
-  ctx.fillText('+6=0', x, y - 18);
+  ctx.fillStyle = '#f0abfc'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('x²+5x', x, y - 34); ctx.fillText('+6=0', x, y - 18);
   const ls = Math.sin(frame * 0.12) * 9;
   ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 3; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(x - 16, y); ctx.lineTo(x - 16 - ls, y + 22); ctx.stroke();
@@ -198,11 +181,8 @@ function drawBoss1(ctx, x, y, frame) {
 }
 
 function drawBoss2(ctx, x, y, frame) {
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = '#ec4899';
-  ctx.fillStyle = '#200030';
-  ctx.strokeStyle = '#ec4899';
-  ctx.lineWidth = 2.5;
+  ctx.shadowBlur = 20; ctx.shadowColor = '#ec4899';
+  ctx.fillStyle = '#200030'; ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 2.5;
   roundRect(ctx, x - 50, y - 94, 100, 94, 10, true, true);
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#9f1239';
@@ -218,12 +198,9 @@ function drawBoss2(ctx, x, y, frame) {
     ctx.beginPath(); ctx.arc(x - 15, y - 68, 4, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x + 15, y - 68, 4, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = '#fbcfe8';
-  ctx.font = 'bold 13px serif';
-  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fbcfe8'; ctx.font = 'bold 13px serif'; ctx.textAlign = 'center';
   ctx.fillText('∫f(x)dx', x, y - 42);
-  ctx.font = 'bold 10px monospace';
-  ctx.fillText('= F(x)+C', x, y - 24);
+  ctx.font = 'bold 10px monospace'; ctx.fillText('= F(x)+C', x, y - 24);
   const ls = Math.sin(frame * 0.1) * 10;
   ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(x - 20, y); ctx.lineTo(x - 20 - ls, y + 25); ctx.stroke();
@@ -232,16 +209,14 @@ function drawBoss2(ctx, x, y, frame) {
 
 function drawBoss3(ctx, x, y, frame, img) {
   const pulse = 1 + Math.sin(frame * 0.08) * 0.03;
-  ctx.shadowBlur = 25;
-  ctx.shadowColor = '#fbbf24';
-  ctx.strokeStyle = '#fbbf24';
-  ctx.lineWidth = 3;
   const iw = 110 * pulse, ih = 110 * pulse;
+  ctx.shadowBlur = 25; ctx.shadowColor = '#fbbf24';
+  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3;
   roundRect(ctx, x - iw / 2 - 6, y - ih - 6, iw + 12, ih + 12, 12, false, true);
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#1a0a00';
   roundRect(ctx, x - iw / 2 - 6, y - ih - 6, iw + 12, ih + 12, 12, true, false);
-  if (img && img.complete) {
+  if (img && img.complete && img.naturalWidth > 0) {
     ctx.save();
     ctx.beginPath();
     roundRect(ctx, x - iw / 2, y - ih, iw, ih, 8, false, false);
@@ -249,9 +224,7 @@ function drawBoss3(ctx, x, y, frame, img) {
     ctx.drawImage(img, x - iw / 2, y - ih, iw, ih);
     ctx.restore();
   }
-  ctx.fillStyle = '#fbbf24';
-  ctx.font = 'bold 11px serif';
-  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 11px serif'; ctx.textAlign = 'center';
   ctx.fillText('الأستاذ', x, y + 16);
 }
 
@@ -259,14 +232,12 @@ function drawExplosion(ctx, particles) {
   particles.forEach(p => {
     ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
   });
   ctx.globalAlpha = 1;
 }
 
-function drawHUD(ctx, lives, bossesDefeated, speed, distance) {
+function drawHUD(ctx, lives, bossesDefeated, speed) {
   for (let i = 0; i < 3; i++) {
     ctx.font = '20px serif';
     ctx.globalAlpha = i < lives ? 1 : 0.22;
@@ -283,93 +254,75 @@ function drawHUD(ctx, lives, bossesDefeated, speed, distance) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(CW / 2 - 50, 8, 100, 10);
   const gc = ctx.createLinearGradient(CW / 2 - 50, 0, CW / 2 + 50, 0);
-  gc.addColorStop(0, '#22c55e');
-  gc.addColorStop(0.6, '#f59e0b');
-  gc.addColorStop(1, '#ef4444');
+  gc.addColorStop(0, '#22c55e'); gc.addColorStop(0.6, '#f59e0b'); gc.addColorStop(1, '#ef4444');
   ctx.fillStyle = gc;
   ctx.fillRect(CW / 2 - 50, 8, sp * 100, 10);
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
   ctx.strokeRect(CW / 2 - 50, 8, 100, 10);
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.font = '10px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('السرعة', CW / 2, 30);
-  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.font = '10px monospace';
+  ctx.textAlign = 'center'; ctx.fillText('السرعة', CW / 2, 30); ctx.textAlign = 'left';
 }
 
 function makeStars() {
   return Array.from({ length: 55 }, () => ({
     x: Math.random() * CW, y: Math.random() * (GROUND - 60),
-    r: 0.5 + Math.random() * 1.4,
-    speed: 0.5 + Math.random(), phase: Math.random() * Math.PI * 2,
+    r: 0.5 + Math.random() * 1.4, speed: 0.5 + Math.random(), phase: Math.random() * Math.PI * 2,
   }));
 }
 
 function makeMathSymbols() {
   const syms = ['π', 'Σ', '∫', 'x²', '√', '∞', 'Δ', '∂', 'α', 'β'];
   return Array.from({ length: 14 }, (_, i) => ({
-    char: syms[i % syms.length],
-    x: Math.random() * CW,
-    y: 20 + Math.random() * (GROUND - 80),
-    size: 18 + Math.random() * 20,
-    speed: 0.2 + Math.random() * 0.3,
+    char: syms[i % syms.length], x: Math.random() * CW,
+    y: 20 + Math.random() * (GROUND - 80), size: 18 + Math.random() * 20, speed: 0.2 + Math.random() * 0.3,
   }));
 }
 
 function makeMountains() {
   return [
-    {
-      color: '#1a0a2e', speed: 0.18,
-      peaks: Array.from({ length: 8 }, (_, i) => ({
-        x: i * 130 + Math.random() * 60, w: 120 + Math.random() * 80, h: 70 + Math.random() * 50,
-      })),
-    },
-    {
-      color: '#12062a', speed: 0.32,
-      peaks: Array.from({ length: 10 }, (_, i) => ({
-        x: i * 110 + Math.random() * 50, w: 90 + Math.random() * 60, h: 45 + Math.random() * 35,
-      })),
-    },
+    { color: '#1a0a2e', speed: 0.18, peaks: Array.from({ length: 8 }, (_, i) => ({ x: i * 130 + Math.random() * 60, w: 120 + Math.random() * 80, h: 70 + Math.random() * 50 })) },
+    { color: '#12062a', speed: 0.32, peaks: Array.from({ length: 10 }, (_, i) => ({ x: i * 110 + Math.random() * 50, w: 90 + Math.random() * 60, h: 45 + Math.random() * 35 })) },
   ];
 }
 
-const DUCK_OB_Y = GROUND - 50;
-
-function makeObstacle(speed, bossIdx) {
-  const r = Math.random();
-  if (r < 0.55) {
-    return { type: 'jump', x: CW + 30, h: 40 + Math.random() * 25 };
-  } else {
-    return { type: 'duck', x: CW + 30, y: DUCK_OB_Y, w: 70 + Math.random() * 30 };
-  }
+function makeObstacle() {
+  if (Math.random() < 0.55) return { type: 'jump', x: CW + 30, h: 40 + Math.random() * 25 };
+  return { type: 'duck', x: CW + 30, y: GROUND - 50, w: 70 + Math.random() * 30 };
 }
 
 function collides(player, ob) {
   const ph = player.ducking ? DUCK_HEIGHT : STAND_HEIGHT;
-  const py1 = player.y - ph;
-  const py2 = player.y;
-  const px1 = PLAYER_X - 12;
-  const px2 = PLAYER_X + 12;
-
+  const py1 = player.y - ph, py2 = player.y;
+  const px1 = PLAYER_X - 12, px2 = PLAYER_X + 12;
   if (ob.type === 'jump') {
-    const ox1 = ob.x - 16, ox2 = ob.x + 16;
-    const oy1 = GROUND - ob.h, oy2 = GROUND;
-    return px2 > ox1 && px1 < ox2 && py2 > oy1 && py1 < oy2;
-  } else {
-    const ox1 = ob.x - ob.w / 2, ox2 = ob.x + ob.w / 2;
-    const oy1 = ob.y - 14, oy2 = ob.y + 14;
-    return px2 > ox1 && px1 < ox2 && py2 > oy1 && py1 < oy2;
+    return px2 > ob.x - 16 && px1 < ob.x + 16 && py2 > GROUND - ob.h && py1 < GROUND;
   }
+  return px2 > ob.x - ob.w / 2 && px1 < ob.x + ob.w / 2 && py2 > ob.y - 14 && py1 < ob.y + 14;
 }
 
+function makeInitialGameState() {
+  return {
+    frame: 0, distance: 0, speed: BASE_SPEED,
+    lives: 3, bossesDefeated: 0, totalPoints: 0,
+    player: { y: GROUND, vy: 0, jumping: false, ducking: false, invincible: 0 },
+    obstacles: [], obTimer: 80,
+    boss: null, bossIdx: -1, explosionParts: [],
+    stars: makeStars(), mathSymbols: makeMathSymbols(), mountains: makeMountains(),
+    bgOffset: 0, phase: 'running',
+    bossTriggered: [false, false, false],
+  };
+}
+
+// ── COMPONENT ─────────────────────────────────────────────────
 export default function StickmanRun({ onClose, academicStage }) {
   const { user, updateUser } = useAuth();
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
-  const rafRef = useRef(null);
-  const inputRef = useRef({ jump: false, duck: false });
+  const inputRef = useRef({ duck: false });
   const bossEncounterRef = useRef(false);
+  const timerRef = useRef(null);
+  const handleAnswerRef = useRef(null);
+  const teacherImgs = useRef({});
 
   const [phase, setPhase] = useState('loading');
   const [bossUI, setBossUI] = useState(null);
@@ -380,480 +333,391 @@ export default function StickmanRun({ onClose, academicStage }) {
   const [bossesDefeated, setBossesDefeated] = useState(0);
   const [totalPoints, setTotalPoints] = useState(0);
   const [resultData, setResultData] = useState(null);
-  const timerRef = useRef(null);
 
-  const cfg = getGameConfig(academicStage || user?.academic_stage);
+  const stage = academicStage || user?.academic_stage;
+  const cfg = getGameConfig(stage);
   const bossCfgs = [cfg.boss1, cfg.boss2, cfg.boss3];
 
-  const teacherImgs = useRef({});
+  // Load teacher images once
   useEffect(() => {
     ['normal', 'sad', 'fury'].forEach(k => {
-      const img = new Image();
-      img.src = `/teacher-${k}.png`;
+      const img = new Image(); img.src = `/teacher-${k}.png`;
       teacherImgs.current[k] = img;
     });
   }, []);
 
+  // Check if already played this week
   useEffect(() => {
-    api.get('/events/weekly-run/status').then(r => {
-      if (r.data.played) setPhase('already_played');
-      else setPhase('intro');
-    }).catch(() => setPhase('intro'));
+    api.get('/events/weekly-run/status')
+      .then(r => setPhase(r.data.played ? 'already_played' : 'intro'))
+      .catch(() => setPhase('intro'));
   }, []);
 
-  const initState = useCallback(() => {
-    return {
-      frame: 0,
-      distance: 0,
-      speed: BASE_SPEED,
-      lives: 3,
-      bossesDefeated: 0,
-      totalPoints: 0,
-      player: { y: GROUND, vy: 0, jumping: false, ducking: false, invincible: 0 },
-      obstacles: [],
-      obTimer: 80,
-      boss: null,
-      bossIdx: -1,
-      explosionParts: [],
-      stars: makeStars(),
-      mathSymbols: makeMathSymbols(),
-      mountains: makeMountains(),
-      bgOffset: 0,
-      phase: 'running',
-      bossTriggered: [false, false, false],
-    };
-  }, []);
-
-  const triggerBossEncounter = useCallback((gs, bossIdx) => {
-    if (bossEncounterRef.current) return;
-    bossEncounterRef.current = true;
-    gs.phase = 'boss_encounter';
-    const bcfg = bossCfgs[bossIdx];
-    setBossUI({ bossIdx, cfg: bcfg });
-    setSelectedChoice(null);
-    setAnswerResult(null);
-    let pct = 100;
-    const totalMs = bcfg.timeLimit * 1000;
-    const step = 100 / (bcfg.timeLimit * 20);
-    timerRef.current = setInterval(() => {
-      pct -= step;
-      setTimerPct(Math.max(0, pct));
-      if (pct <= 0) {
-        clearInterval(timerRef.current);
-        handleAnswer(gs, bossIdx, -1);
-      }
-    }, 50);
-  }, [bossCfgs]);
-
-  const handleAnswer = useCallback((gs, bossIdx, choiceIdx) => {
-    clearInterval(timerRef.current);
-    if (!gs) return;
-    const bcfg = bossCfgs[bossIdx];
-    const correct = choiceIdx === bcfg.correctIndex;
-    setSelectedChoice(choiceIdx);
-    setAnswerResult(correct ? 'correct' : 'wrong');
-    setTimeout(() => {
-      if (correct) {
-        const pts = BOSS_POINTS[bossIdx];
-        gs.totalPoints += pts;
-        gs.bossesDefeated += 1;
-        setBossesDefeated(gs.bossesDefeated);
-        setTotalPoints(gs.totalPoints);
-        const cx = gs.boss?.x || CW * 0.65;
-        const cy = gs.boss?.y || GROUND;
-        gs.explosionParts = Array.from({ length: 30 }, () => ({
-          x: cx, y: cy - 40,
-          vx: (Math.random() - 0.5) * 12,
-          vy: -6 - Math.random() * 8,
-          r: 3 + Math.random() * 5,
-          color: ['#fbbf24', '#f97316', '#ec4899', '#a855f7', '#22c55e'][Math.floor(Math.random() * 5)],
-          life: 40, maxLife: 40,
-        }));
-      } else {
-        gs.lives = Math.max(0, gs.lives - 1);
-        setLives(gs.lives);
-        gs.player.invincible = 90;
-        if (gs.lives === 0) {
-          finishGame(gs);
-          return;
-        }
-      }
-      gs.boss = null;
-      gs.phase = 'running';
-      setBossUI(null);
-      bossEncounterRef.current = false;
-    }, 1200);
-  }, [bossCfgs]);
-
-  const finishGame = useCallback((gs) => {
-    gs.phase = 'gameover';
-    const pts = gs.totalPoints;
-    const defeated = gs.bossesDefeated;
-    setResultData({ won: defeated === 3, pts, defeated });
-    setPhase(defeated === 3 ? 'victory' : 'gameover');
-    api.post('/events/weekly-run/finish', {
-      pointsEarned: pts,
-      bossesDefeated: defeated,
-    }).then(r => {
-      if (r.data.success && updateUser) {
-        updateUser({ points: r.data.newTotal });
-      }
-    }).catch(() => {});
-  }, [updateUser]);
-
-  const startGame = useCallback(() => {
-    const gs = initState();
-    stateRef.current = gs;
-    setLives(3);
-    setBossesDefeated(0);
-    setTotalPoints(0);
-    setPhase('playing');
-    bossEncounterRef.current = false;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    const loop = () => {
-      const gs = stateRef.current;
-      if (!gs) return;
-
-      if (gs.phase === 'running') {
-        gs.frame++;
-        gs.distance += gs.speed;
-        gs.speed = Math.min(MAX_SPEED, BASE_SPEED + gs.distance * 0.0035);
-        gs.bgOffset += gs.speed;
-
-        const p = gs.player;
-        if (p.jumping || p.y < GROUND) {
-          p.vy += GRAVITY;
-          p.y = Math.min(GROUND, p.y + p.vy);
-          if (p.y >= GROUND) { p.y = GROUND; p.vy = 0; p.jumping = false; }
-        }
-        if (inputRef.current.duck) p.ducking = true;
-        else p.ducking = false;
-
-        gs.obTimer--;
-        if (gs.obTimer <= 0) {
-          gs.obstacles.push(makeObstacle(gs.speed, gs.bossIdx));
-          gs.obTimer = 45 + Math.random() * 55;
-        }
-        gs.obstacles.forEach(o => { o.x -= gs.speed; });
-        gs.obstacles = gs.obstacles.filter(o => o.x > -80);
-
-        if (p.invincible > 0) p.invincible--;
-
-        for (const ob of gs.obstacles) {
-          if (p.invincible === 0 && collides(p, ob)) {
-            gs.lives = Math.max(0, gs.lives - 1);
-            setLives(gs.lives);
-            p.invincible = 90;
-            ob.x = -200;
-            if (gs.lives === 0) { finishGame(gs); return; }
-            break;
-          }
-        }
-
-        gs.explosionParts = gs.explosionParts.filter(ep => ep.life > 0);
-        gs.explosionParts.forEach(ep => {
-          ep.x += ep.vx; ep.y += ep.vy; ep.vy += 0.3;
-          ep.life--;
-        });
-
-        for (let i = 0; i < 3; i++) {
-          if (!gs.bossTriggered[i] && gs.distance >= BOSS_DISTS[i]) {
-            gs.bossTriggered[i] = true;
-            gs.bossIdx = i;
-            gs.boss = { x: CW + 80, y: GROUND, idx: i, walkSpeed: 1.8 };
-          }
-        }
-
-        if (gs.boss) {
-          const bossTargetX = CW * 0.62;
-          if (gs.boss.x > bossTargetX) {
-            gs.boss.x -= gs.boss.walkSpeed;
-          } else if (!bossEncounterRef.current) {
-            triggerBossEncounter(gs, gs.boss.idx);
-          }
-        }
-
-        gs.stars.forEach(s => { s.twinkle = (s.twinkle || 0) + 0.02; });
-      } else if (gs.phase === 'boss_encounter') {
-        gs.frame++;
-        gs.explosionParts = gs.explosionParts.filter(ep => ep.life > 0);
-        gs.explosionParts.forEach(ep => {
-          ep.x += ep.vx; ep.y += ep.vy; ep.vy += 0.3; ep.life--;
-        });
-      }
-
-      ctx.clearRect(0, 0, CW, CH);
-      drawSky(ctx);
-      drawStars(ctx, gs.stars, gs.frame);
-      drawMathBg(ctx, gs.mathSymbols, gs.bgOffset);
-      drawMountains(ctx, gs.mountains, gs.bgOffset);
-      drawGround(ctx, gs.bgOffset);
-      gs.obstacles.forEach(ob => drawObstacle(ctx, ob, gs.frame));
-
-      if (gs.boss && gs.boss.x < CW + 20) {
-        const bx = gs.boss.x, by = gs.boss.y;
-        if (gs.boss.idx === 0) drawBoss1(ctx, bx, by, gs.frame);
-        else if (gs.boss.idx === 1) drawBoss2(ctx, bx, by, gs.frame);
-        else drawBoss3(ctx, bx, by, gs.frame, teacherImgs.current.normal);
-      }
-
-      drawStickman(ctx, PLAYER_X, gs.player.y, gs.frame, gs.player.ducking, gs.player.invincible > 0);
-      drawExplosion(ctx, gs.explosionParts);
-      drawHUD(ctx, gs.lives, gs.bossesDefeated, gs.speed, gs.distance);
-
-      rafRef.current = requestAnimationFrame(loop);
-    };
-
-    rafRef.current = requestAnimationFrame(loop);
-  }, [initState, triggerBossEncounter, finishGame]);
-
+  // Keyboard input
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+    const onDown = (e) => {
+      if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) {
         e.preventDefault();
         const gs = stateRef.current;
         if (gs?.phase === 'running' && gs.player.y >= GROUND && !gs.player.jumping) {
-          gs.player.vy = JUMP_V;
-          gs.player.jumping = true;
+          gs.player.vy = JUMP_V; gs.player.jumping = true;
         }
       }
-      if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-        inputRef.current.duck = true;
-      }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') inputRef.current.duck = true;
     };
-    const onKeyUp = (e) => {
-      if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-        inputRef.current.duck = false;
-      }
+    const onUp = (e) => {
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') inputRef.current.duck = false;
     };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKeyUp);
-    };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      clearInterval(timerRef.current);
-    };
-  }, []);
-
+  // Touch input on canvas
   const handleCanvasTouch = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const gs = stateRef.current;
     if (!gs || gs.phase !== 'running') return;
-    const y = e.touches[0].clientY - rect.top;
-    const relY = y / rect.height;
+    const relY = (e.touches[0].clientY - rect.top) / rect.height;
     if (relY < 0.55) {
-      if (gs.player.y >= GROUND && !gs.player.jumping) {
-        gs.player.vy = JUMP_V; gs.player.jumping = true;
-      }
-    } else {
-      inputRef.current.duck = true;
-    }
+      if (gs.player.y >= GROUND && !gs.player.jumping) { gs.player.vy = JUMP_V; gs.player.jumping = true; }
+    } else inputRef.current.duck = true;
   };
   const handleTouchEnd = () => { inputRef.current.duck = false; };
 
+  // ── THE GAME LOOP (only runs when phase === 'playing') ────────
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const gs = stateRef.current;
+    if (!gs) return;
+
+    // ── Inner functions (close over state setters & refs safely) ──
+
+    const finishGame = (state) => {
+      state.phase = 'gameover';
+      const pts = state.totalPoints;
+      const defeated = state.bossesDefeated;
+      setResultData({ won: defeated === 3, pts, defeated });
+      setPhase(defeated === 3 ? 'victory' : 'gameover');
+      api.post('/events/weekly-run/finish', { pointsEarned: pts, bossesDefeated: defeated })
+        .then(r => { if (r.data.success && updateUser) updateUser({ points: r.data.newTotal }); })
+        .catch(() => {});
+    };
+
+    const handleAnswer = (bossIdx, choiceIdx) => {
+      clearInterval(timerRef.current);
+      const state = stateRef.current;
+      if (!state) return;
+      const bcfg = bossCfgs[bossIdx];
+      const correct = choiceIdx === bcfg.correctIndex;
+      setSelectedChoice(choiceIdx);
+      setAnswerResult(correct ? 'correct' : 'wrong');
+      setTimeout(() => {
+        if (correct) {
+          state.totalPoints += BOSS_POINTS[bossIdx];
+          state.bossesDefeated += 1;
+          setBossesDefeated(state.bossesDefeated);
+          setTotalPoints(state.totalPoints);
+          const cx = state.boss?.x || CW * 0.65;
+          const cy = state.boss?.y || GROUND;
+          state.explosionParts = Array.from({ length: 30 }, () => ({
+            x: cx, y: cy - 40,
+            vx: (Math.random() - 0.5) * 12, vy: -6 - Math.random() * 8,
+            r: 3 + Math.random() * 5,
+            color: ['#fbbf24', '#f97316', '#ec4899', '#a855f7', '#22c55e'][Math.floor(Math.random() * 5)],
+            life: 40, maxLife: 40,
+          }));
+          if (state.bossesDefeated === 3) { finishGame(state); return; }
+        } else {
+          state.lives = Math.max(0, state.lives - 1);
+          setLives(state.lives);
+          state.player.invincible = 90;
+          if (state.lives === 0) { finishGame(state); return; }
+        }
+        state.boss = null;
+        state.phase = 'running';
+        setBossUI(null);
+        bossEncounterRef.current = false;
+      }, 1200);
+    };
+
+    handleAnswerRef.current = handleAnswer;
+
+    const triggerBoss = (bossIdx) => {
+      if (bossEncounterRef.current) return;
+      bossEncounterRef.current = true;
+      const state = stateRef.current;
+      if (!state) return;
+      state.phase = 'boss_encounter';
+      const bcfg = bossCfgs[bossIdx];
+      setBossUI({ bossIdx, cfg: bcfg });
+      setSelectedChoice(null); setAnswerResult(null);
+      let pct = 100;
+      const step = 100 / (bcfg.timeLimit * 20);
+      timerRef.current = setInterval(() => {
+        pct -= step;
+        setTimerPct(Math.max(0, pct));
+        if (pct <= 0) { clearInterval(timerRef.current); handleAnswer(bossIdx, -1); }
+      }, 50);
+    };
+
+    let animId;
+    const loop = () => {
+      const state = stateRef.current;
+      if (!state) return;
+
+      if (state.phase === 'running') {
+        state.frame++;
+        state.distance += state.speed;
+        state.speed = Math.min(MAX_SPEED, BASE_SPEED + state.distance * 0.0035);
+        state.bgOffset += state.speed;
+
+        // Player physics
+        const p = state.player;
+        if (p.jumping || p.y < GROUND) {
+          p.vy += GRAVITY;
+          p.y = Math.min(GROUND, p.y + p.vy);
+          if (p.y >= GROUND) { p.y = GROUND; p.vy = 0; p.jumping = false; }
+        }
+        p.ducking = !!inputRef.current.duck;
+        if (p.invincible > 0) p.invincible--;
+
+        // Obstacles
+        state.obTimer--;
+        if (state.obTimer <= 0) {
+          state.obstacles.push(makeObstacle());
+          state.obTimer = 45 + Math.random() * 55;
+        }
+        state.obstacles.forEach(o => { o.x -= state.speed; });
+        state.obstacles = state.obstacles.filter(o => o.x > -80);
+
+        // Collision
+        for (const ob of state.obstacles) {
+          if (p.invincible === 0 && collides(p, ob)) {
+            state.lives = Math.max(0, state.lives - 1);
+            setLives(state.lives);
+            p.invincible = 90; ob.x = -200;
+            if (state.lives === 0) { finishGame(state); return; }
+            break;
+          }
+        }
+
+        // Boss triggers
+        for (let i = 0; i < 3; i++) {
+          if (!state.bossTriggered[i] && state.distance >= BOSS_DISTS[i]) {
+            state.bossTriggered[i] = true;
+            state.bossIdx = i;
+            state.boss = { x: CW + 80, y: GROUND, idx: i, walkSpeed: 1.8 };
+          }
+        }
+        if (state.boss) {
+          if (state.boss.x > CW * 0.62) state.boss.x -= state.boss.walkSpeed;
+          else if (!bossEncounterRef.current) triggerBoss(state.boss.idx);
+        }
+      } else if (state.phase === 'boss_encounter') {
+        state.frame++;
+      }
+
+      // Explosions (always)
+      state.explosionParts = state.explosionParts.filter(ep => ep.life > 0);
+      state.explosionParts.forEach(ep => { ep.x += ep.vx; ep.y += ep.vy; ep.vy += 0.3; ep.life--; });
+
+      // ── Draw ──
+      drawSky(ctx);
+      drawStars(ctx, state.stars, state.frame);
+      drawMathBg(ctx, state.mathSymbols, state.bgOffset);
+      drawMountains(ctx, state.mountains, state.bgOffset);
+      drawGround(ctx, state.bgOffset);
+      state.obstacles.forEach(ob => drawObstacle(ctx, ob));
+
+      if (state.boss && state.boss.x < CW + 20) {
+        const { x, y, idx } = state.boss;
+        if (idx === 0) drawBoss1(ctx, x, y, state.frame);
+        else if (idx === 1) drawBoss2(ctx, x, y, state.frame);
+        else drawBoss3(ctx, x, y, state.frame, teacherImgs.current.normal);
+      }
+
+      drawStickman(ctx, PLAYER_X, state.player.y, state.frame, state.player.ducking, state.player.invincible > 0);
+      drawExplosion(ctx, state.explosionParts);
+      drawHUD(ctx, state.lives, state.bossesDefeated, state.speed);
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(animId);
+      clearInterval(timerRef.current);
+      handleAnswerRef.current = null;
+    };
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startGame = () => {
+    stateRef.current = makeInitialGameState();
+    setLives(3); setBossesDefeated(0); setTotalPoints(0);
+    bossEncounterRef.current = false;
+    setBossUI(null);
+    setPhase('playing');
+  };
+
+  // ── RENDER ────────────────────────────────────────────────────
   const bossImg = bossUI?.bossIdx === 2
     ? (answerResult === 'correct' ? teacherImgs.current.sad : answerResult === 'wrong' ? teacherImgs.current.fury : teacherImgs.current.normal)
     : null;
 
-  const bossEmoji = bossUI ? (bossUI.bossIdx === 0 ? '👹' : bossUI.bossIdx === 1 ? '👾' : null) : null;
-
-  if (phase === 'loading') {
-    return (
-      <div className="flex items-center justify-center h-full" style={{ background: '#060612', color: '#fff', minHeight: 340 }}>
-        <div className="animate-spin w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  if (phase === 'already_played') {
-    return (
-      <div className="flex flex-col items-center justify-center gap-5 p-8 text-center" style={{ background: '#060612', minHeight: 340, borderRadius: 16 }}>
-        <div style={{ fontSize: 60 }}>🗓️</div>
-        <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 900 }}>لعبت هذا الأسبوع!</h2>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>تقدر تلعب مرة تانية الأسبوع الجاي 🎮</p>
-        <button onClick={onClose} style={{ padding: '10px 28px', borderRadius: 10, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
-          رجوع للفعاليات
-        </button>
-      </div>
-    );
-  }
-
-  if (phase === 'intro') {
-    return (
-      <div dir="rtl" className="flex flex-col items-center justify-center gap-6 p-8 text-center" style={{ background: 'linear-gradient(145deg,#060612 0%,#1a0838 100%)', minHeight: 340, borderRadius: 16 }}>
-        <div style={{ fontSize: 64, filter: 'drop-shadow(0 0 20px #7c3aed)' }}>🏃</div>
-        <div>
-          <h2 style={{ color: '#fff', fontSize: 24, fontWeight: 900, margin: 0 }}>تحدي الأسبوعي الرياضي</h2>
-          <p style={{ color: '#c084fc', fontSize: 14, margin: '6px 0 0' }}>اتخطى العقبات وهزم الـ ٣ بوسات الرياضية!</p>
-        </div>
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[['⬆️', 'قفز'], ['⬇️', 'انحنى'], ['🎯', 'إجابة صح = نقاط']].map(([ic, lb]) => (
-            <div key={lb} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 16px' }}>
-              <div style={{ fontSize: 22 }}>{ic}</div>
-              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 4 }}>{lb}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {bossCfgs.map((b, i) => (
-            <div key={i} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '6px 14px', color: '#fbbf24', fontSize: 13, fontWeight: 700 }}>
-              بوس {i + 1}: {BOSS_POINTS[i]} نقطة
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={startGame} style={{
-            padding: '12px 36px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff',
-            fontFamily: 'inherit', fontWeight: 900, fontSize: 16,
-            boxShadow: '0 6px 24px rgba(124,58,237,0.5)',
-          }}>
-            ابدأ اللعب 🎮
-          </button>
-          <button onClick={onClose} style={{ padding: '12px 22px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontFamily: 'inherit', fontWeight: 700 }}>
-            رجوع
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'victory' || phase === 'gameover') {
-    const won = phase === 'victory';
-    return (
-      <div dir="rtl" className="flex flex-col items-center justify-center gap-5 p-8 text-center" style={{ background: 'linear-gradient(145deg,#060612 0%,#1a0838 100%)', minHeight: 340, borderRadius: 16 }}>
-        <div style={{ fontSize: 70 }}>{won ? '🏆' : '💔'}</div>
-        <h2 style={{ color: won ? '#fbbf24' : '#ef4444', fontSize: 26, fontWeight: 900, margin: 0 }}>
-          {won ? 'أنت بطل المنهج! 🌟' : 'حاول مرة تانية الأسبوع الجاي!'}
-        </h2>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
-          <div style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, padding: '10px 20px' }}>
-            <div style={{ color: '#fbbf24', fontSize: 28, fontWeight: 900 }}>{resultData?.pts || 0}</div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>نقطة مكسوبة</div>
-          </div>
-          <div style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 10, padding: '10px 20px' }}>
-            <div style={{ color: '#c084fc', fontSize: 28, fontWeight: 900 }}>{resultData?.defeated || 0}/3</div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>بوسات هُزمت</div>
-          </div>
-        </div>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>مرة واحدة في الأسبوع — إلى اللقاء الأسبوع القادم!</p>
-        <button onClick={onClose} style={{
-          padding: '12px 36px', borderRadius: 12, border: 'none', cursor: 'pointer',
-          background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff',
-          fontFamily: 'inherit', fontWeight: 900, fontSize: 15,
-        }}>
-          رجوع للفعاليات
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div dir="rtl" style={{ position: 'relative', userSelect: 'none', background: '#060612', borderRadius: 16, overflow: 'hidden' }}>
+    <div dir="rtl" style={{ position: 'relative', background: '#060612', borderRadius: 16, overflow: 'hidden' }}>
+      <style>{`
+        @keyframes slideDownIn { from{opacity:0;transform:translateY(-20px) scale(.97)} to{opacity:1;transform:none} }
+        @keyframes choiceIn { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:none} }
+        @keyframes shakeX { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+      `}</style>
+
+      {/* Canvas — always in DOM so ref is valid when phase becomes 'playing' */}
       <canvas
         ref={canvasRef}
-        width={CW}
-        height={CH}
+        width={CW} height={CH}
         onTouchStart={handleCanvasTouch}
         onTouchEnd={handleTouchEnd}
-        style={{ display: 'block', width: '100%', height: 'auto', touchAction: 'none' }}
+        style={{
+          display: 'block', width: '100%', height: 'auto', touchAction: 'none',
+          visibility: phase === 'playing' ? 'visible' : 'hidden',
+        }}
       />
 
-      {bossUI && (
+      {/* ── OVERLAYS (non-playing phases) ── */}
+      {phase !== 'playing' && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(145deg,#060612 0%,#1a0838 100%)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 20, padding: 32, minHeight: CH, textAlign: 'center',
+        }}>
+          {phase === 'loading' && (
+            <div className="animate-spin" style={{ width: 40, height: 40, border: '4px solid #7c3aed', borderTopColor: 'transparent', borderRadius: '50%' }} />
+          )}
+
+          {phase === 'intro' && <>
+            <div style={{ fontSize: 72, filter: 'drop-shadow(0 0 22px #7c3aed)' }}>🏃</div>
+            <div>
+              <h2 style={{ color: '#fff', fontSize: 26, fontWeight: 900, margin: '0 0 6px' }}>تحدي الأسبوعي الرياضي</h2>
+              <p style={{ color: '#c084fc', fontSize: 14, margin: 0 }}>اهرب من معادلات الشيطان وهزم الأستاذ! 😤</p>
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {[['⬆️ / مسافة', 'قفز فوق العقبة'], ['⬇️', 'اركع تحت العقبة'], ['🧠', 'جاوب على السؤال']].map(([ic, lb]) => (
+                <div key={lb} style={{ background: 'rgba(255,255,255,.06)', borderRadius: 10, padding: '10px 16px' }}>
+                  <div style={{ fontSize: 22 }}>{ic}</div>
+                  <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 12, marginTop: 4 }}>{lb}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {bossCfgs.map((_, i) => (
+                <div key={i} style={{ background: 'rgba(251,191,36,.12)', border: '1px solid rgba(251,191,36,.3)', borderRadius: 8, padding: '6px 14px', color: '#fbbf24', fontSize: 13, fontWeight: 700 }}>
+                  بوس {i + 1}: {BOSS_POINTS[i]} نقطة
+                </div>
+              ))}
+            </div>
+            <button onClick={startGame} style={{
+              padding: '13px 42px', borderRadius: 13, border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff',
+              fontFamily: 'inherit', fontWeight: 900, fontSize: 17,
+              boxShadow: '0 6px 24px rgba(124,58,237,.5)',
+            }}>العب دلوقتي 🎮</button>
+          </>}
+
+          {phase === 'already_played' && <>
+            <div style={{ fontSize: 64 }}>🗓️</div>
+            <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 900, margin: 0 }}>لعبت الأسبوع ده بالفعل!</h2>
+            <p style={{ color: 'rgba(255,255,255,.45)', fontSize: 14, margin: 0 }}>تعالى تاني الأسبوع الجاي 🎮</p>
+            {onClose && <button onClick={onClose} style={{ padding: '10px 28px', borderRadius: 10, background: 'rgba(255,255,255,.1)', color: '#fff', border: '1px solid rgba(255,255,255,.2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>رجوع</button>}
+          </>}
+
+          {(phase === 'victory' || phase === 'gameover') && resultData && <>
+            <div style={{ fontSize: 76 }}>{phase === 'victory' ? '🏆' : '💔'}</div>
+            <h2 style={{ color: phase === 'victory' ? '#fbbf24' : '#ef4444', fontSize: 28, fontWeight: 900, margin: 0 }}>
+              {phase === 'victory' ? 'أنت بطل المنهج! 🌟' : 'حاول الأسبوع الجاي!'}
+            </h2>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div style={{ background: 'rgba(251,191,36,.12)', border: '1px solid rgba(251,191,36,.3)', borderRadius: 10, padding: '12px 22px' }}>
+                <div style={{ color: '#fbbf24', fontSize: 32, fontWeight: 900 }}>{resultData.pts}</div>
+                <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 12 }}>نقطة مكسوبة</div>
+              </div>
+              <div style={{ background: 'rgba(124,58,237,.12)', border: '1px solid rgba(124,58,237,.3)', borderRadius: 10, padding: '12px 22px' }}>
+                <div style={{ color: '#c084fc', fontSize: 32, fontWeight: 900 }}>{resultData.defeated}/3</div>
+                <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 12 }}>بوسات انهزمت</div>
+              </div>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 13, margin: 0 }}>مرة واحدة في الأسبوع — نشوفك الأسبوع الجاي!</p>
+            {onClose && <button onClick={onClose} style={{ padding: '12px 38px', borderRadius: 13, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontFamily: 'inherit', fontWeight: 900, fontSize: 15 }}>رجوع للفعاليات</button>}
+          </>}
+        </div>
+      )}
+
+      {/* ── BOSS QUESTION DIALOG (during playing) ── */}
+      {phase === 'playing' && bossUI && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'flex-start',
-          background: 'rgba(6,6,18,0.82)', backdropFilter: 'blur(3px)',
+          background: 'rgba(6,6,18,.84)', backdropFilter: 'blur(4px)',
           padding: '10px 16px 16px',
-          animation: 'slideDownIn 0.35s cubic-bezier(.34,1.56,.64,1) both',
+          animation: 'slideDownIn .35s cubic-bezier(.34,1.56,.64,1) both',
         }}>
-          <style>{`
-            @keyframes slideDownIn { from{opacity:0;transform:translateY(-24px) scale(.97)} to{opacity:1;transform:none} }
-            @keyframes choiceIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:none} }
-            @keyframes shakeX { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
-          `}</style>
-
-          <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, marginBottom: 8 }}>
-            <div style={{
-              height: '100%', borderRadius: 3, transition: 'width 0.05s linear',
-              width: `${timerPct}%`,
-              background: timerPct > 50 ? '#22c55e' : timerPct > 25 ? '#f59e0b' : '#ef4444',
-            }} />
+          {/* Timer bar */}
+          <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,.1)', borderRadius: 3, marginBottom: 10 }}>
+            <div style={{ height: '100%', borderRadius: 3, transition: 'width .05s linear', width: `${timerPct}%`, background: timerPct > 50 ? '#22c55e' : timerPct > 25 ? '#f59e0b' : '#ef4444' }} />
           </div>
 
-          <div style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 14, width: '100%', alignItems: 'flex-start' }}>
+            {/* Boss avatar */}
             <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               {bossImg ? (
                 <img src={bossImg.src} alt="boss" style={{
-                  width: 80, height: 80, borderRadius: 12, objectFit: 'cover',
+                  width: 82, height: 82, borderRadius: 12, objectFit: 'cover',
                   border: `2px solid ${answerResult === 'correct' ? '#22c55e' : answerResult === 'wrong' ? '#ef4444' : '#fbbf24'}`,
-                  animation: answerResult === 'wrong' ? 'shakeX 0.4s ease' : 'none',
+                  animation: answerResult === 'wrong' ? 'shakeX .4s ease' : 'none',
                 }} />
               ) : (
-                <div style={{ width: 70, height: 70, fontSize: 54, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {bossEmoji}
+                <div style={{ width: 72, height: 72, fontSize: 56, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {bossUI.bossIdx === 0 ? '👹' : '👾'}
                 </div>
               )}
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, textAlign: 'center' }}>
-                بوس {bossUI.bossIdx + 1}
-              </div>
+              <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 10 }}>بوس {bossUI.bossIdx + 1}</div>
             </div>
 
+            {/* Question + choices */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 10, padding: '8px 12px', marginBottom: 8,
-              }}>
-                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, margin: '0 0 4px' }}>
+              <div style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 12px', marginBottom: 8 }}>
+                <p style={{ color: 'rgba(255,255,255,.55)', fontSize: 11, margin: '0 0 4px' }}>
                   {answerResult === 'correct' ? bossUI.cfg.correctDialog : answerResult === 'wrong' ? bossUI.cfg.wrongDialog : bossUI.cfg.dialog}
                 </p>
-                <p style={{ color: '#fff', fontWeight: 900, fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-                  {bossUI.cfg.question}
-                </p>
+                <p style={{ color: '#fff', fontWeight: 900, fontSize: 13, margin: 0, lineHeight: 1.55, whiteSpace: 'pre-line' }}>{bossUI.cfg.question}</p>
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 {bossUI.cfg.choices.map((ch, idx) => {
                   const isSelected = selectedChoice === idx;
                   const isCorrect = idx === bossUI.cfg.correctIndex;
-                  let bg = 'rgba(255,255,255,0.07)';
-                  let border = '1px solid rgba(255,255,255,0.15)';
-                  let col = '#fff';
+                  let bg = 'rgba(255,255,255,.07)', border = '1px solid rgba(255,255,255,.15)', col = '#fff';
                   if (answerResult && isSelected) {
-                    bg = answerResult === 'correct' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)';
+                    bg = answerResult === 'correct' ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.25)';
                     border = `1px solid ${answerResult === 'correct' ? '#22c55e' : '#ef4444'}`;
                     col = answerResult === 'correct' ? '#86efac' : '#fca5a5';
                   } else if (answerResult === 'wrong' && isCorrect) {
-                    bg = 'rgba(34,197,94,0.15)'; border = '1px solid #22c55e'; col = '#86efac';
+                    bg = 'rgba(34,197,94,.15)'; border = '1px solid #22c55e'; col = '#86efac';
                   }
                   return (
-                    <button key={idx}
-                      disabled={!!answerResult}
-                      onClick={() => {
-                        if (!answerResult) {
-                          setSelectedChoice(idx);
-                          handleAnswer(stateRef.current, bossUI.bossIdx, idx);
-                        }
-                      }}
+                    <button key={idx} disabled={!!answerResult}
+                      onClick={() => { if (!answerResult) handleAnswerRef.current?.(bossUI.bossIdx, idx); }}
                       style={{
                         background: bg, border, borderRadius: 8, padding: '7px 10px',
                         color: col, fontFamily: 'inherit', fontWeight: 700, fontSize: 12,
                         cursor: answerResult ? 'default' : 'pointer', textAlign: 'center',
-                        transition: 'all 0.2s',
-                        animation: `choiceIn 0.3s ${0.05 * idx}s both`,
-                      }}
-                    >
+                        transition: 'all .2s', animation: `choiceIn .3s ${.05 * idx}s both`,
+                      }}>
                       {ch}
                     </button>
                   );
@@ -864,14 +728,13 @@ export default function StickmanRun({ onClose, academicStage }) {
         </div>
       )}
 
-      <div dir="rtl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', background: 'rgba(0,0,0,0.4)' }}>
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>
-          ⬆️ قفز &nbsp;|&nbsp; ⬇️ انحنى
+      {/* Controls hint */}
+      {phase === 'playing' && (
+        <div dir="rtl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 12px', background: 'rgba(0,0,0,.45)' }}>
+          <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 11 }}>⬆️ قفز &nbsp;|&nbsp; ⬇️ اركع</div>
+          <div style={{ color: '#fbbf24', fontSize: 12, fontWeight: 700 }}>{totalPoints} نقطة ⭐</div>
         </div>
-        <div style={{ color: '#fbbf24', fontSize: 12, fontWeight: 700 }}>
-          {totalPoints} نقطة 🌟
-        </div>
-      </div>
+      )}
     </div>
   );
 }
