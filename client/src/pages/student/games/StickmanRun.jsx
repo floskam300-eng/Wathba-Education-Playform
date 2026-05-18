@@ -463,10 +463,11 @@ export default function StickmanRun({ onClose, academicStage }) {
           }));
           if (state.bossesDefeated === 3) { finishGame(state); return; }
         } else {
-          state.lives = Math.max(0, state.lives - 1);
-          setLives(state.lives);
-          state.player.invincible = 120;
-          if (state.lives === 0) { finishGame(state); return; }
+          // Boss defeated you → immediate game over
+          state.lives = 0;
+          setLives(0);
+          finishGame(state);
+          return;
         }
         state.boss = null; state.phase = 'running';
         setBossUI(null); bossActiveRef.current = false;
