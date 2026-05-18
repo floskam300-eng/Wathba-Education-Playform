@@ -33,9 +33,14 @@ function useElapsed(startedAt) {
 
 function Toggle({ on, onClick }) {
   return (
-    <button type="button" onClick={onClick}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${on ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-      <span className={`inline-block w-4 h-4 transform rounded-full bg-white shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative inline-flex h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 flex-shrink-0 ${on ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-600'}`}
+    >
+      <span
+        className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-200 ${on ? 'translate-x-6' : 'translate-x-1'}`}
+      />
     </button>
   );
 }
@@ -338,27 +343,83 @@ function LiveView({ stream, user, dark, onEnd }) {
   );
 }
 
+/* ── Stages multi-select ───────────────────────────────────── */
+function StagesSelector({ selected, onChange, dark }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['teacher-stages'],
+    queryFn:  () => api.get('/students/stages').then(r => r.data.stages),
+    staleTime: 60000,
+  });
+  const stages = data || [];
+
+  const toggle = (s) =>
+    onChange(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+
+  if (isLoading) {
+    return (
+      <div className={`flex items-center gap-2 text-sm py-3 ${dark ? 'text-slate-400' : 'text-slate-500'}`}>
+        <Loader2 className="w-4 h-4 animate-spin" /> جارٍ تحميل الصفوف...
+      </div>
+    );
+  }
+
+  if (stages.length === 0) {
+    return (
+      <p className={`text-sm py-2 ${dark ? 'text-slate-500' : 'text-slate-400'}`}>
+        لا توجد صفوف مسجلة حتى الآن — أضف طلاباً أولاً.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2 mt-2">
+      {stages.map(s => {
+        const isOn = selected.includes(s);
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => toggle(s)}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold border text-right transition-all ${
+              isOn
+                ? 'bg-red-600 text-white border-red-600'
+                : dark
+                  ? 'border-slate-600 text-slate-300 hover:border-red-400 bg-slate-800/40'
+                  : 'border-slate-300 text-slate-600 hover:border-red-400 bg-white'
+            }`}
+          >
+            <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors ${isOn ? 'border-white bg-white' : dark ? 'border-slate-500' : 'border-slate-300'}`}>
+              {isOn && <span className="w-2 h-2 rounded-sm bg-red-600 block" />}
+            </span>
+            <span className="truncate">{s}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── Stream form ───────────────────────────────────────────── */
 function StreamForm({ onBack, onStarted, dark }) {
-  const [title, setTitle]     = useState('');
-  const [desc, setDesc]       = useState('');
-  const [access, setAccess]   = useState('all');
-  const [stages, setStages]   = useState('');
-  const [chatOn, setChatOn]   = useState(true);
-  const [handOn, setHandOn]   = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [title, setTitle]         = useState('');
+  const [desc, setDesc]           = useState('');
+  const [access, setAccess]       = useState('all');
+  const [selStages, setSelStages] = useState([]);
+  const [chatOn, setChatOn]       = useState(true);
+  const [handOn, setHandOn]       = useState(true);
+  const [loading, setLoading]     = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     if (!title.trim()) { toast.error('أدخل عنوان البث'); return; }
+    if (access === 'stages' && selStages.length === 0) {
+      toast.error('اختر صفاً واحداً على الأقل'); return;
+    }
     setLoading(true);
     try {
-      const allowed_stages = access === 'stages'
-        ? stages.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
       const r = await api.post('/live/start', {
         title: title.trim(), description: desc.trim(),
-        access, allowed_stages,
+        access, allowed_stages: access === 'stages' ? selStages : [],
         chat_enabled: chatOn, hand_raise_enabled: handOn,
       });
       toast.success('🎙️ انطلق البث!');
@@ -392,6 +453,7 @@ function StreamForm({ onBack, onStarted, dark }) {
           <label className={`block text-sm font-bold mb-1.5 ${dark ? 'text-slate-300' : 'text-slate-600'}`}>وصف الجلسة</label>
           <textarea className={inp} rows={2} placeholder="ماذا ستشرح في هذه الجلسة؟" value={desc} onChange={e => setDesc(e.target.value)} />
         </div>
+
         <div>
           <label className={`block text-sm font-bold mb-2 ${dark ? 'text-slate-300' : 'text-slate-600'}`}>من يستطيع المشاهدة؟</label>
           <div className="grid grid-cols-2 gap-2">
@@ -403,23 +465,33 @@ function StreamForm({ onBack, onStarted, dark }) {
             ))}
           </div>
           {access === 'stages' && (
-            <input className={`${inp} mt-2`} placeholder="الصف الأول الثانوي، الصف الثاني الثانوي" value={stages} onChange={e => setStages(e.target.value)} />
+            <div className={`mt-3 rounded-xl border p-3 ${dark ? 'border-slate-700 bg-slate-800/40' : 'border-slate-200 bg-slate-50'}`}>
+              <p className={`text-xs font-bold mb-2 ${dark ? 'text-slate-400' : 'text-slate-500'}`}>
+                اختر الصفوف المسموح لها بالمشاهدة
+                {selStages.length > 0 && <span className="mr-2 text-red-500">({selStages.length} مختار)</span>}
+              </p>
+              <StagesSelector selected={selStages} onChange={setSelStages} dark={dark} />
+            </div>
           )}
         </div>
+
         <div className={`rounded-xl border p-4 space-y-4 ${dark ? 'border-slate-700 bg-slate-800/40' : 'border-slate-200 bg-slate-50'}`}>
-          {[
-            { label: 'تفعيل الدردشة', sub: 'السماح للطلاب بإرسال رسائل', on: chatOn, toggle: () => setChatOn(p => !p) },
-            { label: 'رفع اليد',      sub: 'السماح للطلاب برفع أيديهم',  on: handOn, toggle: () => setHandOn(p => !p) },
-          ].map(({ label, sub, on, toggle }) => (
-            <div key={label} className="flex items-center justify-between gap-3">
-              <div>
-                <p className={`text-sm font-bold ${dark ? 'text-white' : 'text-slate-700'}`}>{label}</p>
-                <p className={`text-xs ${dark ? 'text-slate-400' : 'text-slate-500'}`}>{sub}</p>
-              </div>
-              <Toggle on={on} onClick={toggle} />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className={`text-sm font-bold ${dark ? 'text-white' : 'text-slate-700'}`}>تفعيل الدردشة</p>
+              <p className={`text-xs ${dark ? 'text-slate-400' : 'text-slate-500'}`}>السماح للطلاب بإرسال رسائل</p>
             </div>
-          ))}
+            <Toggle on={chatOn} onClick={() => setChatOn(p => !p)} />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className={`text-sm font-bold ${dark ? 'text-white' : 'text-slate-700'}`}>رفع اليد</p>
+              <p className={`text-xs ${dark ? 'text-slate-400' : 'text-slate-500'}`}>السماح للطلاب برفع أيديهم</p>
+            </div>
+            <Toggle on={handOn} onClick={() => setHandOn(p => !p)} />
+          </div>
         </div>
+
         <button type="submit" disabled={loading}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-white text-base bg-red-600 hover:bg-red-700 disabled:opacity-60 transition-all shadow-lg active:scale-[0.98]">
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Radio className="w-5 h-5" />}

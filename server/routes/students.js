@@ -42,6 +42,22 @@ const generateUsername = async (teacherId, stage, dbPool) => {
 };
 
 // ── Preview next username for a given stage ──
+// GET /students/stages — distinct academic stages for this teacher
+router.get('/stages', requireRole('teacher', 'assistant'), async (req, res) => {
+  const teacherId = getTeacherId(req);
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT academic_stage FROM students
+       WHERE teacher_id=$1 AND deleted_at IS NULL AND academic_stage IS NOT NULL
+       ORDER BY academic_stage`,
+      [teacherId]
+    );
+    res.json({ stages: result.rows.map(r => r.academic_stage) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/next-username', requireRole('teacher', 'assistant'), async (req, res) => {
   const teacherId = getTeacherId(req);
   const { stage } = req.query;
