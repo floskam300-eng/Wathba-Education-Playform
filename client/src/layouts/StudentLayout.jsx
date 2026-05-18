@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, BookOpen, FileText, Trophy, LogOut,
   Menu, BarChart2, Moon, Sun, Bell, CheckCheck, X, ShieldAlert, Radio,
-  StopCircle, ExternalLink,
+  StopCircle, ExternalLink, Gamepad2,
 } from 'lucide-react';
 import { useLiveStream } from '../context/LiveStreamContext';
 import WathbaLogo from '../assets/wathba_logo.png';
@@ -23,6 +23,28 @@ const navItems = [
   { to: '/student/leaderboard',icon: Trophy,          label: 'المتصدرون' },
   { to: '/student/live',       icon: Radio,           label: 'بث مباشر' },
 ];
+
+const EVENTS_NAV_CSS = `
+  .events-nav-link {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 14px; font-size: 14px; font-weight: 900;
+    cursor: pointer; overflow: hidden; color: white; text-decoration: none;
+    background: linear-gradient(135deg, #7c3aed 0%, #ec4899 55%, #f97316 100%);
+    box-shadow: 0 4px 18px rgba(124,58,237,.4);
+    transition: transform .2s, box-shadow .2s;
+  }
+  .events-nav-link:hover { transform: scale(1.03); box-shadow: 0 6px 26px rgba(124,58,237,.6); }
+  .events-nav-link::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+    background-size: 200% 100%;
+    animation: eventsShimmer 2.4s linear infinite;
+  }
+  @keyframes eventsShimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+  }
+`;
 
 const TYPE_ICON = {
   general:             '📢',
@@ -270,6 +292,7 @@ export default function StudentLayout() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
+        <style>{EVENTS_NAV_CSS}</style>
         {navItems.map(({ to, icon: Icon, label, end }) => (
           <NavLink key={to} to={to} end={end}
             className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
@@ -278,6 +301,12 @@ export default function StudentLayout() {
             <span>{label}</span>
           </NavLink>
         ))}
+        <div style={{ paddingTop: 4 }}>
+          <NavLink to="/student/events" className="events-nav-link" onClick={() => setSidebarOpen(false)}>
+            <Gamepad2 className="w-5 h-5" style={{ flexShrink: 0, position: 'relative', zIndex: 1 }} />
+            <span style={{ position: 'relative', zIndex: 1 }}>الفعاليات 🎮</span>
+          </NavLink>
+        </div>
       </nav>
 
       <div className="p-3 border-t border-white/10">

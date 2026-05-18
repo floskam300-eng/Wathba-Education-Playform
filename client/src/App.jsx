@@ -37,6 +37,7 @@ import StudentExams from './pages/student/Exams';
 import StudentLeaderboard from './pages/student/Leaderboard';
 import StudentMyStats from './pages/student/MyStats';
 import StudentNotifications from './pages/student/Notifications';
+import StudentEvents from './pages/student/Events';
 import ExamReviewPage from './pages/ExamReviewPage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -96,6 +97,7 @@ const AppRoutes = () => {
         <Route path="leaderboard" element={<StudentLeaderboard />} />
         <Route path="exam-review/:resultId" element={<ExamReviewPage />} />
         <Route path="live" element={<StudentLiveStream />} />
+        <Route path="events" element={<StudentEvents />} />
       </Route>
 
       <Route path="/" element={user ? <Navigate to={`/${user.role}`} replace /> : <LandingPage />} />

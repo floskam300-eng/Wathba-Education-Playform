@@ -350,3 +350,14 @@ CREATE TABLE IF NOT EXISTS live_hand_raises (
   is_active BOOLEAN DEFAULT true,
   UNIQUE(stream_id, student_id)
 );
+
+-- ── Events / Gamification ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS event_plays (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+  event_id VARCHAR(100) NOT NULL,
+  played_at TIMESTAMP DEFAULT NOW(),
+  score INTEGER DEFAULT 0,
+  completed BOOLEAN DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_event_plays_student_event ON event_plays(student_id, event_id);
