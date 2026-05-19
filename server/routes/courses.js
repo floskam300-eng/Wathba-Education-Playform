@@ -236,6 +236,13 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), checkManageCours
       sendFCMToStudents(pool, eligibleStudentIds, notifTitle, msgText, { courseId: String(course.id) }).catch(() => {});
     }
 
+    // Notify the teacher (and any logged-in assistants) in real-time
+    sendEvent(`teacher_${teacherId}`, 'course_publish_changed', {
+      id: course.id,
+      is_published: newPublished,
+      name: course.name,
+    });
+
     res.json({ is_published: newPublished });
   } catch (err) {
     console.error(err);

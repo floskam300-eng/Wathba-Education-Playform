@@ -225,6 +225,13 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), async (req, res)
       );
     }
 
+    // Notify the teacher (and any logged-in assistants) in real-time
+    sendEvent(`teacher_${teacherId}`, 'exam_publish_changed', {
+      id: exam.id,
+      is_published: exam.is_published,
+      title: exam.title,
+    });
+
     res.json({ id: exam.id, is_published: exam.is_published });
   } catch (err) {
     console.error(err);

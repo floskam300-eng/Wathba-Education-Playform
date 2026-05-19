@@ -171,6 +171,26 @@ export function useSSE(enabled, role) {
           { duration: 7000, style: { fontFamily: 'inherit', direction: 'rtl' } });
       });
 
+      es.addEventListener('course_publish_changed', (e) => {
+        const data = JSON.parse(e.data);
+        qc.invalidateQueries({ queryKey: ['courses'] });
+        qc.invalidateQueries({ queryKey: ['analytics'] });
+        const msg = data.is_published
+          ? `📢 تم نشر الكورس: ${data.name}`
+          : `🔕 تم إلغاء نشر الكورس: ${data.name}`;
+        toast(msg, { duration: 5000, style: { fontFamily: 'inherit', direction: 'rtl' } });
+      });
+
+      es.addEventListener('exam_publish_changed', (e) => {
+        const data = JSON.parse(e.data);
+        qc.invalidateQueries({ queryKey: ['exams'] });
+        qc.invalidateQueries({ queryKey: ['analytics'] });
+        const msg = data.is_published
+          ? `📝 تم نشر الاختبار: ${data.title}`
+          : `🔕 تم إلغاء نشر الاختبار: ${data.title}`;
+        toast(msg, { duration: 5000, style: { fontFamily: 'inherit', direction: 'rtl' } });
+      });
+
       /* ── Live stream events (teacher) ───────────────────── */
       es.addEventListener('live_hand_raise', (e) => {
         const data = JSON.parse(e.data);
