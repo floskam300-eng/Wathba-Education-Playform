@@ -639,3 +639,27 @@ html.dark ::-webkit-scrollbar-thumb:hover {
     rgba(255,255,255,0.2) var(--vol, 100%)
   );
 }
+
+
+/* ── Anti-screenshot: block all print/PDF export ── */
+@media print {
+  body * { visibility: hidden !important; display: none !important; }
+  body::after {
+    visibility: visible !important;
+    display: block !important;
+    content: "⛔ هذا المحتوى محمي — التصوير والطباعة ممنوع";
+    font-size: 2rem;
+    font-weight: 900;
+    text-align: center;
+    padding: 6rem 2rem;
+    direction: rtl;
+    color: #dc2626;
+  }
+}
+
+/* ── Protect images from drag/save ── */
+.student-protected img,
+.student-protected video {
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
