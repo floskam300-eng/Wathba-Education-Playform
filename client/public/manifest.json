@@ -1,0 +1,43 @@
+{
+  "name": "وثبة - المنصة التعليمية",
+  "short_name": "وثبة",
+  "description": "منصة تعليمية متكاملة لمراكز الدروس الخصوصية في مصر",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F0E15",
+  "theme_color": "#f97316",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/wathba-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "لوحتي",
+      "short_name": "لوحتي",
+      "url": "/student",
+      "icons": [{ "src": "/favicon.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "كورساتي",
+      "short_name": "كورسات",
+      "url": "/student/courses",
+      "icons": [{ "src": "/favicon.png", "sizes": "96x96" }]
+    }
+  ]
+}
