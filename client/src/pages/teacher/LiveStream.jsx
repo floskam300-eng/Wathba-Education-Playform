@@ -308,9 +308,8 @@ function LiveView({ stream, user, dark, onEnd }) {
 
       {/* Body: Jitsi + Sidebar — stacked on mobile, side-by-side on md+ */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
-        {/* Video area: fixed height on mobile, flex-1 on desktop */}
-        <div className="bg-black overflow-hidden flex-shrink-0 md:flex-1" style={{ height: '45vw', maxHeight: '55vh' }}
-             ref={el => { if (el) { const update = () => { if (window.innerWidth >= 768) el.style.height = '100%'; else el.style.height = Math.min(window.innerWidth * 0.45, window.innerHeight * 0.55) + 'px'; }; update(); window.addEventListener('resize', update); } }}>
+        {/* Video area: aspect-video on mobile, flex-1 on desktop */}
+        <div className="bg-black overflow-hidden flex-shrink-0 md:flex-1 aspect-video md:aspect-auto">
           <JitsiMeet
             roomName={stream.room_id}
             displayName={user?.name || 'المعلم'}
@@ -320,10 +319,8 @@ function LiveView({ stream, user, dark, onEnd }) {
           />
         </div>
 
-        {/* Sidebar: full-width fixed-height on mobile, fixed-width full-height on desktop */}
-        <div className={`flex flex-col flex-shrink-0 w-full md:w-72 xl:w-80 border-t md:border-t-0 md:border-r ${dark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}
-             style={{ height: 260 }}
-             ref={el => { if (el) { const update = () => { el.style.height = window.innerWidth >= 768 ? '100%' : '260px'; }; update(); window.addEventListener('resize', update); } }}>
+        {/* Sidebar: fixed-height on mobile, full-height on desktop */}
+        <div className={`flex flex-col flex-shrink-0 w-full h-[42vh] md:h-auto md:w-72 xl:w-80 border-t md:border-t-0 md:border-r ${dark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
           <div className={`flex border-b flex-shrink-0 ${dark ? 'border-slate-700' : 'border-slate-200'}`}>
             {[
               { key: 'students', label: 'الطلاب',  icon: Users },

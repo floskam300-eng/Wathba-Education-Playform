@@ -430,6 +430,7 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode, init
       className="relative w-full h-full bg-black select-none"
       onMouseMove={resetHide}
       onMouseLeave={() => { if (!seeking.current && playing) setShowControls(false); }}
+      onTouchStart={resetHide}
       onContextMenu={(e) => e.preventDefault()}
     >
       <FloatingWatermark name={studentName} code={studentCode} />
@@ -482,6 +483,8 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode, init
               className="player-range player-range-progress" style={{ '--pct': pct }}
               onMouseDown={() => { seeking.current = true; }}
               onMouseUp={() => { seeking.current = false; resetHide(); }}
+              onTouchStart={() => { seeking.current = true; resetHide(); }}
+              onTouchEnd={() => { seeking.current = false; resetHide(); }}
               onChange={onSeekChange} />
           </div>
           <div className="flex items-center gap-3">
@@ -496,7 +499,7 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode, init
             {/* Quality button */}
             <button
               onClick={() => { setShowQuality(p => !p); setShowSpeed(false); }}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-colors flex-shrink-0 ${quality !== 'default' ? 'text-blue-400 bg-blue-400/10' : 'text-white/70 hover:text-white'}`}>
+              className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-colors flex-shrink-0 ${quality !== 'default' ? 'text-blue-400 bg-blue-400/10' : 'text-white/70 hover:text-white'}`}>
               <Settings className="w-3.5 h-3.5" />
               {qualityLabel}
             </button>
@@ -509,7 +512,7 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode, init
             <button onClick={toggleMute} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
-            <div className="w-20 flex-shrink-0">
+            <div className="w-20 flex-shrink-0 hidden sm:block">
               <input type="range" min="0" max="100" step="1" value={muted ? 0 : volume} dir="ltr"
                 className="player-range player-range-volume" style={{ '--vol': vol }}
                 onChange={onVolumeChange} />
@@ -669,6 +672,7 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode, initia
       className="relative w-full h-full bg-black"
       onMouseMove={resetHideTimer}
       onMouseLeave={() => { if (!seeking.current && playing) setShowControls(false); }}
+      onTouchStart={resetHideTimer}
     >
       <FloatingWatermark name={studentName} code={studentCode} />
 
@@ -786,6 +790,8 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode, initia
               className="player-range player-range-progress" style={{ '--pct': pct }}
               onMouseDown={() => { seeking.current = true; }}
               onMouseUp={() => { seeking.current = false; resetHideTimer(); }}
+              onTouchStart={() => { seeking.current = true; resetHideTimer(); }}
+              onTouchEnd={() => { seeking.current = false; resetHideTimer(); }}
               onChange={onSeekChange} />
           </div>
           <div className="flex items-center gap-3">
@@ -801,7 +807,7 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode, initia
             {hasMultipleQualities && (
               <button
                 onClick={() => { setShowQuality(p => !p); setShowSpeed(false); }}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-colors flex-shrink-0 ${quality !== 'auto' ? 'text-blue-400 bg-blue-400/10' : 'text-white/70 hover:text-white'}`}>
+                className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-colors flex-shrink-0 ${quality !== 'auto' ? 'text-blue-400 bg-blue-400/10' : 'text-white/70 hover:text-white'}`}>
                 <Settings className="w-3.5 h-3.5" />
                 {qualityLabel}
               </button>
@@ -815,7 +821,7 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode, initia
             <button onClick={toggleMute} className="text-white hover:text-orange-400 transition-colors flex-shrink-0">
               {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
-            <div className="w-20 flex-shrink-0">
+            <div className="w-20 flex-shrink-0 hidden sm:block">
               <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume} dir="ltr"
                 className="player-range player-range-volume" style={{ '--vol': vol }}
                 onChange={onVolumeChange} />
@@ -987,10 +993,10 @@ export default function CourseView() {
       <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden">
 
         {/* ── Sidebar ── */}
-        <aside className="w-full h-56 md:w-80 md:h-auto flex-shrink-0 bg-gray-900 border-t md:border-t-0 md:border-l border-white/10 flex flex-col overflow-hidden">
+        <aside className="w-full h-[42vh] md:w-80 md:h-auto flex-shrink-0 bg-gray-900 border-t md:border-t-0 md:border-l border-white/10 flex flex-col overflow-hidden">
 
-          {/* Course info strip */}
-          <div className="flex-shrink-0 px-4 py-4 border-b border-white/10 bg-gradient-to-b from-orange-500/10 to-transparent">
+          {/* Course info strip — desktop only */}
+          <div className="hidden md:block flex-shrink-0 px-4 py-4 border-b border-white/10 bg-gradient-to-b from-orange-500/10 to-transparent">
             <p className="text-white font-black text-sm leading-relaxed line-clamp-2">{course?.name}</p>
             {course?.target_stage && (
               <span className="mt-1.5 inline-block text-[10px] font-bold text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded-full">
@@ -1157,7 +1163,7 @@ export default function CourseView() {
           {activeTab === 'videos' ? (
             <>
               {/* Video area */}
-              <div className="flex-1 bg-black overflow-hidden">
+              <div className="flex-1 bg-black overflow-hidden min-h-0">
                 <VideoPlayer
                   video={currentVideo}
                   onProgressUpdate={handleProgressUpdate}
@@ -1167,9 +1173,34 @@ export default function CourseView() {
                 />
               </div>
 
-              {/* Video info bar */}
+              {/* Mobile compact title + next button */}
               {currentVideo && (
-                <div className="flex-shrink-0 bg-gray-900 border-t border-white/10 px-6 py-4">
+                <div className="md:hidden flex-shrink-0 bg-gray-900 border-t border-white/10 px-4 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-sm truncate">{currentVideo.title}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {videos.findIndex(v => v.id === currentVideo.id) + 1} / {videos.length}
+                      {currentVideo.duration_minutes > 0 && ` · ${fmt(currentVideo.duration_minutes)}`}
+                    </p>
+                  </div>
+                  {(() => {
+                    const idx = videos.findIndex(v => v.id === currentVideo.id);
+                    const next = videos[idx + 1];
+                    return next ? (
+                      <button
+                        onClick={() => setActiveVideo(next)}
+                        className="flex-shrink-0 flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold px-3 py-1.5 rounded-lg transition-all text-xs active:scale-95"
+                      >
+                        التالي <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+
+              {/* Desktop full info bar */}
+              {currentVideo && (
+                <div className="hidden md:block flex-shrink-0 bg-gray-900 border-t border-white/10 px-6 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-white font-black text-lg leading-tight">
@@ -1206,7 +1237,7 @@ export default function CourseView() {
 
                   {/* Playlist progress mini-strip */}
                   <div className="flex gap-1 mt-4">
-                    {videos.map((v, i) => (
+                    {videos.map((v) => (
                       <button
                         key={v.id}
                         onClick={() => setActiveVideo(v)}

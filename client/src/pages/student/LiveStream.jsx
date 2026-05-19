@@ -223,9 +223,8 @@ function LiveView({ stream, user, dark, onLeave }) {
 
       {/* Body: stacked on mobile, side-by-side on md+ */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
-        {/* Video */}
-        <div className="bg-black overflow-hidden flex-shrink-0 md:flex-1"
-             ref={el => { if (el) { const update = () => { if (window.innerWidth >= 768) el.style.height = '100%'; else el.style.height = Math.min(window.innerWidth * 0.45, window.innerHeight * 0.55) + 'px'; }; update(); window.addEventListener('resize', update); } }}>
+        {/* Video — aspect-video on mobile, flex-1 on desktop */}
+        <div className="bg-black overflow-hidden flex-shrink-0 md:flex-1 aspect-video md:aspect-auto">
           <JitsiMeet
             roomName={stream.room_id}
             displayName={user?.name || 'طالب'}
@@ -233,10 +232,9 @@ function LiveView({ stream, user, dark, onLeave }) {
             style={{ height: '100%', width: '100%' }}
           />
         </div>
-        {/* Chat panel: bottom strip on mobile, side panel on desktop */}
+        {/* Chat panel: fixed-height strip on mobile, full-height side panel on desktop */}
         {chatOpen && (
-          <div className={`flex flex-col flex-shrink-0 w-full md:w-64 sm:md:w-72 border-t md:border-t-0 md:border-r ${dark ? 'border-slate-700' : 'border-slate-200'}`}
-               ref={el => { if (el) { const update = () => { el.style.height = window.innerWidth >= 768 ? '100%' : '240px'; }; update(); window.addEventListener('resize', update); } }}>
+          <div className={`flex flex-col flex-shrink-0 w-full h-[45vh] md:h-auto md:w-72 border-t md:border-t-0 md:border-r ${dark ? 'border-slate-700' : 'border-slate-200'}`}>
             <ChatPanel stream={stream} studentName={user?.name} dark={dark} onClose={() => setChatOpen(false)} />
           </div>
         )}
