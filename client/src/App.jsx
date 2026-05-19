@@ -40,6 +40,7 @@ import StudentNotifications from './pages/student/Notifications';
 import StudentEvents from './pages/student/Events';
 import StickmanRunPage from './pages/student/games/StickmanRunPage';
 import ExamReviewPage from './pages/ExamReviewPage';
+import PWAInstallBanner from './components/PWAInstallBanner';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -117,6 +118,7 @@ export default function App() {
       <AuthProvider>
         <LiveStreamProvider>
           <AppRoutes />
+          <PWAInstallBanner />
         </LiveStreamProvider>
       </AuthProvider>
     </ThemeProvider>
