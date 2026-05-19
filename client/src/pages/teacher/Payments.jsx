@@ -198,13 +198,13 @@ export default function TeacherPayments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
-          <CreditCard className="w-7 h-7 text-orange-500" /> المدفوعات
+      <div className="page-header">
+        <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2">
+          <CreditCard className="w-6 h-6 sm:w-7 sm:h-7 text-orange-500 flex-shrink-0" /> المدفوعات
         </h1>
-        <div className="flex gap-2">
+        <div className="page-header-actions">
           <button onClick={handlePrint} className="btn-secondary flex items-center gap-2">
-            <Printer className="w-4 h-4" /> طباعة
+            <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة</span>
           </button>
           <button onClick={() => setModal(true)} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> تسجيل دفعة
@@ -315,7 +315,7 @@ export default function TeacherPayments() {
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap">
+        <div className="filter-scroll">
           {['all', 'pending', 'verified', 'rejected'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${statusFilter === s ? 'bg-navy-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`}>
@@ -327,14 +327,14 @@ export default function TeacherPayments() {
 
       <div className="card !p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
+          <table className="w-full mobile-card-table min-w-0 sm:min-w-[700px]">
             <thead>
               <tr>
                 <th className="table-header rounded-r-lg">الطالب</th>
-                <th className="table-header">الكورس</th>
+                <th className="table-header hidden sm:table-cell">الكورس</th>
                 <th className="table-header">المبلغ</th>
-                <th className="table-header">طريقة الدفع</th>
-                <th className="table-header">رقم الوصل</th>
+                <th className="table-header hidden md:table-cell">طريقة الدفع</th>
+                <th className="table-header hidden lg:table-cell">رقم الوصل</th>
                 <th className="table-header">الحالة</th>
                 <th className="table-header rounded-l-lg">إجراءات</th>
               </tr>
@@ -343,13 +343,13 @@ export default function TeacherPayments() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => <tr key={i}><td colSpan={7}><div className="h-10 bg-gray-100 animate-pulse m-2 rounded" /></td></tr>)
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="table-cell text-center text-gray-600 py-12">
+                <tr><td colSpan={7} className="table-cell text-center text-gray-600 py-12 col-span-all">
                   <CreditCard className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                   <p className="font-medium">لا توجد دفعات تطابق الفلاتر المحددة</p>
                 </td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="table-row">
-                  <td className="table-cell">
+                  <td data-label="الطالب" className="table-cell">
                     <div>
                       <p className="font-bold text-navy-700">{p.student_name}</p>
                       {studentMap[p.student_id]?.academic_stage && (
@@ -357,12 +357,12 @@ export default function TeacherPayments() {
                       )}
                     </div>
                   </td>
-                  <td className="table-cell text-gray-700 font-medium">{p.course_name || '—'}</td>
-                  <td className="table-cell font-bold text-navy-700">{parseFloat(p.amount).toLocaleString()} ج</td>
-                  <td className="table-cell text-gray-700">{p.method ? (METHOD_LABELS[p.method] || p.method) : <span className="text-gray-400 text-xs">—</span>}</td>
-                  <td className="table-cell font-mono text-xs text-gray-700">{p.reference_number || '—'}</td>
-                  <td className="table-cell"><Badge variant={STATUS_MAP[p.status]?.variant || 'gray'}>{STATUS_MAP[p.status]?.label}</Badge></td>
-                  <td className="table-cell">
+                  <td data-label="الكورس" className="table-cell text-gray-700 font-medium hidden sm:table-cell">{p.course_name || '—'}</td>
+                  <td data-label="المبلغ" className="table-cell font-bold text-navy-700">{parseFloat(p.amount).toLocaleString()} ج</td>
+                  <td data-label="طريقة الدفع" className="table-cell text-gray-700 hidden md:table-cell">{p.method ? (METHOD_LABELS[p.method] || p.method) : <span className="text-gray-400 text-xs">—</span>}</td>
+                  <td data-label="رقم الوصل" className="table-cell font-mono text-xs text-gray-700 hidden lg:table-cell">{p.reference_number || '—'}</td>
+                  <td data-label="الحالة" className="table-cell"><Badge variant={STATUS_MAP[p.status]?.variant || 'gray'}>{STATUS_MAP[p.status]?.label}</Badge></td>
+                  <td data-label="إجراءات" className="table-cell">
                     {p.status === 'pending' && (
                       <div className="flex gap-1">
                         <button onClick={() => openVerify(p)}

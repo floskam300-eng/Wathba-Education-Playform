@@ -226,20 +226,18 @@ export default function Notifications() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
-          <MessageCircle className="w-7 h-7 text-green-500" /> الإشعارات والرسائل
-        </h1>
-      </div>
+      <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2">
+        <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7 text-green-500 flex-shrink-0" /> الإشعارات والرسائل
+      </h1>
 
-      <div className="flex gap-2 bg-white rounded-xl border border-slate-200 p-1 w-fit shadow-sm">
+      <div className="flex gap-1 sm:gap-2 bg-white rounded-xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
         {[
           ['whatsapp', '📱 واتساب'],
           ['platform', '🔔 إشعار داخلي'],
           ['history',  '📋 سجل الإرسال'],
         ].map(([key, label]) => (
           <button key={key} onClick={() => { setTab(key); setMessage(''); setSelectedStudents([]); }}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === key ? 'bg-navy-500 text-white shadow' : 'text-gray-600 hover:bg-gray-100'}`}>
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap flex-shrink-0 ${tab === key ? 'bg-navy-500 text-white shadow' : 'text-gray-600 hover:bg-gray-100'}`}>
             {label}
           </button>
         ))}

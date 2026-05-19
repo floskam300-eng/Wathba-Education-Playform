@@ -294,14 +294,14 @@ export default function TeacherExams() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
-          <FileText className="w-7 h-7 text-orange-500" /> الاختبارات
+      <div className="page-header">
+        <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2">
+          <FileText className="w-6 h-6 sm:w-7 sm:h-7 text-orange-500 flex-shrink-0" /> الاختبارات
           <span className="text-sm font-semibold text-gray-600">({exams.length})</span>
         </h1>
-        <div className="flex gap-2">
+        <div className="page-header-actions">
           <button onClick={handlePrint} className="btn-secondary flex items-center gap-2">
-            <Printer className="w-4 h-4" /> طباعة
+            <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة</span>
           </button>
           <button onClick={openAdd} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> إضافة اختبار
@@ -314,7 +314,7 @@ export default function TeacherExams() {
           <Filter className="w-4 h-4 text-gray-500" />
           <span className="text-xs font-bold text-gray-500">تصفية حسب المرحلة الدراسية</span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="filter-scroll">
           {['الكل', ...STAGES].map(stage => (
             <button key={stage} onClick={() => setStageFilter(stage)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${stageFilter === stage ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -714,7 +714,7 @@ export default function TeacherExams() {
               {courses.map(c => <option key={c.id} value={c.id}>{c.name}{c.target_stage ? ` — ${c.target_stage}` : ''}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">المدة (دقيقة) *</label>
               <input type="number" value={form.duration_minutes} onChange={e => { setForm({ ...form, duration_minutes: e.target.value }); clearError('duration_minutes'); }}

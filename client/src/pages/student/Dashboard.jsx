@@ -48,18 +48,18 @@ export default function StudentDashboard() {
         <ChevronLeft className="w-5 h-5 text-orange-400 group-hover:-translate-x-1 transition-transform" />
       </button>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[
           { icon: BookOpen, label: 'كورساتي',        value: data?.enrollments?.length   || 0, bg: 'bg-blue-100',   ic: 'text-blue-800' },
-          { icon: FileText, label: 'اختبارات أديتها', value: data?.recentResults?.length || 0, bg: 'bg-green-100',  ic: 'text-green-800' },
+          { icon: FileText, label: 'اختباراتي', value: data?.recentResults?.length || 0, bg: 'bg-green-100',  ic: 'text-green-800' },
           { icon: Award,    label: 'شاراتي',          value: data?.badges?.length        || 0, bg: 'bg-orange-100', ic: 'text-orange-800' },
         ].map(({ icon: Icon, label, value, bg, ic }) => (
-          <div key={label} className="card text-center !p-4">
-            <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
-              <Icon className={`w-6 h-6 ${ic}`} />
+          <div key={label} className="card text-center !p-3 sm:!p-4">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 ${bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
+              <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${ic}`} />
             </div>
-            <p className="text-2xl font-black text-navy-600">{value}</p>
-            <p className="text-xs text-gray-700 font-semibold mt-0.5">{label}</p>
+            <p className="text-xl sm:text-2xl font-black text-navy-600">{value}</p>
+            <p className="text-[11px] sm:text-xs text-gray-700 font-semibold mt-0.5 leading-tight">{label}</p>
           </div>
         ))}
       </div>

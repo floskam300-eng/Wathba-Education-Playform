@@ -112,24 +112,24 @@ export default function TeacherRequests() {
       {activeTab === 'enrollment' && (
         <div className="space-y-4">
           {/* Stats bar */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-yellow-700">{pendingEnroll.length}</p>
-              <p className="text-xs text-yellow-600 font-bold mt-0.5">معلق</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-2.5 sm:p-3 text-center">
+              <p className="text-xl sm:text-2xl font-black text-yellow-700">{pendingEnroll.length}</p>
+              <p className="text-[11px] sm:text-xs text-yellow-600 font-bold mt-0.5">معلق</p>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-green-700">{enrollRequests.filter(r => r.status === 'approved').length}</p>
-              <p className="text-xs text-green-600 font-bold mt-0.5">مقبول</p>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-2.5 sm:p-3 text-center">
+              <p className="text-xl sm:text-2xl font-black text-green-700">{enrollRequests.filter(r => r.status === 'approved').length}</p>
+              <p className="text-[11px] sm:text-xs text-green-600 font-bold mt-0.5">مقبول</p>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-red-700">{enrollRequests.filter(r => r.status === 'rejected').length}</p>
-              <p className="text-xs text-red-600 font-bold mt-0.5">مرفوض</p>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 sm:p-3 text-center">
+              <p className="text-xl sm:text-2xl font-black text-red-700">{enrollRequests.filter(r => r.status === 'rejected').length}</p>
+              <p className="text-[11px] sm:text-xs text-red-600 font-bold mt-0.5">مرفوض</p>
             </div>
           </div>
 
           {/* Course filter chips */}
           {courseNames.length > 2 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="filter-scroll">
               {courseNames.map(cn => (
                 <button
                   key={cn}
@@ -222,18 +222,18 @@ export default function TeacherRequests() {
       {activeTab === 'retry' && (
         <div className="space-y-4">
           {/* Stats bar */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-yellow-700">{pendingRetry.length}</p>
-              <p className="text-xs text-yellow-600 font-bold mt-0.5">معلق</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-2.5 sm:p-3 text-center">
+              <p className="text-xl sm:text-2xl font-black text-yellow-700">{pendingRetry.length}</p>
+              <p className="text-[11px] sm:text-xs text-yellow-600 font-bold mt-0.5">معلق</p>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-green-700">{retryRequests.filter(r => r.status === 'approved').length}</p>
-              <p className="text-xs text-green-600 font-bold mt-0.5">مقبول</p>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-2.5 sm:p-3 text-center">
+              <p className="text-xl sm:text-2xl font-black text-green-700">{retryRequests.filter(r => r.status === 'approved').length}</p>
+              <p className="text-[11px] sm:text-xs text-green-600 font-bold mt-0.5">مقبول</p>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-blue-700">{retryRequests.filter(r => r.status === 'used').length}</p>
-              <p className="text-xs text-blue-600 font-bold mt-0.5">مُستخدم</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-2.5 sm:p-3 text-center">
+              <p className="text-xl sm:text-2xl font-black text-blue-700">{retryRequests.filter(r => r.status === 'used').length}</p>
+              <p className="text-[11px] sm:text-xs text-blue-600 font-bold mt-0.5">مُستخدم</p>
             </div>
           </div>
 

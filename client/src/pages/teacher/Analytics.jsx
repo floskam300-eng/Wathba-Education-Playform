@@ -373,11 +373,11 @@ export default function TeacherAnalytics() {
 
       {/* Stat Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {[...Array(5)].map((_, i) => <div key={i} className="h-28 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {stats.map((s, i) => <StatCard key={i} {...s} />)}
         </div>
       )}

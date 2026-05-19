@@ -71,10 +71,10 @@ export default function TeacherDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-navy-600 to-navy-400 flex items-center justify-center shadow-md">
+          <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-navy-600 to-navy-400 flex items-center justify-center shadow-md flex-shrink-0">
               <Activity className="w-4 h-4 text-white" />
             </div>
             لوحة التحكم
@@ -246,15 +246,15 @@ export default function TeacherDashboard() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px]">
+          <table className="w-full mobile-card-table" style={{ minWidth: 0 }}>
             <thead>
               <tr className="bg-gray-50/50">
                 <th className="px-4 py-3 text-right text-[11px] font-black text-gray-500">الطالب</th>
                 <th className="px-4 py-3 text-right text-[11px] font-black text-gray-500">الاختبار</th>
                 <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500">الدرجة</th>
                 <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500">الحالة</th>
-                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500">صواب / خطأ</th>
-                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500"></th>
+                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500 hidden sm:table-cell">صواب / خطأ</th>
+                <th className="px-4 py-3 text-center text-[11px] font-black text-gray-500 hidden sm:table-cell"></th>
               </tr>
             </thead>
             <tbody>
@@ -263,9 +263,9 @@ export default function TeacherDashboard() {
                 const pct = r.total_score ? Math.round((r.score / r.total_score) * 100) : 0;
                 return (
                   <tr key={r.id} className="border-t border-gray-50 hover:bg-gray-50/60 transition-colors group">
-                    <td className="px-4 py-3 font-bold text-gray-800 text-sm">{r.student_name}</td>
-                    <td className="px-4 py-3 text-gray-600 text-sm max-w-[160px] truncate">{r.exam_title}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td data-label="الطالب" className="px-4 py-3 font-bold text-gray-800 text-sm">{r.student_name}</td>
+                    <td data-label="الاختبار" className="px-4 py-3 text-gray-600 text-sm max-w-[160px] truncate">{r.exam_title}</td>
+                    <td data-label="الدرجة" className="px-4 py-3 text-center">
                       <div className="flex flex-col items-center gap-0.5">
                         <span className={`font-black text-sm ${passed ? 'text-emerald-600' : 'text-rose-500'}`}>{r.score}/{r.total_score}</span>
                         <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -273,17 +273,17 @@ export default function TeacherDashboard() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td data-label="الحالة" className="px-4 py-3 text-center">
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${passed ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
                         {passed ? '✓ ناجح' : '✗ راسب'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center text-xs font-semibold">
+                    <td data-label="صواب/خطأ" className="px-4 py-3 text-center text-xs font-semibold hidden sm:table-cell">
                       <span className="text-emerald-600">✓ {r.correct_count}</span>
                       <span className="mx-1.5 text-gray-300">|</span>
                       <span className="text-rose-500">✗ {r.wrong_count}</span>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center hidden sm:table-cell">
                       <button onClick={() => navigate(`/teacher/exam-review/${r.id}`)}
                         className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-2.5 py-1 bg-navy-50 hover:bg-navy-600 text-navy-600 hover:text-white text-xs font-bold rounded-lg transition-all border border-navy-200 hover:border-navy-600 mx-auto">
                         <Eye className="w-3.5 h-3.5" /> مراجعة
@@ -292,7 +292,7 @@ export default function TeacherDashboard() {
                   </tr>
                 );
               }) || (
-                <tr><td colSpan={6} className="text-center py-8 text-gray-400 text-sm font-semibold">لا توجد نتائج بعد</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-gray-400 text-sm font-semibold col-span-all">لا توجد نتائج بعد</td></tr>
               )}
             </tbody>
           </table>

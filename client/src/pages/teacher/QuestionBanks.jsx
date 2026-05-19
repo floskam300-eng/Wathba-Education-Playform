@@ -152,9 +152,9 @@ export default function QuestionBanks() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
-          <BookMarked className="w-7 h-7 text-purple-500" /> بنوك الأسئلة
+      <div className="page-header">
+        <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2">
+          <BookMarked className="w-6 h-6 sm:w-7 sm:h-7 text-purple-500 flex-shrink-0" /> بنوك الأسئلة
           <span className="text-sm font-semibold text-gray-600">({banks.length})</span>
         </h1>
         <button onClick={openAddBank} className="btn-primary flex items-center gap-2">

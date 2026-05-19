@@ -456,7 +456,7 @@ export default function TeacherCourses() {
           <Filter className="w-4 h-4 text-gray-500" />
           <span className="text-xs font-bold text-gray-500">تصفية حسب المرحلة الدراسية</span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="filter-scroll">
           {['الكل', ...STAGES].map(stage => (
             <button key={stage} onClick={() => setStageFilter(stage)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
@@ -473,7 +473,7 @@ export default function TeacherCourses() {
 
       <div className="space-y-4">
         {isLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
                 <div className="bg-gray-200 animate-pulse" style={{ paddingTop: '56.25%' }} />
@@ -493,7 +493,7 @@ export default function TeacherCourses() {
           </div>
         ) : (
           <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCourses.map(c => {
               const grad = COVER_GRADIENTS[(c.id || 0) % COVER_GRADIENTS.length];
               const isExpanded = expandedCourse === c.id;

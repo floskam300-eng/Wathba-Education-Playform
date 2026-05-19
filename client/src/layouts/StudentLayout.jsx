@@ -470,7 +470,7 @@ export default function StudentLayout() {
             </div>
           </div>
         )}
-        <main className="flex-1 overflow-hidden"
+        <main className="flex-1 overflow-y-auto"
               style={dark ? { backgroundColor: 'var(--dk-bg)' } : {}}>
           <Outlet />
         </main>

@@ -641,6 +641,114 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 
 
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE UTILITIES — Mobile-first helpers
+═══════════════════════════════════════════════════════ */
+
+/* ── Horizontal scroll filter bar ── */
+.filter-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-scroll::-webkit-scrollbar { display: none; }
+.filter-scroll > * { flex-shrink: 0; }
+
+/* ── Responsive page header ── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Mobile card table (table → card view on mobile) ── */
+@media (max-width: 639px) {
+  .mobile-card-table thead { display: none; }
+  .mobile-card-table tbody tr {
+    display: block;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 4px 0;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .mobile-card-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    font-size: 13px;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .mobile-card-table td:last-child { border-bottom: none; }
+  .mobile-card-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #6b7280;
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .mobile-card-table .col-span-all {
+    display: block !important;
+    text-align: center;
+  }
+}
+
+/* ── Mobile stat grid ── */
+@media (max-width: 479px) {
+  .stat-grid-2 { grid-template-columns: repeat(2, 1fr) !important; }
+  .stat-grid-1 { grid-template-columns: repeat(1, 1fr) !important; }
+}
+
+/* ── Responsive modal ── */
+@media (max-width: 639px) {
+  .modal-overlay { padding: 0.75rem !important; align-items: flex-end !important; }
+  .modal-box {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ── Hide on mobile helpers ── */
+.hide-mobile { display: none !important; }
+@media (min-width: 640px) {
+  .hide-mobile { display: initial !important; }
+}
+
+/* ── Compact text on mobile ── */
+@media (max-width: 639px) {
+  .page-title { font-size: 1.25rem !important; }
+  .section-title { font-size: 0.9rem !important; }
+}
+
+/* ── Touch target minimum size ── */
+@media (max-width: 768px) {
+  button.icon-btn, a.icon-btn {
+    min-width: 36px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* ── Anti-screenshot: block all print/PDF export ── */
 @media print {
   body * { visibility: hidden !important; display: none !important; }

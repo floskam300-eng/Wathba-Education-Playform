@@ -212,7 +212,7 @@ export default function StudentLeaderboard() {
                 <GraduationCap className="w-4 h-4 text-gray-500" />
                 <span className="text-xs font-bold text-gray-500">تصفية حسب السنة الدراسية</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="filter-scroll">
                 {stages.map(stage => (
                   <button
                     key={stage}

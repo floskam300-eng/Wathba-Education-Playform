@@ -68,9 +68,9 @@ export default function TeacherAssistants() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
-          <UserCog className="w-7 h-7 text-orange-500" /> المساعدون
+      <div className="page-header">
+        <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2">
+          <UserCog className="w-6 h-6 sm:w-7 sm:h-7 text-orange-500 flex-shrink-0" /> المساعدون
           <span className="text-sm font-semibold text-gray-600">({assistants.length})</span>
         </h1>
         <button onClick={() => setModal(true)} className="btn-primary flex items-center gap-2">
@@ -128,7 +128,7 @@ export default function TeacherAssistants() {
           setFormErrors({});
           createMut.mutate(form);
         }} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">الاسم *</label>
               <input value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); clearError('name'); }}
@@ -142,7 +142,7 @@ export default function TeacherAssistants() {
               <FieldError error={formErrors.username} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-bold text-navy-700 mb-1">كلمة المرور *</label>
               <input type="password" value={form.password} onChange={e => { setForm({ ...form, password: e.target.value }); clearError('password'); }}

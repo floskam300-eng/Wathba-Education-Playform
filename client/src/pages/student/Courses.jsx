@@ -209,7 +209,7 @@ export default function StudentCourses() {
         {/* ── ENROLLED TAB ── */}
         {tab === 'enrolled' && (
           isLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="rounded-2xl overflow-hidden border border-gray-100">
                   <div className="bg-gray-200 animate-pulse" style={{ paddingTop: '56.25%' }} />
@@ -239,7 +239,7 @@ export default function StudentCourses() {
                     <Filter className="w-4 h-4 text-gray-400" />
                     <span className="text-xs font-bold text-gray-400">عرض حسب المرحلة</span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="filter-scroll">
                     {availableStages.map(stage => (
                       <button key={stage} onClick={() => setStageFilter(stage)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${stageFilter === stage ? 'bg-navy-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
@@ -253,7 +253,7 @@ export default function StudentCourses() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredCourses.map(c => (
                   <CourseCard
                     key={c.id}
@@ -273,7 +273,7 @@ export default function StudentCourses() {
         {/* ── BROWSE TAB ── */}
         {tab === 'browse' && (
           loadingAll ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="rounded-2xl overflow-hidden border border-gray-100">
                   <div className="bg-gray-200 animate-pulse" style={{ paddingTop: '56.25%' }} />
@@ -293,7 +293,7 @@ export default function StudentCourses() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-gray-500 font-medium">{notEnrolled.length} كورس متاح للانضمام</p>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {notEnrolled.map(c => (
                   <div key={c.id} className="flex flex-col">
                     <CourseCard course={c}>

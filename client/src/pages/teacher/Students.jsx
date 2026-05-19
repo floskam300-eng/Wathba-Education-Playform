@@ -362,7 +362,7 @@ export default function TeacherStudents() {
           <GraduationCap className="w-4 h-4 text-gray-500" />
           <span className="text-xs font-bold text-gray-500">تصفية حسب المرحلة الدراسية</span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="filter-scroll">
           {['الكل', ...STAGES].map(stage => (
             <button
               key={stage}
@@ -389,28 +389,28 @@ export default function TeacherStudents() {
       {/* Table */}
       <div className="card !p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
+          <table className="w-full mobile-card-table min-w-0 sm:min-w-[700px]">
             <thead>
               <tr>
-                <th className="table-header rounded-r-lg">#</th>
+                <th className="table-header rounded-r-lg hidden sm:table-cell">#</th>
                 <th className="table-header">الاسم</th>
                 <th className="table-header">اسم المستخدم</th>
-                <th className="table-header">كلمة المرور</th>
-                <th className="table-header">الهاتف</th>
-                <th className="table-header">رقم ولي الأمر</th>
-                <th className="table-header">المرحلة</th>
-                <th className="table-header">النقاط</th>
-                <th className="table-header">الكورسات</th>
+                <th className="table-header hidden md:table-cell">كلمة المرور</th>
+                <th className="table-header hidden md:table-cell">الهاتف</th>
+                <th className="table-header hidden lg:table-cell">رقم ولي الأمر</th>
+                <th className="table-header hidden sm:table-cell">المرحلة</th>
+                <th className="table-header hidden sm:table-cell">النقاط</th>
+                <th className="table-header hidden lg:table-cell">الكورسات</th>
                 <th className="table-header rounded-l-lg">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
-                  <tr key={i}><td colSpan={9} className="table-cell"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>
+                  <tr key={i}><td colSpan={10} className="table-cell"><div className="h-8 bg-gray-100 rounded animate-pulse" /></td></tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="table-cell text-center py-14">
+                <tr><td colSpan={10} className="table-cell text-center py-14 col-span-all">
                   <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                   <p className="font-medium text-gray-500">
                     {search || stageFilter !== 'الكل' ? 'لا توجد نتائج مطابقة' : 'لا يوجد طلاب بعد'}
@@ -418,26 +418,26 @@ export default function TeacherStudents() {
                 </td></tr>
               ) : filtered.map((s, i) => (
                 <tr key={s.id} className="table-row">
-                  <td className="table-cell text-gray-600 font-semibold">{i + 1}</td>
-                  <td className="table-cell font-bold text-navy-600">{s.name}</td>
-                  <td className="table-cell font-mono text-sm text-gray-700">{s.username}</td>
-                  <td className="table-cell">
+                  <td data-label="#" className="table-cell text-gray-600 font-semibold hidden sm:table-cell">{i + 1}</td>
+                  <td data-label="الاسم" className="table-cell font-bold text-navy-600">{s.name}</td>
+                  <td data-label="المستخدم" className="table-cell font-mono text-sm text-gray-700">{s.username}</td>
+                  <td data-label="كلمة المرور" className="table-cell hidden md:table-cell">
                     {s.plain_password ? (
                       <PasswordCell password={s.plain_password} onCopy={copyToClipboard} />
                     ) : (
                       <span className="text-gray-400 text-xs">—</span>
                     )}
                   </td>
-                  <td className="table-cell text-gray-700">{s.phone || '—'}</td>
-                  <td className="table-cell text-gray-700">{s.parent_phone || '—'}</td>
-                  <td className="table-cell">
+                  <td data-label="الهاتف" className="table-cell text-gray-700 hidden md:table-cell">{s.phone || '—'}</td>
+                  <td data-label="ولي الأمر" className="table-cell text-gray-700 hidden lg:table-cell">{s.parent_phone || '—'}</td>
+                  <td data-label="المرحلة" className="table-cell hidden sm:table-cell">
                     <span className="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-1 rounded-full">
                       {s.academic_stage || '—'}
                     </span>
                   </td>
-                  <td className="table-cell"><span className="text-orange-700 font-bold">⭐ {s.points}</span></td>
-                  <td className="table-cell"><Badge variant="info">{s.enrolled_courses || 0} كورس</Badge></td>
-                  <td className="table-cell">
+                  <td data-label="النقاط" className="table-cell hidden sm:table-cell"><span className="text-orange-700 font-bold">⭐ {s.points}</span></td>
+                  <td data-label="الكورسات" className="table-cell hidden lg:table-cell"><Badge variant="info">{s.enrolled_courses || 0} كورس</Badge></td>
+                  <td data-label="إجراءات" className="table-cell">
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => setViewStudent(s)} className="p-1.5 rounded-lg text-blue-700 hover:bg-blue-50"><Eye className="w-4 h-4" /></button>
                       {canEdit && (

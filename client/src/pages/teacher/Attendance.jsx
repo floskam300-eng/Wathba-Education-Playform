@@ -69,15 +69,15 @@ export default function Attendance() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-black text-navy-700">سجل الحضور والغياب</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-navy-700">سجل الحضور والغياب</h1>
           <p className="text-sm text-gray-500 mt-1">تتبع تقدم الطلاب في مشاهدة فيديوهات كل كورس</p>
         </div>
         {attendance && (
           <button onClick={exportCSV} className="btn-secondary flex items-center gap-2">
             <Download className="w-4 h-4" />
-            تصدير CSV
+            <span className="hidden sm:inline">تصدير CSV</span>
           </button>
         )}
       </div>
@@ -124,7 +124,7 @@ export default function Attendance() {
 
       {attendance && !loadingAttendance && (
         <>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[
               { label: 'إجمالي الطلاب', value: attendance.students.length, color: 'text-navy-700', bg: 'bg-navy-50' },
               { label: 'إجمالي الفيديوهات', value: attendance.videos.length, color: 'text-blue-700', bg: 'bg-blue-50' },
@@ -137,9 +137,9 @@ export default function Attendance() {
                 bg: 'bg-green-50',
               },
             ].map(({ label, value, color, bg }) => (
-              <div key={label} className={`card text-center !p-4 ${bg}`}>
-                <p className={`text-2xl font-black ${color}`}>{value}</p>
-                <p className="text-xs text-gray-600 font-semibold mt-1">{label}</p>
+              <div key={label} className={`card text-center !p-3 sm:!p-4 ${bg}`}>
+                <p className={`text-xl sm:text-2xl font-black ${color}`}>{value}</p>
+                <p className="text-[11px] sm:text-xs text-gray-600 font-semibold mt-1 leading-tight">{label}</p>
               </div>
             ))}
           </div>

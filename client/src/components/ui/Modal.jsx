@@ -14,14 +14,14 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
 
   return (
     <div className="modal-overlay">
-      <div className={`modal-box w-full ${sizes[size]} flex flex-col max-h-[90vh]`}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
-          <h3 className="text-lg font-bold text-navy-500">{title}</h3>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+      <div className={`modal-box w-full ${sizes[size]} flex flex-col max-h-[90vh] sm:max-h-[90vh] mx-2 sm:mx-auto`}>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100 flex-shrink-0">
+          <h3 className="text-base sm:text-lg font-bold text-navy-500 leading-tight">{title}</h3>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0 mr-2">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );
