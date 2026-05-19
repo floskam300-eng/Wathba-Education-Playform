@@ -13,7 +13,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
   const sizes = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
 
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="modal-overlay">
       <div className={`modal-box w-full ${sizes[size]} flex flex-col max-h-[90vh]`}>
         <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
           <h3 className="text-lg font-bold text-navy-500">{title}</h3>

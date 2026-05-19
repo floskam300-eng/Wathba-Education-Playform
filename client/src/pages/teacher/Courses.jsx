@@ -4,7 +4,7 @@ import {
   BookOpen, Plus, Pencil, Trash2, Video, FileText, Users,
   ChevronDown, ChevronUp, GraduationCap, Filter,
   X, Play, FolderOpen, FolderPlus, Check, AlertCircle, Link, ExternalLink,
-  Globe, EyeOff
+  Globe, EyeOff, Upload, Image
 } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -23,7 +23,7 @@ function FieldError({ error }) {
 }
 
 const STAGES = ['الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي'];
-const emptyForm = { name: '', description: '', price: '', thumbnail_url: '', target_stage: '', is_free: false, points_on_complete: 0 };
+const emptyForm = { name: '', description: '', price: '', thumbnail_url: '', target_stage: '', is_free: false, points_on_complete: 1 };
 
 const COVER_GRADIENTS = [
   'from-navy-600 to-indigo-700',
@@ -315,6 +315,9 @@ export default function TeacherCourses() {
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [editingSectionTitle, setEditingSectionTitle] = useState('');
   const [previewVideo, setPreviewVideo] = useState(null);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const thumbnailFileRef = useRef(null);
 
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ['courses'],
@@ -384,14 +387,36 @@ export default function TeacherCourses() {
   const [formErrors, setFormErrors] = useState({});
   const clearError = (field) => setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
 
-  const openAdd = () => { setEditData(null); setForm(emptyForm); setFormErrors({}); setModal(true); };
+  const openAdd = () => { setEditData(null); setForm(emptyForm); setFormErrors({}); setThumbnailFile(null); setModal(true); };
   const openEdit = (c) => {
     setEditData(c);
     setForm({ name: c.name, description: c.description || '', price: c.price, thumbnail_url: c.thumbnail_url || '', target_stage: c.target_stage || '', is_free: !!c.is_free, points_on_complete: c.points_on_complete || 0 });
     setFormErrors({});
+    setThumbnailFile(null);
     setModal(true);
   };
-  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); setFormErrors({}); };
+  const closeModal = () => { setModal(false); setEditData(null); setForm(emptyForm); setFormErrors({}); setThumbnailFile(null); };
+
+  const handleThumbnailUpload = async (file) => {
+    if (!file) return;
+    setThumbnailUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('thumbnail', file);
+      const { default: axios } = await import('axios');
+      const token = localStorage.getItem('wathba_token');
+      const res = await axios.post('/api/courses/upload-thumbnail', fd, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setForm(prev => ({ ...prev, thumbnail_url: res.data.url }));
+      setThumbnailFile(file);
+      toast.success('تم رفع الصورة ✅');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'فشل رفع الصورة');
+    } finally {
+      setThumbnailUploading(false);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -516,7 +541,16 @@ export default function TeacherCourses() {
                     </div>
                     {/* Publish/Unpublish button */}
                     <button
-                      onClick={() => publishMut.mutate(c.id)}
+                      onClick={() => {
+                        if (!c.is_published) {
+                          const total = parseInt(c.video_count || 0) + parseInt(c.pdf_count || 0);
+                          if (total === 0) {
+                            toast.error('لا يمكن نشر كورس بدون محتوى — أضف فيديوهات أو ملفات PDF أولاً');
+                            return;
+                          }
+                        }
+                        publishMut.mutate(c.id);
+                      }}
                       disabled={publishMut.isPending}
                       className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-black transition-all mb-1.5 ${
                         c.is_published
@@ -785,9 +819,19 @@ export default function TeacherCourses() {
             <FieldError error={formErrors.name} />
           </div>
           <div>
-            <label className="block text-sm font-bold text-navy-700 mb-1">صورة الغلاف (رابط)</label>
-            <input value={form.thumbnail_url} onChange={e => setForm({ ...form, thumbnail_url: e.target.value })}
-              className="input-field" placeholder="https://example.com/image.jpg" dir="ltr" />
+            <label className="block text-sm font-bold text-navy-700 mb-1">صورة الغلاف</label>
+            <div className="flex gap-2">
+              <input value={form.thumbnail_url} onChange={e => setForm({ ...form, thumbnail_url: e.target.value })}
+                className="input-field flex-1" placeholder="الصق رابط صورة أو ارفع من جهازك" dir="ltr" />
+              <button type="button" onClick={() => thumbnailFileRef.current?.click()}
+                disabled={thumbnailUploading}
+                className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-all flex-shrink-0 border border-gray-200">
+                {thumbnailUploading ? <span className="animate-spin inline-block">↻</span> : <Upload className="w-4 h-4" />}
+                {thumbnailUploading ? 'جاري...' : 'رفع'}
+              </button>
+            </div>
+            <input ref={thumbnailFileRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { if (e.target.files[0]) handleThumbnailUpload(e.target.files[0]); e.target.value = ''; }} />
             {form.thumbnail_url && (
               <div className="mt-2">
                 <img src={form.thumbnail_url} alt="معاينة" className="h-20 rounded-xl object-cover border border-gray-200"
@@ -834,10 +878,11 @@ export default function TeacherCourses() {
             </div>
           )}
           <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-            <label className="block text-sm font-black text-amber-800 mb-1">⭐ نقاط إتمام الكورس</label>
+            <label className="block text-sm font-black text-amber-800 mb-1">⭐ نقاط إتمام الكورس {!form.is_free && <span className="text-red-500">*</span>}</label>
             <input type="number" min="0" max="9999" value={form.points_on_complete}
-              onChange={e => setForm({ ...form, points_on_complete: parseInt(e.target.value) || 0 })}
-              className="input-field" placeholder="0" />
+              onChange={e => { setForm({ ...form, points_on_complete: parseInt(e.target.value) || 0 }); clearError('points_on_complete'); }}
+              className={`input-field ${formErrors.points_on_complete ? 'border-red-400 focus:ring-red-300' : ''}`} placeholder="0" />
+            <FieldError error={formErrors.points_on_complete} />
             <p className="text-xs text-gray-500 mt-1.5">
               {form.points_on_complete > 0
                 ? `✅ الطالب يكسب ${form.points_on_complete} نقطة لما يخلص مشاهدة كل فيديوهات الكورس (90%+ من كل فيديو)`

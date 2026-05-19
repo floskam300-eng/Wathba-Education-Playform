@@ -29,6 +29,26 @@ const checkManageCoursesPerm = (req, res, next) => {
     .catch(() => res.status(500).json({ error: 'Server error' }));
 };
 
+const thumbnailStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/thumbnails');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `thumb_${Date.now()}${ext}`);
+  },
+});
+const uploadThumbnail = multer({
+  storage: thumbnailStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('يُسمح بالصور فقط'));
+  },
+});
+
 const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, '../../uploads/videos');
@@ -65,6 +85,12 @@ const uploadPdf = multer({
     if (file.mimetype === 'application/pdf') cb(null, true);
     else cb(new Error('Only PDF files allowed'));
   },
+});
+
+router.post('/upload-thumbnail', requireRole('teacher', 'assistant'), checkManageCoursesPerm, uploadThumbnail.single('thumbnail'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'لم يتم رفع أي ملف' });
+  const url = `/uploads/thumbnails/${req.file.filename}`;
+  res.json({ url });
 });
 
 router.get('/', requireRole('teacher', 'assistant'), async (req, res) => {
@@ -133,10 +159,29 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), checkManageCours
     const course = courseRes.rows[0];
     const newPublished = !course.is_published;
 
+    // If publishing, validate course has content
+    if (newPublished) {
+      const contentCheck = await pool.query(
+        `SELECT (SELECT COUNT(id) FROM videos WHERE course_id=$1) + (SELECT COUNT(id) FROM pdf_files WHERE course_id=$1) as total`,
+        [req.params.id]
+      );
+      if (parseInt(contentCheck.rows[0].total) === 0) {
+        return res.status(400).json({ error: 'لا يمكن نشر كورس بدون محتوى — أضف فيديوهات أو ملفات PDF أولاً' });
+      }
+    }
+
     await pool.query(
       'UPDATE courses SET is_published=$1 WHERE id=$2 AND teacher_id=$3',
       [newPublished, req.params.id, teacherId]
     );
+
+    // If unpublishing, also unpublish all exams in this course
+    if (!newPublished) {
+      await pool.query(
+        'UPDATE exams SET is_published=false WHERE course_id=$1 AND teacher_id=$2',
+        [req.params.id, teacherId]
+      );
+    }
 
     if (newPublished) {
       // Determine which students to notify

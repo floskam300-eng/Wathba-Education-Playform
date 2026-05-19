@@ -39,7 +39,7 @@ function Toggle({ on, onClick }) {
       className={`relative inline-flex h-6 w-11 rounded-full overflow-hidden transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 flex-shrink-0 ${on ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-600'}`}
     >
       <span
-        className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-6' : 'translate-x-1'}`}
+        className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-6' : 'translate-x-1'}`}
       />
     </button>
   );

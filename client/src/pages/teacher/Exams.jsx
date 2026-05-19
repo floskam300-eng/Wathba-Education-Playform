@@ -137,6 +137,19 @@ export default function TeacherExams() {
       publishMut.mutate(ex.id);
       return;
     }
+    // Check if linked course is published
+    if (ex.course_id) {
+      const linkedCourse = courses.find(c => c.id === ex.course_id);
+      if (linkedCourse && !linkedCourse.is_published) {
+        toast.error('لا يمكن نشر الاختبار لأن الكورس المرتبط به غير منشور — انشر الكورس أولاً');
+        return;
+      }
+    }
+    // Check if exam has questions (for manual source)
+    if (ex.question_source !== 'bank' && parseInt(ex.question_count || 0) === 0) {
+      toast.error('لا يمكن نشر اختبار بدون أسئلة — أضف أسئلة أولاً');
+      return;
+    }
     // Show confirmation before publishing
     setPublishConfirm(ex);
   };

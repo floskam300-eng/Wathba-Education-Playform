@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, RotateCcw, Bell, CheckCircle, XCircle,
-  ChevronDown, ChevronUp, Clock
+  ChevronDown, ChevronUp, Clock, Eye
 } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 
 export default function TeacherRequests() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('enrollment');
   const [retryNoteModal, setRetryNoteModal] = useState(null);
   const [retryNote, setRetryNote] = useState('');
@@ -278,22 +280,32 @@ export default function TeacherRequests() {
                     )}
                     <p className="text-[10px] text-gray-400 mt-0.5">{new Date(rr.created_at).toLocaleString('ar-EG')}</p>
                   </div>
-                  {rr.status === 'pending' && (
-                    <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 flex-shrink-0 flex-col items-end">
+                    {rr.result_id && (
                       <button
-                        onClick={() => { setRetryNoteModal({ rr, action: 'approve' }); setRetryNote(''); }}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 text-xs font-bold transition-all"
+                        onClick={() => navigate(`/teacher/exam-review/${rr.result_id}`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold transition-all"
                       >
-                        <CheckCircle className="w-3.5 h-3.5" /> موافقة
+                        <Eye className="w-3.5 h-3.5" /> عرض الاختبار
                       </button>
-                      <button
-                        onClick={() => { setRetryNoteModal({ rr, action: 'reject' }); setRetryNote(''); }}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition-all"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> رفض
-                      </button>
-                    </div>
-                  )}
+                    )}
+                    {rr.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setRetryNoteModal({ rr, action: 'approve' }); setRetryNote(''); }}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 text-xs font-bold transition-all"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> موافقة
+                        </button>
+                        <button
+                          onClick={() => { setRetryNoteModal({ rr, action: 'reject' }); setRetryNote(''); }}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition-all"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> رفض
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

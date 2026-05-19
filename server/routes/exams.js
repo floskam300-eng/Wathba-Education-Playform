@@ -146,6 +146,20 @@ router.put('/:id/publish', requireRole('teacher', 'assistant'), async (req, res)
           field: 'end_date'
         });
       }
+      // Validate course is published (if exam belongs to a course)
+      if (currentExam.course_id) {
+        const courseCheck = await pool.query('SELECT is_published FROM courses WHERE id=$1', [currentExam.course_id]);
+        if (courseCheck.rows.length && !courseCheck.rows[0].is_published) {
+          return res.status(400).json({ error: 'لا يمكن نشر الاختبار لأن الكورس المرتبط به غير منشور — انشر الكورس أولاً' });
+        }
+      }
+      // Validate exam has questions (only for manual source)
+      if (currentExam.question_source !== 'bank') {
+        const qCount = await pool.query('SELECT COUNT(id) as cnt FROM questions WHERE exam_id=$1', [req.params.id]);
+        if (parseInt(qCount.rows[0].cnt) === 0) {
+          return res.status(400).json({ error: 'لا يمكن نشر اختبار بدون أسئلة — أضف أسئلة أولاً' });
+        }
+      }
       // If republishing (exam was taken before), clear previous results to allow re-attempt
       const existingResults = await pool.query(
         'SELECT id FROM exam_results WHERE exam_id=$1 LIMIT 1',
@@ -380,7 +394,8 @@ router.get('/retry-requests', requireRole('teacher', 'assistant'), async (req, r
   const teacherId = getTeacherId(req);
   try {
     const result = await pool.query(
-      `SELECT rr.*, s.name as student_name, e.title as exam_title
+      `SELECT rr.*, s.name as student_name, e.title as exam_title,
+              (SELECT er.id FROM exam_results er WHERE er.exam_id=rr.exam_id AND er.student_id=rr.student_id ORDER BY er.created_at DESC LIMIT 1) as result_id
        FROM exam_retry_requests rr
        JOIN students s ON rr.student_id = s.id
        JOIN exams e ON rr.exam_id = e.id

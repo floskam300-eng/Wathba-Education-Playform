@@ -135,7 +135,18 @@ export function validateCourseForm(form) {
   const errors = {};
   const e = (f, v) => { if (v) errors[f] = v; };
   e('name', validateName(form.name, 'اسم الكورس'));
-  e('price', validatePrice(form.price));
+  if (!form.is_free) {
+    const priceNum = parseFloat(form.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      errors.price = 'سعر الكورس المدفوع يجب أن يكون أكبر من صفر';
+    }
+    const pts = parseInt(form.points_on_complete, 10);
+    if (isNaN(pts) || pts <= 0) {
+      errors.points_on_complete = 'نقاط الكورس المدفوع يجب أن تكون أكبر من صفر';
+    }
+  } else {
+    e('price', validatePrice(form.price));
+  }
   if (!form.target_stage || !form.target_stage.trim()) errors.target_stage = 'يجب اختيار المرحلة الدراسية المستهدفة';
   return errors;
 }
