@@ -212,6 +212,32 @@ function YoutubePlayer({ video, onProgressUpdate, studentName, studentCode, init
     };
   }, []);
 
+  /* ── auto fullscreen on landscape rotation (mobile) ── */
+  useEffect(() => {
+    const onOrientationChange = () => {
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      const el = containerRef.current;
+      if (!el) return;
+      if (isLandscape && !document.fullscreenElement) {
+        try {
+          (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen)?.call(el);
+          try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch (_) {}
+        } catch (_) {}
+      } else if (!isLandscape && document.fullscreenElement) {
+        try {
+          (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen)?.call(document);
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('orientationchange', onOrientationChange);
+    const mq = window.matchMedia('(orientation: landscape)');
+    mq.addEventListener('change', onOrientationChange);
+    return () => {
+      window.removeEventListener('orientationchange', onOrientationChange);
+      mq.removeEventListener('change', onOrientationChange);
+    };
+  }, []);
+
   /* ── initialise / destroy player ── */
   useEffect(() => {
     if (!ytId) return;
@@ -571,6 +597,32 @@ function VideoPlayer({ video, onProgressUpdate, studentName, studentCode, initia
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
       document.removeEventListener('mozfullscreenchange', onFsChange);
+    };
+  }, []);
+
+  /* ── auto fullscreen on landscape rotation (mobile) ── */
+  useEffect(() => {
+    const onOrientationChange = () => {
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      const el = containerRef.current;
+      if (!el) return;
+      if (isLandscape && !document.fullscreenElement) {
+        try {
+          (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen)?.call(el);
+          try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch (_) {}
+        } catch (_) {}
+      } else if (!isLandscape && document.fullscreenElement) {
+        try {
+          (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen)?.call(document);
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('orientationchange', onOrientationChange);
+    const mq = window.matchMedia('(orientation: landscape)');
+    mq.addEventListener('change', onOrientationChange);
+    return () => {
+      window.removeEventListener('orientationchange', onOrientationChange);
+      mq.removeEventListener('change', onOrientationChange);
     };
   }, []);
 

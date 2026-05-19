@@ -372,6 +372,22 @@ export default function StickmanRun({ onClose, academicStage }) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Lock to landscape when playing, unlock on exit
+  useEffect(() => {
+    if (phase === 'playing') {
+      try {
+        screen.orientation?.lock?.('landscape').catch(() => {});
+      } catch (_) {}
+    } else {
+      try {
+        screen.orientation?.unlock?.();
+      } catch (_) {}
+    }
+    return () => {
+      try { screen.orientation?.unlock?.(); } catch (_) {}
+    };
+  }, [phase]);
+
   const stage    = academicStage || user?.academic_stage;
   const cfg      = getGameConfig(stage);
   const bossCfgs = [cfg.boss1, cfg.boss2, cfg.boss3];
@@ -899,8 +915,87 @@ export default function StickmanRun({ onClose, academicStage }) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '5px 16px', background: 'rgba(0,0,0,.55)', flexShrink: 0,
         }}>
-          <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 12 }}>⬆️ قفز &nbsp;|&nbsp; ⬇️ اركع &nbsp;|&nbsp; 📱 اضغط فوق/تحت</div>
+          <div style={{ color: 'rgba(255,255,255,.3)', fontSize: 12 }}>⬆️ قفز &nbsp;|&nbsp; ⬇️ اركع &nbsp;|&nbsp; 📱 اضغط الأزرار</div>
           <div style={{ color: '#fbbf24', fontSize: 14, fontWeight: 700 }}>⭐ {totalPoints} نقطة</div>
+        </div>
+      )}
+
+      {/* Mobile jump/duck buttons — visible only when playing, no dialogue/boss */}
+      {phase === 'playing' && !dialogueUI && !bossUI && (
+        <div style={{
+          position: 'absolute',
+          bottom: 44,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          padding: '0 18px',
+          pointerEvents: 'none',
+          zIndex: 50,
+        }}>
+          {/* Duck button — hold to duck */}
+          <button
+            onTouchStart={(e) => { e.preventDefault(); inputRef.current.duck = true; }}
+            onTouchEnd={(e) => { e.preventDefault(); inputRef.current.duck = false; }}
+            onMouseDown={() => { inputRef.current.duck = true; }}
+            onMouseUp={() => { inputRef.current.duck = false; }}
+            style={{
+              pointerEvents: 'auto',
+              width: 72, height: 72,
+              borderRadius: '50%',
+              border: '2px solid rgba(6,182,212,0.6)',
+              background: 'rgba(6,182,212,0.18)',
+              color: '#06b6d4',
+              fontSize: 30,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              touchAction: 'none',
+              boxShadow: '0 0 18px rgba(6,182,212,0.3)',
+              gap: 0,
+            }}
+          >
+            ⬇️
+            <span style={{ fontSize: 9, color: 'rgba(6,182,212,0.8)', fontWeight: 700, marginTop: 2 }}>اركع</span>
+          </button>
+
+          {/* Jump button — tap to jump */}
+          <button
+            onTouchStart={(e) => {
+              e.preventDefault();
+              const gs = stateRef.current;
+              if (gs?.phase === 'running' && gs.player.y >= GROUND && !gs.player.jumping) {
+                gs.player.vy = JUMP_V; gs.player.jumping = true;
+              }
+            }}
+            onMouseDown={() => {
+              const gs = stateRef.current;
+              if (gs?.phase === 'running' && gs.player.y >= GROUND && !gs.player.jumping) {
+                gs.player.vy = JUMP_V; gs.player.jumping = true;
+              }
+            }}
+            style={{
+              pointerEvents: 'auto',
+              width: 72, height: 72,
+              borderRadius: '50%',
+              border: '2px solid rgba(0,255,136,0.6)',
+              background: 'rgba(0,255,136,0.15)',
+              color: '#00ff88',
+              fontSize: 30,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              touchAction: 'none',
+              boxShadow: '0 0 18px rgba(0,255,136,0.3)',
+              gap: 0,
+            }}
+          >
+            ⬆️
+            <span style={{ fontSize: 9, color: 'rgba(0,255,136,0.8)', fontWeight: 700, marginTop: 2 }}>اقفز</span>
+          </button>
         </div>
       )}
     </div>

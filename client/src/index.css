@@ -463,6 +463,28 @@ html.dark .rounded-lg.border {
   border-color: var(--dk-border);
 }
 
+/* ── Notification Bell Dropdown ── */
+.notif-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  width: 320px;
+  z-index: 9000;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .notif-dropdown {
+    position: fixed;
+    left: 8px !important;
+    right: 8px !important;
+    top: 58px !important;
+    width: auto !important;
+    max-height: 70vh;
+  }
+}
+
 /* ── Shadows become warm-dark depth ── */
 html.dark .shadow-sm {
   box-shadow: 0 1px 4px rgba(0,0,0,0.55),
