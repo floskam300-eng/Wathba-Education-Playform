@@ -306,7 +306,9 @@ router.get('/:id/content', authenticate, async (req, res) => {
           )
         : pool.query('SELECT * FROM videos WHERE course_id=$1 ORDER BY sort_order, id', [courseId]),
       pool.query('SELECT * FROM pdf_files WHERE course_id=$1 ORDER BY id', [courseId]),
-      pool.query('SELECT id,title,duration_minutes,total_score,pass_score FROM exams WHERE course_id=$1', [courseId]),
+      isStudent
+        ? pool.query('SELECT id,title,duration_minutes,total_score,pass_score,start_date,end_date FROM exams WHERE course_id=$1 AND is_published=true', [courseId])
+        : pool.query('SELECT id,title,duration_minutes,total_score,pass_score,start_date,end_date,is_published FROM exams WHERE course_id=$1', [courseId]),
       pool.query('SELECT * FROM sections WHERE course_id=$1 ORDER BY sort_order, id', [courseId]),
     ]);
     res.json({ videos: videos.rows, pdfs: pdfs.rows, exams: exams.rows, sections: sections.rows });
