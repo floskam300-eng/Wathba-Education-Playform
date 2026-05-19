@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, RotateCcw, Bell, CheckCircle, XCircle,
-  ChevronDown, ChevronUp, Clock, Eye
+  Clock, Eye
 } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -70,8 +70,8 @@ export default function TeacherRequests() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-black text-navy-600 flex items-center gap-2">
-          <ClipboardList className="w-7 h-7 text-orange-500" /> صفحة الطلبات
+        <h1 className="text-xl sm:text-2xl font-black text-navy-600 flex items-center gap-2">
+          <ClipboardList className="w-6 h-6 sm:w-7 sm:h-7 text-orange-500" /> صفحة الطلبات
         </h1>
         {(pendingEnroll.length + pendingRetry.length) > 0 && (
           <span className="bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full animate-pulse">
@@ -80,28 +80,28 @@ export default function TeacherRequests() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
+      {/* Tabs — full-width on mobile */}
+      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-full sm:w-fit">
         <button
           onClick={() => setActiveTab('enrollment')}
-          className={`relative px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'enrollment' ? 'bg-white text-navy-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`relative flex-1 sm:flex-none px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${activeTab === 'enrollment' ? 'bg-white text-navy-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
         >
-          <Bell className="w-4 h-4" />
-          طلبات الانضمام للكورسات
+          <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="truncate">طلبات الانضمام</span>
           {pendingEnroll.length > 0 && (
-            <span className="bg-yellow-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+            <span className="bg-yellow-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0">
               {pendingEnroll.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('retry')}
-          className={`relative px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'retry' ? 'bg-white text-navy-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`relative flex-1 sm:flex-none px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${activeTab === 'retry' ? 'bg-white text-navy-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
         >
-          <RotateCcw className="w-4 h-4" />
-          طلبات إعادة الاختبار
+          <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="truncate">طلبات الإعادة</span>
           {pendingRetry.length > 0 && (
-            <span className="bg-orange-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+            <span className="bg-orange-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0">
               {pendingRetry.length}
             </span>
           )}
@@ -165,47 +165,51 @@ export default function TeacherRequests() {
               {visibleEnrollRequests.map(r => (
                 <div
                   key={r.id}
-                  className={`bg-white rounded-2xl border shadow-sm px-4 py-3 flex items-center gap-4 ${
+                  className={`bg-white rounded-2xl border shadow-sm px-4 py-3 ${
                     r.status === 'pending' ? 'border-yellow-200' : r.status === 'approved' ? 'border-green-200' : 'border-red-200'
                   }`}
                 >
-                  <div className="w-11 h-11 rounded-full bg-navy-600 flex items-center justify-center text-white text-base font-black flex-shrink-0">
-                    {r.student_name?.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-black text-navy-700 text-sm">{r.student_name}</p>
-                      {r.academic_stage && (
-                        <span className="text-[10px] bg-gray-100 text-gray-600 font-bold px-1.5 py-0.5 rounded-full">
-                          {r.academic_stage}
-                        </span>
-                      )}
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        r.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        r.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {r.status === 'pending' ? '⏳ معلق' : r.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}
-                      </span>
+                  {/* Top row: avatar + info */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-navy-600 flex items-center justify-center text-white text-base font-black flex-shrink-0 mt-0.5">
+                      {r.student_name?.charAt(0)}
                     </div>
-                    <p className="text-xs text-orange-600 font-semibold truncate mt-0.5">{r.course_name}</p>
-                    {r.message && (
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">"{r.message}"</p>
-                    )}
-                    <p className="text-[10px] text-gray-400 mt-0.5">{new Date(r.created_at).toLocaleString('ar-EG')}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-black text-navy-700 text-sm">{r.student_name}</p>
+                        {r.academic_stage && (
+                          <span className="text-[10px] bg-gray-100 text-gray-600 font-bold px-1.5 py-0.5 rounded-full">
+                            {r.academic_stage}
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          r.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          r.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {r.status === 'pending' ? '⏳ معلق' : r.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-orange-600 font-semibold truncate mt-0.5">{r.course_name}</p>
+                      {r.message && (
+                        <p className="text-[11px] text-gray-400 truncate mt-0.5">"{r.message}"</p>
+                      )}
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(r.created_at).toLocaleString('ar-EG')}</p>
+                    </div>
                   </div>
+                  {/* Action buttons — full width below on mobile */}
                   {r.status === 'pending' && (
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                       <button
                         onClick={() => handleRequestMut.mutate({ id: r.id, action: 'approve' })}
                         disabled={handleRequestMut.isPending}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 text-xs font-bold transition-all disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 text-xs font-bold transition-all disabled:opacity-50"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> قبول
                       </button>
                       <button
                         onClick={() => handleRequestMut.mutate({ id: r.id, action: 'reject' })}
                         disabled={handleRequestMut.isPending}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition-all disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition-all disabled:opacity-50"
                       >
                         <XCircle className="w-3.5 h-3.5" /> رفض
                       </button>
@@ -251,61 +255,68 @@ export default function TeacherRequests() {
               {retryRequests.map(rr => (
                 <div
                   key={rr.id}
-                  className={`bg-white rounded-2xl border shadow-sm px-4 py-3 flex items-center gap-4 ${
+                  className={`bg-white rounded-2xl border shadow-sm px-4 py-3 ${
                     rr.status === 'pending' ? 'border-orange-200' :
                     rr.status === 'approved' ? 'border-green-200' :
                     rr.status === 'used' ? 'border-blue-200' : 'border-red-200'
                   }`}
                 >
-                  <div className="w-11 h-11 rounded-full bg-orange-500 flex items-center justify-center text-white text-base font-black flex-shrink-0">
-                    {rr.student_name?.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-black text-navy-700 text-sm">{rr.student_name}</p>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        rr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        rr.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        rr.status === 'used' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {rr.status === 'pending' ? '⏳ معلق' : rr.status === 'approved' ? '✅ موافق' : rr.status === 'used' ? '🔄 مُستخدم' : '❌ مرفوض'}
-                      </span>
+                  {/* Top row: avatar + info */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white text-base font-black flex-shrink-0 mt-0.5">
+                      {rr.student_name?.charAt(0)}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{rr.exam_title}</p>
-                    {rr.message && (
-                      <p className="text-[11px] text-gray-500 bg-gray-50 rounded px-2 py-1 mt-1">"{rr.message}"</p>
-                    )}
-                    {rr.teacher_note && (
-                      <p className="text-[11px] text-gray-500 mt-1">ملاحظة: {rr.teacher_note}</p>
-                    )}
-                    <p className="text-[10px] text-gray-400 mt-0.5">{new Date(rr.created_at).toLocaleString('ar-EG')}</p>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0 flex-col items-end">
-                    {rr.result_id && (
-                      <button
-                        onClick={() => navigate(`/teacher/exam-review/${rr.result_id}`)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold transition-all"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> عرض الاختبار
-                      </button>
-                    )}
-                    {rr.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { setRetryNoteModal({ rr, action: 'approve' }); setRetryNote(''); }}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 text-xs font-bold transition-all"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> موافقة
-                        </button>
-                        <button
-                          onClick={() => { setRetryNoteModal({ rr, action: 'reject' }); setRetryNote(''); }}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition-all"
-                        >
-                          <XCircle className="w-3.5 h-3.5" /> رفض
-                        </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-black text-navy-700 text-sm">{rr.student_name}</p>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          rr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          rr.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          rr.status === 'used' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {rr.status === 'pending' ? '⏳ معلق' : rr.status === 'approved' ? '✅ موافق' : rr.status === 'used' ? '🔄 مُستخدم' : '❌ مرفوض'}
+                        </span>
                       </div>
-                    )}
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{rr.exam_title}</p>
+                      {rr.message && (
+                        <p className="text-[11px] text-gray-500 bg-gray-50 rounded px-2 py-1 mt-1">"{rr.message}"</p>
+                      )}
+                      {rr.teacher_note && (
+                        <p className="text-[11px] text-gray-500 mt-1">ملاحظة: {rr.teacher_note}</p>
+                      )}
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(rr.created_at).toLocaleString('ar-EG')}</p>
+                    </div>
                   </div>
+
+                  {/* Action row — full width below on mobile */}
+                  {(rr.result_id || rr.status === 'pending') && (
+                    <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                      {rr.result_id && (
+                        <button
+                          onClick={() => navigate(`/teacher/exam-review/${rr.result_id}`)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold transition-all"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> عرض الاختبار
+                        </button>
+                      )}
+                      {rr.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => { setRetryNoteModal({ rr, action: 'approve' }); setRetryNote(''); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 text-xs font-bold transition-all"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> موافقة
+                          </button>
+                          <button
+                            onClick={() => { setRetryNoteModal({ rr, action: 'reject' }); setRetryNote(''); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition-all"
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> رفض
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -188,19 +188,19 @@ function LiveView({ stream, user, dark, onLeave }) {
             <span className="text-red-300 text-xs hidden sm:block flex-shrink-0">👨‍🏫 {stream.teacher_name}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {stream.hand_raise_enabled !== false && (
             <button
               onClick={toggleHand}
               disabled={raisingHand}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+              className={`flex items-center gap-1 text-xs font-bold px-2 sm:px-3 py-1.5 rounded-lg transition-colors ${
                 handRaised
                   ? 'bg-yellow-500 hover:bg-yellow-600 text-white animate-pulse'
                   : 'bg-white/10 hover:bg-white/20 text-white'
               }`}
             >
               {raisingHand ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✋'}
-              {handRaised ? 'يدك مرفوعة' : 'ارفع يدك'}
+              <span className="hidden sm:inline">{handRaised ? 'يدك مرفوعة' : 'ارفع يدك'}</span>
             </button>
           )}
           <button
@@ -213,17 +213,19 @@ function LiveView({ stream, user, dark, onLeave }) {
           <button
             onClick={handleLeave}
             disabled={leaving}
-            className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white transition-colors disabled:opacity-60"
+            className="flex items-center gap-1 text-xs font-black px-2 sm:px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white transition-colors disabled:opacity-60"
           >
             {leaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-            مغادرة
+            <span className="hidden sm:inline">مغادرة</span>
           </button>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 bg-black overflow-hidden">
+      {/* Body: stacked on mobile, side-by-side on md+ */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
+        {/* Video */}
+        <div className="bg-black overflow-hidden flex-shrink-0 md:flex-1"
+             ref={el => { if (el) { const update = () => { if (window.innerWidth >= 768) el.style.height = '100%'; else el.style.height = Math.min(window.innerWidth * 0.45, window.innerHeight * 0.55) + 'px'; }; update(); window.addEventListener('resize', update); } }}>
           <JitsiMeet
             roomName={stream.room_id}
             displayName={user?.name || 'طالب'}
@@ -231,8 +233,10 @@ function LiveView({ stream, user, dark, onLeave }) {
             style={{ height: '100%', width: '100%' }}
           />
         </div>
+        {/* Chat panel: bottom strip on mobile, side panel on desktop */}
         {chatOpen && (
-          <div className={`w-64 sm:w-72 flex flex-col flex-shrink-0 ${dark ? 'border-r border-slate-700' : 'border-r border-slate-200'}`}>
+          <div className={`flex flex-col flex-shrink-0 w-full md:w-64 sm:md:w-72 border-t md:border-t-0 md:border-r ${dark ? 'border-slate-700' : 'border-slate-200'}`}
+               ref={el => { if (el) { const update = () => { el.style.height = window.innerWidth >= 768 ? '100%' : '240px'; }; update(); window.addEventListener('resize', update); } }}>
             <ChatPanel stream={stream} studentName={user?.name} dark={dark} onClose={() => setChatOpen(false)} />
           </div>
         )}
